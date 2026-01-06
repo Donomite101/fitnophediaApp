@@ -1,0 +1,321 @@
+{
+  "templates": [
+    {
+      "id": "lean_breakfast",
+      "name": "Lean Breakfast",
+      "defaultTime": "08:00",
+      "calories": 350,
+      "protein": 25,
+      "carbs": 30,
+      "fat": 10,
+      "sugar": 5,
+      "ingredients": [
+        "2 boiled eggs",
+        "1 slice brown bread",
+        "1 cup green tea"
+      ]
+    },
+    {
+      "id": "muscle_lunch",
+      "name": "Muscle Lunch",
+      "defaultTime": "13:30",
+      "calories": 650,
+      "protein": 45,
+      "carbs": 60,
+      "fat": 18,
+      "sugar": 6,
+      "ingredients": [
+        "150g grilled chicken",
+        "100g brown rice",
+        "1 cup salad"
+      ]
+    },
+
+    {
+      "id": "veg_weight_loss_breakfast",
+      "name": "Veg Weight-Loss Breakfast",
+      "defaultTime": "07:30",
+      "calories": 300,
+      "protein": 15,
+      "carbs": 40,
+      "fat": 6,
+      "sugar": 6,
+      "ingredients": [
+        "1 small bowl vegetable upma made with semolina and mixed veggies (little oil)",
+        "1 small bowl plain low-fat curd",
+        "1 glass warm lemon water (no sugar)"
+      ]
+    },
+
+    {
+      "id": "veg_high_protein_lunch",
+      "name": "High-Protein Paneer Lunch (Veg)",
+      "defaultTime": "13:00",
+      "calories": 550,
+      "protein": 32,
+      "carbs": 55,
+      "fat": 16,
+      "sugar": 7,
+      "ingredients": [
+        "120g grilled or lightly sautéed paneer (low oil)",
+        "2 small phulkas (no ghee)",
+        "1 medium bowl mixed vegetable sabzi",
+        "1 bowl cucumber + tomato salad",
+        "1 glass buttermilk (unsweetened)"
+      ]
+    },
+
+    {
+      "id": "jain_light_dinner",
+      "name": "Jain Light Dinner (No Root Veg)",
+      "defaultTime": "20:00",
+      "calories": 380,
+      "protein": 14,
+      "carbs": 60,
+      "fat": 8,
+      "sugar": 7,
+      "ingredients": [
+        "2 small phulkas made with whole wheat (no ghee)",
+        "1 bowl lauki (bottle gourd) sabzi cooked without onion/garlic",
+        "1 bowl moong dal (no onion/garlic)",
+        "1 small bowl plain curd"
+      ]
+    },
+
+    {
+      "id": "vegan_protein_bowl",
+      "name": "Vegan Protein Power Bowl",
+      "defaultTime": "14:00",
+      "calories": 520,
+      "protein": 28,
+      "carbs": 60,
+      "fat": 14,
+      "sugar": 8,
+      "ingredients": [
+        "1 cup cooked quinoa",
+        "1/2 cup boiled chickpeas",
+        "1/2 cup sautéed mixed vegetables (broccoli, bell pepper, beans)",
+        "2 tbsp roasted peanuts or seeds (pumpkin/sunflower)",
+        "Lemon + herbs dressing (no mayo)"
+      ]
+    },
+
+    {
+      "id": "south_indian_lean_breakfast",
+      "name": "South Indian Lean Breakfast",
+      "defaultTime": "08:00",
+      "calories": 320,
+      "protein": 12,
+      "carbs": 55,
+      "fat": 6,
+      "sugar": 4,
+      "ingredients": [
+        "2 small idlis",
+        "1 small bowl sambar (more dal, more veggies)",
+        "Coconut chutney (2 tsp)",
+        "1 cup unsweetened filter coffee or herbal tea"
+      ]
+    },
+
+    {
+      "id": "nonveg_muscle_gain_dinner",
+      "name": "Muscle Gain Dinner (Chicken)",
+      "defaultTime": "20:30",
+      "calories": 700,
+      "protein": 50,
+      "carbs": 60,
+      "fat": 22,
+      "sugar": 6,
+      "ingredients": [
+        "180g grilled or tandoori chicken (skinless)",
+        "1 medium baked or boiled potato",
+        "1 bowl sautéed green veggies (beans, broccoli, capsicum)",
+        "1 small bowl curd or raita"
+      ]
+    },
+
+    {
+      "id": "lean_fish_lunch",
+      "name": "Lean Fish Protein Lunch",
+      "defaultTime": "13:30",
+      "calories": 550,
+      "protein": 40,
+      "carbs": 55,
+      "fat": 14,
+      "sugar": 5,
+      "ingredients": [
+        "150g grilled or baked fish (minimal oil)",
+        "1/2 cup brown rice",
+        "1 bowl steamed vegetables (carrot, beans, peas)",
+        "Cucumber + carrot salad with lemon"
+      ]
+    },
+
+    {
+      "id": "high_fiber_evening_snack",
+      "name": "High-Fiber Evening Snack (Veg)",
+      "defaultTime": "17:00",
+      "calories": 220,
+      "protein": 8,
+      "carbs": 28,
+      "fat": 8,
+      "sugar": 6,
+      "ingredients": [
+        "1 small bowl roasted chana (30g)",
+        "1 small apple or guava",
+        "1 glass unsweetened green tea or herbal tea"
+      ]
+    },
+
+    {
+      "id": "preworkout_energy_snack",
+      "name": "Pre-Workout Energy Snack",
+      "defaultTime": "17:30",
+      "calories": 250,
+      "protein": 7,
+      "carbs": 45,
+      "fat": 5,
+      "sugar": 15,
+      "ingredients": [
+        "1 medium banana",
+        "2 small dates or 1 tsp honey",
+        "1 small handful plain roasted peanuts or almonds (10–12 pcs)"
+      ]
+    },
+
+    {
+      "id": "postworkout_recovery_shake",
+      "name": "Post-Workout Recovery Meal",
+      "defaultTime": "19:00",
+      "calories": 320,
+      "protein": 28,
+      "carbs": 25,
+      "fat": 7,
+      "sugar": 10,
+      "ingredients": [
+        "1 scoop whey protein or plant protein with water or low-fat milk",
+        "1 small banana or 1/2 cup berries",
+        "5–6 soaked almonds or walnuts"
+      ]
+    },
+
+    {
+      "id": "low_carb_nonveg_dinner",
+      "name": "Low-Carb Non-Veg Dinner",
+      "defaultTime": "20:00",
+      "calories": 480,
+      "protein": 36,
+      "carbs": 20,
+      "fat": 25,
+      "sugar": 4,
+      "ingredients": [
+        "150g grilled chicken or fish",
+        "1 large bowl green salad (lettuce, cucumber, tomato, bell pepper)",
+        "Olive oil + lemon dressing (1–2 tsp)",
+        "Optional: small bowl clear vegetable soup"
+      ]
+    },
+
+    {
+      "id": "diabetic_friendly_veg_lunch",
+      "name": "Diabetic-Friendly Veg Lunch",
+      "defaultTime": "13:00",
+      "calories": 500,
+      "protein": 20,
+      "carbs": 55,
+      "fat": 14,
+      "sugar": 6,
+      "ingredients": [
+        "2 small multigrain rotis (no ghee)",
+        "1 bowl mixed dal (less oil, no cream)",
+        "1 bowl sabzi (bhindi / tinda / lauki, minimal oil)",
+        "Large salad (cucumber, tomato, leafy greens, no sweet dressing)"
+      ]
+    },
+
+    {
+      "id": "office_light_lunch_veg",
+      "name": "Office-Friendly Light Lunch (Veg)",
+      "defaultTime": "12:30",
+      "calories": 430,
+      "protein": 16,
+      "carbs": 55,
+      "fat": 10,
+      "sugar": 6,
+      "ingredients": [
+        "1 medium roti wrap with paneer / chana and veggies (less oil)",
+        "1 small box cucumber + carrot sticks",
+        "1 small box fruit (papaya / apple slices)"
+      ]
+    },
+
+    {
+      "id": "mass_gainer_nonveg_meal",
+      "name": "Mass Gainer Meal (Non-Veg)",
+      "defaultTime": "14:30",
+      "calories": 850,
+      "protein": 50,
+      "carbs": 90,
+      "fat": 28,
+      "sugar": 10,
+      "ingredients": [
+        "200g grilled chicken or lean mutton (low visible fat)",
+        "1 cup cooked white rice or 2 large rotis with ghee",
+        "1 bowl dal or rajma",
+        "1 glass low-fat lassi or buttermilk",
+        "1 small banana"
+      ]
+    },
+
+    {
+      "id": "jain_protein_lunch",
+      "name": "Jain Protein Lunch",
+      "defaultTime": "13:15",
+      "calories": 520,
+      "protein": 22,
+      "carbs": 70,
+      "fat": 12,
+      "sugar": 7,
+      "ingredients": [
+        "2 phulkas (no ghee)",
+        "1 bowl moong or masoor dal cooked without onion/garlic",
+        "1 bowl ridge gourd or bottle gourd sabzi (no onion/garlic)",
+        "1 bowl salad (cucumber, tomato, capsicum)",
+        "1 small bowl plain curd"
+      ]
+    },
+
+    {
+      "id": "high_protein_veg_dinner",
+      "name": "High-Protein Veg Dinner",
+      "defaultTime": "20:30",
+      "calories": 600,
+      "protein": 32,
+      "carbs": 55,
+      "fat": 18,
+      "sugar": 7,
+      "ingredients": [
+        "100g grilled or sautéed paneer (low oil)",
+        "1 bowl dal (any, low oil, no cream)",
+        "2 small phulkas (no ghee)",
+        "1 bowl salad (cucumber, onion, tomato, lemon)"
+      ]
+    },
+
+    {
+      "id": "vegan_weight_loss_dinner",
+      "name": "Vegan Weight-Loss Dinner",
+      "defaultTime": "19:45",
+      "calories": 350,
+      "protein": 15,
+      "carbs": 45,
+      "fat": 8,
+      "sugar": 7,
+      "ingredients": [
+        "1 large bowl vegetable soup (clear, with lentils or beans)",
+        "1 small bowl sautéed or steamed veggies (broccoli, carrots, beans)",
+        "1 small portion millet / quinoa (1/2 cup cooked)"
+      ]
+    }
+  ]
+}

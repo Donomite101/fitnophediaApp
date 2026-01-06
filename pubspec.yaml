@@ -1,0 +1,119 @@
+name: fitnophedia
+description: "A full gym app."
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Firebase
+  firebase_core: ^4.2.1
+  firebase_auth: ^6.1.2
+  cloud_firestore: ^6.1.0
+  firebase_storage: ^13.0.4
+  firebase_messaging: ^16.0.4
+
+  # Camera & Image Processing
+  camera: ^0.11.3
+  image_picker: ^1.2.0
+
+  # Barcode Scanning
+  barcode_scan2: ^4.5.2
+  mobile_scanner: ^5.2.1
+
+  # UI & Utilities
+  syncfusion_flutter_charts: ^31.2.16
+  lottie: ^3.1.0
+  flutter_dotenv: ^6.0.0
+  intl: ^0.20.2
+  http: ^1.5.0
+  provider: ^6.1.5+1
+  permission_handler: ^11.0.1
+
+  # Other dependencies (keep your existing)
+  timezone: ^0.9.1
+  flutter_local_notifications: ^17.2.3
+  shared_preferences: ^2.5.3
+  file_picker: ^10.3.3
+  qr_flutter: ^4.1.0
+  vibration: ^3.1.4
+  file_selector: ^1.0.4
+  path_provider: ^2.1.5
+  cloudinary_api: ^1.1.1
+  cloudinary_url_gen: ^1.8.0
+  open_filex: ^4.7.0
+  mailer: ^6.6.0
+  share_plus: ^12.0.1
+  pdf: ^3.11.3
+  connectivity_plus: ^7.0.0
+  confetti: ^0.7.0
+  audioplayers: ^6.5.1
+  table_calendar: ^3.0.9
+  google_fonts: ^6.3.2
+  geocoding: ^2.1.1
+  geolocator: ^11.0.1
+  flutter_map: ^8.2.2
+  latlong2: ^0.9.1
+  flutter_secure_storage: ^9.2.4
+  speech_to_text: ^7.3.0
+  uuid: ^4.5.2
+  percent_indicator: ^4.2.3
+  shimmer: ^3.0.0
+  flutter_staggered_grid_view: ^0.7.0
+  cached_network_image: ^3.2.3
+  rxdart: ^0.28.0
+  iconsax: ^0.0.8
+  supabase_flutter: ^2.10.0
+  flutter_localizations:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  fl_chart: ^1.1.1
+  jose: ^0.3.0
+  flutter_native_splash: ^2.4.7
+  drag_and_drop_lists: ^0.4.2
+  flutter_staggered_animations: ^1.1.1
+  timer_count_down: ^2.2.2
+  pull_to_refresh: ^2.0.0
+  flutter_svg: ^2.2.3
+
+flutter:
+
+  assets:
+    - assets/gym_load.svg
+    # ⚠️ SECURITY: Firebase service account file removed - never bundle admin credentials
+    # - assets/fitnophedia-85e34-firebase-adminsdk-fbsvc-985f8161f7.json
+    - assets/splash_logo.jpeg
+    - assets/login_logo.png
+    - assets/loginblack_logo.png
+    - assets/animations/
+    - assets/notification_logo.png
+    - assets/set_password.png
+    - assets/girl_height.png
+    - assets/animations/streak_fire.json
+    - assets/sound/beep.mp3
+    - assets/sound/finish.mp3
+    - assets/sound/streak2.mp3
+    - assets/ads/ad1.jpg
+    - assets/ads/ad2.jpg
+    - assets/ads/ad3.jpg
+    - assets/bgimage.png
+    - assets/workouts/premade_workouts.json
+    - assets/nutrition/meal_templates.json
+    - assets/workouts/weightworkout.json
+    - assets/workouts/trending.json
+    - assets/animations/Burn calories.json
+    - assets/Mention-bro.svg
+    - .env
+
+  uses-material-design: true
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0

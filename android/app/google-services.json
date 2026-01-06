@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "869997703445",
+    "project_id": "fitnophedia-85e34",
+    "storage_bucket": "fitnophedia-85e34.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:869997703445:android:df560e59579e3b63dcf91c",
+        "android_client_info": {
+          "package_name": "com.example.fitnophedia"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD0az6IKNIhX7VXsFy2jQR_OsQdoupxnBs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

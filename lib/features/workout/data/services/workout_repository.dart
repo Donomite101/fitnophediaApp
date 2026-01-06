@@ -16,13 +16,13 @@ class WorkoutRepository {
     debugPrint("🔍 [WorkoutRepository] Loading exercises…");
 
     // 1. Try loading cache
-    final cached = await cache.getCachedExercises();
-    if (cached != null) {
-      debugPrint("💾 [WorkoutRepository] Returning cached exercises");
-      return cached
-          .map<Exercise>((e) => Exercise.fromJson(e))
-          .toList();
-    }
+    // final cached = await cache.getCachedExercises();
+    // if (cached != null) {
+    //   debugPrint("💾 [WorkoutRepository] Returning cached exercises");
+    //   return cached
+    //       .map<Exercise>((e) => Exercise.fromJson(e))
+    //       .toList();
+    // }
 
     // 2. Cache empty → call API
     debugPrint("📡 [WorkoutRepository] Cache miss → calling ExerciseDB API…");

@@ -37,6 +37,10 @@ class WorkoutProvider extends ChangeNotifier {
       _filteredExercises = data;
 
       debugPrint("✅ [WorkoutProvider] Loaded ${_exercises.length} exercises");
+      
+      // DEBUG: Print unique body parts
+      final uniqueBodyParts = _exercises.map((e) => e.bodyPart).toSet().toList();
+      debugPrint("🏷️ Available Body Parts: $uniqueBodyParts");
     } catch (e) {
       debugPrint("❌ [WorkoutProvider] Load error: $e");
     }
@@ -75,14 +79,41 @@ class WorkoutProvider extends ChangeNotifier {
   // -------------------------------------------------------------
   // CATEGORY FILTER
   // -------------------------------------------------------------
-  List<Exercise> filterByBodyPart(String bodyPart) {
-    bodyPart = bodyPart.toLowerCase();
+  // -------------------------------------------------------------
+  // CATEGORY FILTER
+  // -------------------------------------------------------------
+  List<Exercise> filterByBodyPart(String category) {
+    final cat = category.toLowerCase();
+    
+    // Define mappings from UI Category -> DB Body Parts
+    final Map<String, List<String>> categoryMap = {
+      'chest': ['chest'],
+      'back': ['lats', 'middle back', 'lower back', 'traps'],
+      'legs': ['quadriceps', 'hamstrings', 'calves', 'adductors', 'abductors', 'glutes'],
+      'arms': ['biceps', 'triceps', 'forearms'],
+      'shoulders': ['shoulders', 'neck'],
+      'core': ['abdominals'],
+      'cardio': ['cardio'],
+    };
 
-    final list = _exercises.where((ex) {
-      return ex.bodyPart.toLowerCase() == bodyPart;
-    }).toList();
+    final targetParts = categoryMap[cat];
 
-    debugPrint("📌 [WorkoutProvider] Filtered by $bodyPart → ${list.length} items");
+    List<Exercise> list;
+    if (targetParts != null) {
+      // Filter if bodyPart matches ANY of the target parts
+      list = _exercises.where((ex) {
+        return targetParts.contains(ex.bodyPart.toLowerCase());
+      }).toList();
+    } else {
+      // Fallback: exact match
+      list = _exercises.where((ex) {
+        return ex.bodyPart.toLowerCase() == cat;
+      }).toList();
+    }
+
+    debugPrint("📌 [WorkoutProvider] Filtered by $category → ${list.length} items");
+    _filteredExercises = list; // Auto-update filtered list
+    notifyListeners();
     return list;
   }
 

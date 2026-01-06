@@ -1,39 +1,23 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class WorkoutApiService {
-  // Fetch ALL 1300 exercises
-  final String baseUrl =
-      "https://exercisedb.p.rapidapi.com/exercises?limit=1300";
-
   Future<List<Map<String, dynamic>>> fetchExercises() async {
     try {
-      debugPrint("🔎 [WorkoutApiService] Fetching ALL exercises...");
+      debugPrint("🔎 [WorkoutApiService] Fetching exercises from Supabase...");
 
-      final response = await http.get(
-        Uri.parse(baseUrl),
-        headers: {
-          "X-RapidAPI-Key": dotenv.env['RAPIDAPI_KEY']!,
-          "X-RapidAPI-Host": "exercisedb.p.rapidapi.com",
-        },
-      );
+      // Fetch from 'exercises' table
+      final response = await Supabase.instance.client
+          .from('exercises')
+          .select();
 
-      debugPrint("📡 [WorkoutApiService] Status: ${response.statusCode}");
+      debugPrint("✅ Loaded ${response.length} exercises from Supabase");
 
-      if (response.statusCode != 200) {
-        debugPrint("❌ API Error: ${response.body}");
-        throw Exception("Failed to load exercises");
-      }
-
-      final List list = jsonDecode(response.body);
-
-      debugPrint("✅ Loaded ${list.length} exercises");
-
-      return list.cast<Map<String, dynamic>>();
+      return List<Map<String, dynamic>>.from(response);
     } catch (e) {
       debugPrint("❌ [WorkoutApiService] Error: $e");
+      // Fallback or rethrow
       rethrow;
     }
   }

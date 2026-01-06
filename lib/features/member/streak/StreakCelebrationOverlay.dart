@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class StreakCelebrationOverlay extends StatelessWidget {
   final int currentStreak;
@@ -72,11 +73,10 @@ class StreakCelebrationOverlay extends StatelessWidget {
               // Streak Number
               Text(
                 currentStreak.toString(),
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
+                style: GoogleFonts.poppins(
                   fontSize: 88,
                   fontWeight: FontWeight.w900,
-                  color: Color(0xFF00E676),
+                  color: const Color(0xFF00E676),
                   height: 1,
                   letterSpacing: -2,
                 ),
@@ -85,13 +85,12 @@ class StreakCelebrationOverlay extends StatelessWidget {
               const SizedBox(height: 8),
 
               // Streak Label
-              const Text(
+              Text(
                 'DAY STREAK',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
+                style: GoogleFonts.poppins(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF00E676),
+                  color: const Color(0xFF00E676),
                   letterSpacing: 3,
                 ),
               ),
@@ -125,13 +124,12 @@ class StreakCelebrationOverlay extends StatelessWidget {
                     const SizedBox(height: 20),
 
                     // Message
-                    const Text(
+                    Text(
                       'Keep it going!\nYou\'re building an amazing habit 💪',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
+                      style: GoogleFonts.poppins(
                         fontSize: 14,
-                        color: Color(0xFF666666),
+                        color: const Color(0xFF666666),
                         fontWeight: FontWeight.w500,
                         height: 1.5,
                       ),
@@ -152,14 +150,13 @@ class StreakCelebrationOverlay extends StatelessWidget {
                     color: const Color(0xFF00E676),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: const Center(
+                  child: Center(
                     child: Text(
                       'Continue',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
+                      style: GoogleFonts.poppins(
                         fontSize: 17,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF000000),
+                        color: const Color(0xFF000000),
                       ),
                     ),
                   ),
@@ -210,11 +207,10 @@ class StreakCelebrationOverlay extends StatelessWidget {
         )
             : Text(
           day,
-          style: const TextStyle(
-            fontFamily: 'Poppins',
+          style: GoogleFonts.poppins(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: Color(0xFF404040),
+            color: const Color(0xFF404040),
           ),
         ),
       ),

@@ -124,6 +124,9 @@ Future<void> main() async {
     FirebaseFirestore.instance.settings = const Settings(persistenceEnabled: true);
   } catch (_) {}
 
+  // Initialize Supabase (Must be done before WorkoutProvider loads)
+  await initializeSupabase();
+
   final workoutProvider = WorkoutProvider(
     repository: WorkoutRepository(
       api: WorkoutApiService(),
@@ -131,7 +134,7 @@ Future<void> main() async {
     ),
   );
 
-// Load before runApp()
+  // Load before runApp()
   await workoutProvider.loadExercises();
 
   runApp(
@@ -146,7 +149,6 @@ Future<void> main() async {
   );
 
   // Background initializations
-  Future(() => initializeSupabase());
   Future.microtask(() => initializeFCM());
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/badge_model.dart';
 import '../service/badge_service.dart';
+import '../service/streak_service.dart';
 
 class StreakViewModel extends ChangeNotifier {
   final String gymId;
@@ -80,6 +81,9 @@ class StreakViewModel extends ChangeNotifier {
         memberId: memberId,
       );
 
+      // Use StreakService to get the effective streak (resets to 0 if broken)
+      _currentStreak = await StreakService.instance.getEffectiveStreak(gymId, memberId);
+
       final streakDoc = await FirebaseFirestore.instance
           .collection('gyms')
           .doc(gymId)
@@ -91,7 +95,6 @@ class StreakViewModel extends ChangeNotifier {
 
       if (streakDoc.exists) {
         final data = streakDoc.data() as Map<String, dynamic>;
-        _currentStreak = _parseInt(data['currentStreak']);
         _longestStreak = _parseInt(data['longestStreak']);
       }
 

@@ -10,6 +10,7 @@ import '../features/member/profile/terms_conditions_screen.dart';
 import '../features/onboarding/gym_onboarding_screen.dart';
 import '../features/onboarding/approval_waiting_screen.dart';
 import '../features/gym_owner/app_subscription/gym_owner_subscription_screen.dart';
+import '../features/workout/presentation/screens/exercise_detail_screen.dart';
 import '../features/super_admin/super_admin_dashboard.dart';
 import '../features/gym_owner/gym_owner_dashboard.dart';
 import '../features/member/dashboard/member_dashboard_screen.dart';
@@ -17,7 +18,6 @@ import '../features/member/Subscriptions/member_renewal_subscription.dart';
 import '../features/auth/member_set_password_screen.dart';
 import '../features/member/profile/member_profile_setup_screen.dart';
 import '../features/workout/presentation/screens/exercise_library_screen.dart';
-import '../features/workout/presentation/screens/template_detail_screen.dart';
 import '../features/workout/presentation/screens/workout_create_screen.dart';
 import '../features/workout/presentation/screens/workout_home_screen.dart';
 

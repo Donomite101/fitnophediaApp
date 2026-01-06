@@ -14,30 +14,31 @@ class ExerciseCategoryChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return GestureDetector(
       onTap: () => onSelected?.call(label),
       child: Container(
-        margin: EdgeInsets.only(right: 10),
-        padding: EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+        margin: const EdgeInsets.only(right: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
-
-          // DIFFERENT UI WHEN SELECTED
-          gradient: selected
-              ? LinearGradient(
-            colors: [
-              Colors.green.shade400,
-              Colors.blue.shade400,
-            ],
-          )
-              : null,
-
-          color: selected ? null : Colors.grey.shade200,
+          color: selected 
+              ? const Color(0xFF00E676) 
+              : (isDark ? Colors.white.withOpacity(0.1) : Colors.grey[200]),
+          border: Border.all(
+            color: selected 
+                ? const Color(0xFF00E676) 
+                : (isDark ? Colors.white10 : Colors.transparent),
+          ),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? Colors.white : Colors.black87,
+            fontFamily: 'Outfit',
+            color: selected 
+                ? Colors.black 
+                : (isDark ? Colors.white : Colors.black87),
             fontWeight: FontWeight.w600,
             fontSize: 13,
           ),

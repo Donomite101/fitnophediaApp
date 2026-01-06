@@ -187,6 +187,7 @@ class _SplashScreenState extends State<SplashScreen>
     await prefs.setBool('approved', data['approved'] == true);
     await prefs.setBool(
         'subscriptionActive', data['subscriptionActive'] == true);
+    await prefs.setInt('lastSubVerify', DateTime.now().millisecondsSinceEpoch);
 
     if (data['email'] != null) {
       await prefs.setString('userEmail', data['email']);
@@ -200,6 +201,7 @@ class _SplashScreenState extends State<SplashScreen>
     await prefs.setBool('profileCompleted', data['profileCompleted'] == true);
     await prefs.setBool(
         'hasOngoingSubscription', data['hasOngoingSubscription'] == true);
+    await prefs.setInt('lastMemberVerify', DateTime.now().millisecondsSinceEpoch);
 
     if (data['email'] != null) await prefs.setString('userEmail', data['email']);
     if (data['name'] != null) await prefs.setString('userName', data['name']);

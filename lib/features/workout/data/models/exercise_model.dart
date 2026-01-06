@@ -31,28 +31,45 @@ class Exercise {
   // FROM JSON → MODEL
   // -----------------------------
   factory Exercise.fromJson(Map<String, dynamic> json) {
-    final List instructionsList =
-    json["instructions"] is List ? json["instructions"] : [];
+    // Handle instructions (could be String or List)
+    List<String> stepsList = [];
+    String instructionsText = "";
+
+    if (json["instructions"] is List) {
+      stepsList = List<String>.from(json["instructions"]);
+      instructionsText = stepsList.join(" ");
+    } else if (json["instructions"] is String) {
+      instructionsText = json["instructions"];
+      stepsList = instructionsText.split(". ");
+    }
+
+    // Construct Image URL
+    // Base URL for Supabase Storage (bucket is 'workouts')
+    const String storageBaseUrl = "https://ojjwvrdigxerkuetxfar.supabase.co/storage/v1/object/public/workouts";
+    
+    String imgPath = json["image_path"] ?? json["gif_path"] ?? "";
+    String fullImageUrl = "";
+    if (imgPath.isNotEmpty) {
+      if (imgPath.startsWith("http")) {
+        fullImageUrl = imgPath;
+      } else {
+        fullImageUrl = "$storageBaseUrl/$imgPath";
+      }
+    }
 
     return Exercise(
       id: json["id"].toString(),
       name: json["name"] ?? "Unknown Exercise",
-      bodyPart: json["bodyPart"] ?? "",
+      bodyPart: json["body_part"] ?? json["bodyPart"] ?? "",
       equipment: json["equipment"] ?? "",
-      target: json["target"] ?? "",
-      secondaryMuscles: List<String>.from(json["secondaryMuscles"] ?? []),
-
-      // ExerciseDB uses gifUrl → use as main media everywhere
-      gifUrl: json["gifUrl"] ?? "",
-      imageUrl: json["gifUrl"] ?? "",
-
-      // Steps converted from instructions array
-      instructions: instructionsList.join(". "),
-      steps: instructionsList.map((e) => e.toString()).toList(),
-
-      // Optional fields (your UI uses them)
-      videoUrl: json["videoUrl"] ?? "",    // ExerciseDB does NOT provide video
-      category: json["category"] ?? "",    // optional custom tag
+      target: json["target"] ?? "", // Supabase might not have this, usage depends on DB
+      secondaryMuscles: [], // Supabase data shown doesn't have this column
+      gifUrl: fullImageUrl,
+      imageUrl: fullImageUrl,
+      instructions: instructionsText,
+      steps: stepsList,
+      videoUrl: "",
+      category: json["category"] ?? "",
     );
   }
 

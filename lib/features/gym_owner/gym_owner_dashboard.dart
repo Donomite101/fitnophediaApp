@@ -14,6 +14,7 @@ import 'payment_management/payment_management_screen.dart';
 import 'profile/profile_settings_screen.dart';
 import 'notices/notices_screen.dart';
 import 'classes/classes_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/app_theme.dart';
 
 class GymOwnerDashboard extends StatefulWidget {
@@ -78,11 +79,32 @@ class _GymOwnerDashboardState extends State<GymOwnerDashboard> {
   @override
   void initState() {
     super.initState();
+    _optimisticLoad();
     _initializeFCM();
     _initializeSubscriptionListener();
     _initializeGymStream();
     _loadDashboardData();
     _searchController.addListener(_filterMembers);
+  }
+
+  Future<void> _optimisticLoad() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final isActive = prefs.getBool('subscriptionActive') ?? false;
+      final lastVerify = prefs.getInt('lastSubVerify') ?? 0;
+      
+      // Trust if verified within last 2 hours
+      final isRecent = (DateTime.now().millisecondsSinceEpoch - lastVerify) < 7200000;
+
+      if (isActive && isRecent) {
+        if (mounted) {
+          setState(() {
+            _checkingSubscription = false;
+            // Optionally load other cached info if we were to add more keys
+          });
+        }
+      }
+    } catch (_) {}
   }
 
   @override

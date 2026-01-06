@@ -101,6 +101,7 @@ class StreakService {
     required String gymId,
     required String memberId,
     Position? overridePosition,
+    bool skipGeofence = false,
   }) async {
     try {
       final now = DateTime.now();
@@ -114,10 +115,15 @@ class StreakService {
       // 1) Prevent double check-in
       final attSnap = await attRef.get();
       if (attSnap.exists) {
+        final streakSnap = await streakRef.get();
+        int current = 0;
+        if (streakSnap.exists) {
+          current = _readInt(streakSnap.data()!, 'currentStreak');
+        }
         return StreakResult(
           success: true,
           message: 'Attendance already recorded for today',
-          newStreakCount: null,
+          newStreakCount: current,
           celebrate: false,
         );
       }
@@ -151,30 +157,32 @@ class StreakService {
       final bool isHoliday = holidaysMap[todayKey] == true;
 
       // 3) Device location
-      late final Position position;
+      Position? position;
       try {
         position = overridePosition ?? await getCurrentPosition();
       } catch (e) {
-        return StreakResult(
-          success: false,
-          message: 'Location permission failed: $e',
-          newStreakCount: null,
-          celebrate: false,
-        );
+        if (!skipGeofence) {
+          return StreakResult(
+            success: false,
+            message: 'Location permission failed: $e',
+            newStreakCount: null,
+            celebrate: false,
+          );
+        }
       }
 
       // 4) Geofence
       double? gymLat;
       double? gymLng;
-      double radius = 100.0; // default radius
+      double radius = 30.0; // Strict 30m radius
 
       if (geoLocation != null) {
         // New schema: location is GeoPoint, radius stored separately
         gymLat = geoLocation.latitude;
         gymLng = geoLocation.longitude;
         radius = _toDouble(
-          gymData['radiusMeters'] ?? gymData['geofenceRadiusMeters'] ?? 100,
-          defaultValue: 100,
+          gymData['radiusMeters'] ?? gymData['geofenceRadiusMeters'] ?? 30,
+          defaultValue: 30,
         );
       } else if (locationMap != null) {
         // Old schema: location is a Map { lat, lng, radiusMeters }
@@ -183,12 +191,12 @@ class StreakService {
           gymLng = _toDouble(locationMap['lng']);
         }
         radius = _toDouble(
-          locationMap['radiusMeters'] ?? 100,
-          defaultValue: 100,
+          locationMap['radiusMeters'] ?? 30,
+          defaultValue: 30,
         );
       }
 
-      if (gymLat != null && gymLng != null) {
+      if (!skipGeofence && gymLat != null && gymLng != null && position != null) {
         final dist = _distanceMeters(
           position.latitude,
           position.longitude,
@@ -199,13 +207,20 @@ class StreakService {
         if (dist > radius) {
           return StreakResult(
             success: false,
-            message: 'You are outside the gym geofence.',
+            message: 'You must be within ${radius.toInt()}m of the gym. Current distance: ${dist.toInt()}m',
             newStreakCount: null,
             celebrate: false,
           );
         }
+      } else if (!skipGeofence && (gymLat != null || gymLng != null) && position == null) {
+        return StreakResult(
+          success: false,
+          message: 'Location required for geofence check.',
+          newStreakCount: null,
+          celebrate: false,
+        );
       }
-      // If no valid gymLat/gymLng, geofence check is simply skipped.
+      // If no valid gymLat/gymLng or skipGeofence is true, geofence check is simply skipped.
 
       // 5) Record attendance
       await attRef.set({
@@ -213,8 +228,8 @@ class StreakService {
         'timestamp': FieldValue.serverTimestamp(),
         'source': 'geofence+workout',
         'holiday': isHoliday,
-        'deviceLat': position.latitude,
-        'deviceLng': position.longitude,
+        'deviceLat': position?.latitude,
+        'deviceLng': position?.longitude,
       });
 
       // 6) Load streak
@@ -253,21 +268,23 @@ class StreakService {
       if (lastCounted == todayKey) {
         return StreakResult(
           success: true,
-          message: 'Attendance already counted today',
+          message: 'Workout already logged today!',
           newStreakCount: current,
           celebrate: false,
         );
       }
 
-      // 8) Compute new streak (robust date diff)
+      // 8) Compute new streak (Strict Logic)
       if (lastCounted != null) {
         try {
           final lastDate = DateFormat('yyyy-MM-dd').parse(lastCounted);
           final daysDifference = now.difference(lastDate).inDays;
 
           if (daysDifference == 1) {
+            // Consecutive day
             current += 1;
           } else {
+            // Streak broken (missed at least one day)
             current = 1;
           }
         } catch (e) {
@@ -275,6 +292,7 @@ class StreakService {
           current = 1;
         }
       } else {
+        // First ever workout
         current = 1;
       }
 
@@ -320,6 +338,44 @@ class StreakService {
         newStreakCount: null,
         celebrate: false,
       );
+    }
+  }
+
+  /// Returns the *effective* streak for display.
+  /// If the user missed yesterday (and today), the streak is effectively 0.
+  Future<int> getEffectiveStreak(String gymId, String memberId) async {
+    try {
+      final doc = await _db
+          .collection('gyms')
+          .doc(gymId)
+          .collection('members')
+          .doc(memberId)
+          .collection('stats')
+          .doc('streak')
+          .get();
+
+      if (!doc.exists) return 0;
+
+      final data = doc.data()!;
+      final current = _readInt(data, 'currentStreak');
+      final lastCounted = data['lastCounted'] as String?;
+
+      if (lastCounted == null) return 0;
+
+      final now = DateTime.now();
+      final lastDate = DateFormat('yyyy-MM-dd').parse(lastCounted);
+      final diff = now.difference(lastDate).inDays;
+
+      // If last workout was today (0) or yesterday (1), streak is alive.
+      // If diff > 1, streak is broken -> return 0.
+      if (diff <= 1) {
+        return current;
+      } else {
+        return 0;
+      }
+    } catch (e) {
+      debugPrint("Error calculating effective streak: $e");
+      return 0;
     }
   }
 

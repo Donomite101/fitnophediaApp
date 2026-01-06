@@ -1,19 +1,23 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:fitnophedia/features/member/streak/streak_screen.dart';
+import '../streak/service/streak_service.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:lottie/lottie.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:provider/provider.dart';
+import '../../workout/data/providers/workout_provider.dart';
+import '../../workout/presentation/screens/saved_workout_detail_screen.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
 import '../../../core/services/cloudinary_config.dart';
 import '../../../routes/app_routes.dart';
 import '../../workout/data/models/exercise_model.dart';
-import '../../workout/presentation/screens/workout_detail_screen.dart';
 import '../../workout/presentation/screens/workout_home_screen.dart';
 import '../banner/BannerCarousel.dart';
 import '../challenges/member_challenges_screen.dart';
@@ -58,6 +62,7 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
   int _notificationCount = 0;
   List<Map<String, dynamic>> _notices = [];
   List<Map<String, dynamic>> _challenges = [];
+  Map<String, double> _workoutProgress = {};
 
   // Controllers
   late SharedPreferences _prefs;
@@ -171,6 +176,27 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
         }
       }
 
+      // Check "Raw" keys from SplashScreen for even faster/more direct initialization
+      final rawGymId = _prefs.getString('gymId');
+      final rawMemberId = _prefs.getString('memberId');
+      final rawHasSub = _prefs.getBool('hasOngoingSubscription');
+      final lastVerify = _prefs.getInt('lastMemberVerify') ?? 0;
+      
+      // If we have recent (within 2 hours) verification from Splash, trust it!
+      final isRecent = (DateTime.now().millisecondsSinceEpoch - lastVerify) < 7200000;
+
+      if (mounted) {
+        setState(() {
+          if (rawGymId != null) _gymId = rawGymId;
+          if (rawMemberId != null) _memberId = rawMemberId;
+          if (rawHasSub != null) _hasActiveSubscription = rawHasSub;
+          
+          if (isRecent && _hasActiveSubscription && _gymId.isNotEmpty) {
+            _subscriptionCheckComplete = true;
+          }
+        });
+      }
+
       if (statsJson != null) {
         final statsData = json.decode(statsJson) as Map<String, dynamic>;
         if (mounted) {
@@ -230,7 +256,17 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
       _userEmail = user.email ?? _userEmail;
 
       // Resolve gym and member
-      final ids = await _resolveGymAndMember(user.uid);
+      Map<String, String>? ids;
+      
+      // Try cache FIRST
+      final cachedGymId = _prefs.getString('gymId');
+      final cachedMemberId = _prefs.getString('memberId');
+      if (cachedGymId != null && cachedGymId.isNotEmpty && cachedMemberId != null && cachedMemberId.isNotEmpty) {
+        ids = {'gymId': cachedGymId, 'memberId': cachedMemberId};
+      } else {
+        ids = await _resolveGymAndMember(user.uid);
+      }
+
       if (ids == null) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) _redirectToSubscription();
@@ -282,7 +318,8 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
       });
 
       // Save to cache
-      await _saveCacheData();
+    await _saveCacheData();
+    await _loadAllWorkoutProgress();
 
     } catch (e, st) {
       debugPrint('Background initialization error: $e\n$st');
@@ -515,22 +552,7 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
 
   Future<void> _loadStreakData(String gymId, String memberId) async {
     try {
-      final streakDoc = await FirebaseFirestore.instance
-          .collection('gyms')
-          .doc(gymId)
-          .collection('members')
-          .doc(memberId)
-          .collection('stats')
-          .doc('streak')
-          .get();
-
-      int streak = 0;
-      if (streakDoc.exists) {
-        final data = streakDoc.data() as Map<String, dynamic>;
-        final raw = data['currentStreak'];
-        streak = (raw is num) ? raw.toInt() : int.tryParse(raw?.toString() ?? '0') ?? 0;
-      }
-
+      final streak = await StreakService.instance.getEffectiveStreak(gymId, memberId);
       if (mounted) {
         setState(() => _currentStreak = streak);
       }
@@ -735,6 +757,7 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
       // Reload all data
       if (_gymId.isNotEmpty && _memberId.isNotEmpty) {
         await _loadAllData(_gymId, _memberId);
+        await _loadAllWorkoutProgress();
         await _saveCacheData();
       }
 
@@ -765,6 +788,50 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
     } catch (e) {
       debugPrint('Navigation error: $e');
       _showSnackbar('Navigation failed. Please try again.');
+    }
+  }
+
+  Future<void> _loadAllWorkoutProgress() async {
+    try {
+      final keys = _prefs.getKeys();
+      final Map<String, double> progressMap = {};
+      final prefix = "workout_draft_${_memberId}_${_gymId}_";
+
+      for (String key in keys) {
+        if (key.startsWith(prefix)) {
+          final workoutId = key.replaceFirst(prefix, "");
+          final draftString = _prefs.getString(key);
+          if (draftString != null) {
+            try {
+              final draft = jsonDecode(draftString);
+              final Map<String, dynamic> logs = Map<String, dynamic>.from(draft['logs']);
+
+              int totalSets = 0;
+              int completedSets = 0;
+
+              logs.forEach((key, value) {
+                final List sets = value;
+                totalSets += sets.length;
+                completedSets += sets.where((s) => s['completed'] == true).length;
+              });
+
+              if (totalSets > 0) {
+                progressMap[workoutId] = completedSets / totalSets;
+              }
+            } catch (e) {
+              debugPrint("Error parsing draft for $key: $e");
+            }
+          }
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _workoutProgress = progressMap;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error loading workout progress: $e");
     }
   }
 
@@ -962,10 +1029,12 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
               SliverToBoxAdapter(child: _buildBannerSection(context)),
               SliverToBoxAdapter(child: const SizedBox(height: 24)),
               SliverToBoxAdapter(child: _buildStatsCard(context, isDarkMode)),
-              SliverToBoxAdapter(child: const SizedBox(height: 24)),
-              if (_challenges.isNotEmpty) SliverToBoxAdapter(child: _buildChallengesSection(context)),
-              SliverToBoxAdapter(child: const SizedBox(height: 24)),
-              SliverToBoxAdapter(child: _buildQuickActions(context)),
+            SliverToBoxAdapter(child: const SizedBox(height: 24)),
+            SliverToBoxAdapter(child: _buildYourWorkouts(context)),
+              if (_challenges.isNotEmpty) ...[
+                SliverToBoxAdapter(child: const SizedBox(height: 24)),
+                SliverToBoxAdapter(child: _buildChallengesSection(context)),
+              ],
               SliverToBoxAdapter(child: const SizedBox(height: 100)),
             ],
           ),
@@ -1038,7 +1107,40 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
               ],
             ),
           ),
-          Stack(
+          GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => StreakScreen(gymId: _gymId, memberId: _memberId),
+              ),
+            );
+          },
+          child: Container(
+            margin: const EdgeInsets.only(right: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.orange.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.orange.withOpacity(0.2)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.local_fire_department, color: Colors.orange, size: 20),
+                const SizedBox(width: 4),
+                Text(
+                  '$_currentStreak',
+                  style: const TextStyle(
+                    color: Colors.orange,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        Stack(
             children: [
               IconButton(
                 icon: Icon(Iconsax.notification, color: _textPrimary(context), size: 28),
@@ -1180,183 +1282,157 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
     final stepPercent = _goal > 0 ? (_steps / _goal).clamp(0.0, 1.0) : 0.0;
     final weekdayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: _cardBackground(context),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => StreakScreen(gymId: _gymId, memberId: _memberId),
           ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Your Stats',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: _textPrimary(context),
-                  fontSize: 16,
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 20),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: _cardBackground(context),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // Header
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Your Stats',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: _textPrimary(context),
+                  ),
                 ),
-              ),
-              Text(
-                '$_currentStreak day streak',
-                style: TextStyle(
-                  color: _greyText(context),
-                  fontSize: 14,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Container(
-                width: 100,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: isDarkMode ? Colors.grey[850] : Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 5,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    ScaleTransition(
-                      scale: _lottiePulseController,
-                      child: SizedBox(
-                        width: 48,
-                        height: 48,
-                        child: Lottie.asset(
-                          'assets/animations/streak_fire.json',
-                          fit: BoxFit.contain,
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.local_fire_department, color: Colors.orange, size: 16),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$_currentStreak Day Streak',
+                        style: const TextStyle(
+                          color: Colors.orange,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '$_currentStreak',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: _textPrimary(context),
-                        fontSize: 20,
-                      ),
-                    ),
-                    Text(
-                      'days',
-                      style: TextStyle(
-                        color: _greyText(context),
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Steps',
-                          style: TextStyle(
-                            color: _greyText(context),
-                            fontSize: 14,
-                          ),
-                        ),
-                        Text(
-                          '$_steps/$_goal',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: _textPrimary(context),
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final progressWidth = constraints.maxWidth * stepPercent;
-                        return Stack(
-                          children: [
-                            Container(
-                              height: 6,
-                              width: constraints.maxWidth,
-                              decoration: BoxDecoration(
-                                color: isDarkMode ? Colors.grey[800] : Colors.grey[300],
-                                borderRadius: BorderRadius.circular(3),
-                              ),
-                            ),
-                            Container(
-                              height: 6,
-                              width: progressWidth.isFinite ? progressWidth : 0,
-                              decoration: BoxDecoration(
-                                color: Colors.green,
-                                borderRadius: BorderRadius.circular(3),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      'This Week',
-                      style: TextStyle(
-                        color: _greyText(context),
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: List.generate(7, (index) {
-                        return Container(
-                          width: 25,
-                          height: 25,
-                          decoration: BoxDecoration(
-                            color: _activeDays[index]
-                                ? Colors.green
-                                : (isDarkMode ? Colors.grey[800] : Colors.grey[300]),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                            child: Text(
-                              weekdayLabels[index],
-                              style: TextStyle(
-                                color: _activeDays[index] ? Colors.white : _greyText(context),
-                                fontWeight: FontWeight.w600,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        );
-                      }),
-                    ),
-                  ],
+              ],
+            ),
+            const SizedBox(height: 16),
+            
+            // Content Row
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Fire Animation (Left)
+                SizedBox(
+                  height: 60,
+                  width: 60,
+                  child: Lottie.asset(
+                    'assets/animations/streak_fire.json',
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Icon(Icons.local_fire_department, size: 40, color: Colors.orange);
+                    },
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ],
+                const SizedBox(width: 16),
+                
+                // Steps & Week (Right)
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Steps
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Steps',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: _textPrimary(context),
+                            ),
+                          ),
+                          Text(
+                            '$_steps / $_goal',
+                            style: TextStyle(
+                              color: _greyText(context),
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(3),
+                        child: LinearProgressIndicator(
+                          value: stepPercent,
+                          backgroundColor: isDarkMode ? Colors.grey[800] : Colors.grey[200],
+                          valueColor: const AlwaysStoppedAnimation<Color>(Colors.green),
+                          minHeight: 6,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      
+                      // Week Dots
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: List.generate(7, (index) {
+                          return Container(
+                            width: 20,
+                            height: 20,
+                            decoration: BoxDecoration(
+                              color: _activeDays[index] 
+                                  ? Colors.green 
+                                  : (isDarkMode ? Colors.grey[800] : Colors.grey[200]),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child: Text(
+                                weekdayLabels[index],
+                                style: TextStyle(
+                                  color: _activeDays[index] ? Colors.white : _greyText(context),
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1422,167 +1498,322 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
     );
   }
 
-  Widget _buildQuickActions(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Quick Actions',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: _textPrimary(context),
-            ),
-          ),
-          const SizedBox(height: 16),
-          WorkoutSectionCard(
-            gymId: _gymId,
-            memberId: _memberId,
-            onTapSeeAll: _navigateToWorkouts,
-            onTapItem: (id, data) async {
-              await _navigateWithThrottle(() async {
-                await Navigator.push(
-                  context,
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ExerciseDetailScreen(
-                          gymId: _gymId,
-                          memberId: _memberId,
-                          exercise: Exercise.fromJson(data),
-                          isPremade: data['isPremade'] ?? false,
-                        ),
-                      ),
-                    ),
-                );
-              });
-            },
-            primaryGreen: Colors.green,
-            cardBackground: _cardBackground(context),
-            textPrimary: _textPrimary(context),
-            greyText: _greyText(context),
-          ),
-          const SizedBox(height: 16),
-          _buildMealPlansSection(context),
-          const SizedBox(height: 16),
-          if (_notices.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            NoticesUpdatesCard(
-              onTap: () {
-                // optional: navigate to notices screen
-                _navigateWithThrottle(() async {
-                  // example navigation - replace with your notices screen if you have one
-                  // Navigator.push(context, MaterialPageRoute(builder: (_) => NoticesScreen(...)));
-                  _showSnackbar('Opening notices');
-                });
-              },
-              primaryGreen: Colors.green,
-              cardBackground: _cardBackground(context),
-              textPrimary: _textPrimary(context),
-              greyText: _greyText(context),
-              showSnackbar: _showSnackbar,
-            ),
-          ]
-        ],
-      ),
-    );
-  }
-// Horizontal scrollable Meal Plans section (uses DietPlansCard as item)
-  Widget _buildMealPlansSection(BuildContext context) {
-    final textPrimary = _textPrimary(context);
-    final greyText = _greyText(context);
-    final cardBg = _cardBackground(context);
-
-    // Temporarily create a small list of placeholders. Replace with real diet plan data when available.
-    final mockMealPlans = List.generate(4, (i) => {
-      'id': 'plan_$i',
-      'title': 'Meal Plan ${i + 1}',
-      'subtitle': 'Balanced meals — ${3 + i} meals/day',
-    });
-
-    const double sectionEdgePadding = 20.0; // parent padding for the whole section
-    const double itemGap = 12.0; // gap between items
-    const double minItemWidth = 280.0;
-    const double maxItemWidth = 360.0;
-    const double listHeight = 210.0;
+  // ========== FEATURED WORKOUTS ==========
+  Widget _buildYourWorkouts(BuildContext context) {
+    final isDark = _isDarkMode(context);
+    final textColor = _textPrimary(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-          // Header row with title and View All
-          Row(
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Meal Plans',
+                "Your Workouts",
                 style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: textPrimary,
+                  fontFamily: 'Outfit',
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
                 ),
               ),
               GestureDetector(
-                onTap: _navigateToDiet,
-                child: Text(
-                  'View All',
+                onTap: _navigateToWorkouts,
+                child: const Text(
+                  "See All",
                   style: TextStyle(
-                    color: Colors.green,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
+                    fontFamily: 'Outfit',
+                    color: Color(0xFF00E676),
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 200, // Fixed height to match Home Screen
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('gyms')
+                .doc(_gymId)
+                .collection('members')
+                .doc(_memberId)
+                .collection('workout_plans')
+                .limit(10)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return Center(child: Text("Error loading plans", style: TextStyle(color: textColor)));
+              }
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator(color: Color(0xFF00E676)));
+              }
 
-          // Horizontal list: list has no padding; spacing handled by per-item margins
-          LayoutBuilder(builder: (context, constraints) {
-            final double availableWidth = constraints.maxWidth.isFinite ? constraints.maxWidth : MediaQuery.of(context).size.width;
-            final double itemWidth = (availableWidth * 0.82).clamp(minItemWidth, maxItemWidth);
+              final docs = snapshot.data?.docs ?? [];
 
-            return SizedBox(
-              height: listHeight,
-              child: ListView.builder(
+              if (docs.isEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.only(left: 20),
+                  child: _buildEmptyWorkoutCard(isDark),
+                );
+              }
+
+              return ListView.builder(
+                padding: const EdgeInsets.only(left: 20),
                 scrollDirection: Axis.horizontal,
-                itemCount: mockMealPlans.length,
-                padding: EdgeInsets.zero, // important: parent Padding provides the outer inset
                 physics: const BouncingScrollPhysics(),
+                itemCount: docs.length,
                 itemBuilder: (context, index) {
-                  final plan = mockMealPlans[index];
-                  final bool isFirst = index == 0;
-                  final bool isLast = index == mockMealPlans.length - 1;
-
-                  return Container(
-                    width: itemWidth,
-                    margin: EdgeInsets.only(
-                      left: isFirst ? 0 : itemGap / 2,
-                      right: isLast ? 0 : itemGap / 2,
-                    ),
-                    // Ensure rounded corners/shadows don't reveal the underlying scaffold
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(18),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: DietPlansCard(
-                          onTap: _navigateToDiet,
-                          primaryGreen: Colors.green,
-                          cardBackground: cardBg,
-                          textPrimary: textPrimary,
-                          greyText: greyText,
-                        ),
-                      ),
-                    ),
-                  );
+                  final data = docs[index].data() as Map<String, dynamic>;
+                  data['id'] = docs[index].id;
+                  return _buildWorkoutCard(isDark, data);
                 },
-              ),
-            );
-          }),
-        ],
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
+
+  Widget _buildEmptyWorkoutCard(bool isDark) {
+    return Container(
+      width: 280,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100],
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: isDark ? Colors.white10 : Colors.grey[300]!),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Iconsax.add_circle, size: 32, color: isDark ? Colors.grey : Colors.grey[600]),
+          const SizedBox(height: 12),
+          Text(
+            "No saved workouts yet",
+            style: TextStyle(
+              fontFamily: 'Outfit',
+              color: isDark ? Colors.grey : Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWorkoutCard(bool isDark, Map<String, dynamic> data) {
+    final title = data['planName'] ?? data['name'] ?? "Untitled Workout";
+    final timestamp = data['createdAt'] ?? data['savedAt'];
+    final date = timestamp != null ? DateFormat('MMM d').format((timestamp as Timestamp).toDate()) : "Unknown Date";
+
+    final isAi = data['source'] == 'ai_coach' || data['source'] == 'ai' || data.containsKey('aiSessionId');
+    final tagLabel = isAi ? "AI Plan" : "Custom";
+    final tagColor = isAi ? Colors.purpleAccent : Colors.orange;
+
+    ImageProvider? bgImageProvider;
+    String? firstExerciseName;
+    int exerciseCount = 0;
+
+    // Count exercises and find first for image
+    if (data['exercises'] != null) {
+      final List list = data['exercises'];
+      exerciseCount = list.length;
+      if (list.isNotEmpty) firstExerciseName = list[0]['name'];
+    } else if (data['plan'] != null) {
+      if (data['plan']['schedule'] != null) {
+        final List schedule = data['plan']['schedule'];
+        for (var day in schedule) {
+          if (day['exercises'] != null) exerciseCount += (day['exercises'] as List).length;
+        }
+        if (schedule.isNotEmpty && schedule[0]['exercises'] != null && (schedule[0]['exercises'] as List).isNotEmpty) {
+          firstExerciseName = schedule[0]['exercises'][0]['name'];
+        }
+      } else if (data['plan']['exercises'] != null) { // Handle plans with direct exercises list
+        final List exercises = data['plan']['exercises'];
+        exerciseCount = exercises.length;
+        if (exercises.isNotEmpty) firstExerciseName = exercises[0]['name'];
+      }
+    }
+
+    if (firstExerciseName != null) {
+      try {
+        final provider = Provider.of<WorkoutProvider>(context, listen: false);
+        final aiName = firstExerciseName.toString().toLowerCase().trim();
+        var exercise = provider.exercises.firstWhere(
+          (e) => e.name.toLowerCase() == aiName,
+          orElse: () => provider.exercises.first,
+        );
+        if (exercise.name.toLowerCase() != aiName) {
+            try {
+               exercise = provider.exercises.firstWhere((e) {
+                 final dbName = e.name.toLowerCase();
+                 if (aiName.length < 4 || dbName.length < 4) return false;
+                 return dbName.contains(aiName) || aiName.contains(dbName);
+               });
+            } catch (_) {}
+         }
+        if (exercise.imageUrl != null) bgImageProvider = CachedNetworkImageProvider(exercise.imageUrl!);
+      } catch (_) {}
+    }
+
+    if (bgImageProvider == null) {
+      bgImageProvider = const AssetImage('assets/exercise/upper_body.jpeg');
+    }
+
+    final String workoutId = data['id']?.toString() ?? "";
+    final double? progress = _workoutProgress[workoutId];
+
+    return GestureDetector(
+      onTap: () async {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SavedWorkoutDetailScreen(
+              workoutData: data,
+              gymId: _gymId,
+              memberId: _memberId,
+            ),
+          ),
+        );
+        _loadAllWorkoutProgress();
+      },
+      child: Container(
+        width: 240,
+        margin: const EdgeInsets.only(right: 16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Stack(
+          children: [
+            // 1. Background Image
+            Positioned.fill(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: bgImageProvider is CachedNetworkImageProvider
+                    ? CachedNetworkImage(
+                        imageUrl: (bgImageProvider as CachedNetworkImageProvider).url,
+                        fit: BoxFit.cover,
+                        fadeInDuration: const Duration(milliseconds: 700),
+                        placeholder: (context, url) => Container(color: Colors.grey[800]),
+                        errorWidget: (context, url, error) => Image.asset('assets/exercise/upper_body.jpeg', fit: BoxFit.cover),
+                      )
+                    : Image(image: bgImageProvider, fit: BoxFit.cover),
+              ),
+            ),
+            // 2. Overlay Gradient
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withOpacity(0.1),
+                      Colors.black.withOpacity(0.8),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // 3. Content
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: tagColor.withOpacity(0.8),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      tagLabel,
+                      style: const TextStyle(fontFamily: 'Outfit', fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontFamily: 'Outfit',
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          height: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Iconsax.activity, size: 14, color: Colors.white70),
+                              const SizedBox(width: 4),
+                              Text(
+                                "$exerciseCount Exercises",
+                                style: const TextStyle(
+                                  fontFamily: 'Outfit',
+                                  fontSize: 12,
+                                  color: Colors.white70,
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (progress != null)
+                            Text(
+                              "${(progress * 100).toInt()}%",
+                              style: const TextStyle(
+                                  color: Color(0xFF00E676),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  fontFamily: 'Outfit'),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            // 4. Premium Progress Bar at Bottom Edge
+            if (progress != null)
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(24),
+                    bottomRight: Radius.circular(24),
+                  ),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    backgroundColor: Colors.white.withOpacity(0.05),
+                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF00E676)),
+                    minHeight: 3,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
 
   Widget _buildBottomTabBar(BuildContext context) {
     return Container(

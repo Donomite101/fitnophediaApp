@@ -1,4 +1,3 @@
-// REPLACE your existing AiService with this file (keep imports)
 import 'dart:async';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -22,7 +21,11 @@ class AiResult {
 
 class AiService {
   // Load from environment variables for security
-  static String get groqKey => dotenv.env['GROQ_API_KEY'] ?? '';
+  static String get groqKey {
+    final key = dotenv.env['GROQ_API_KEY'] ?? '';
+    if (key.isEmpty) print('⚠️ WARNING: GROQ_API_KEY is missing in .env!');
+    return key;
+  }
 
   static const String MODEL = "llama-3.3-70b-versatile";
   static const int MAX_RETRIES = 4;
@@ -34,34 +37,53 @@ class AiService {
 
   static void clearHistory() => _history.clear();
 
+  static void addToHistory(String text) {
+    _history.add({"role": "user", "content": text});
+    if (_history.length > _maxHistory) _history.removeRange(0, _history.length - _maxHistory);
+  }
+
+  static void addBotToHistory(String text) {
+    _history.add({"role": "assistant", "content": text});
+    if (_history.length > _maxHistory) _history.removeRange(0, _history.length - _maxHistory);
+  }
+
   Future<Map<String, dynamic>> getFullProfile() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return _defaultProfile();
+
     try {
-      final gyms = await FirebaseFirestore.instance.collection('gyms').get();
-      for (var gym in gyms.docs) {
-        final doc = await FirebaseFirestore.instance
-            .collection('gyms')
-            .doc(gym.id)
-            .collection('members')
-            .doc(user.uid)
-            .get();
-        if (doc.exists) {
-          final data = doc.data()!;
-          return {
-            'name': data['name'] ?? 'Member',
-            'age': data['age'] ?? 25,
-            'weightKg': (data['weight'] is num) ? (data['weight'] as num).toDouble() : 70.0,
-            'heightCm': data['height'] ?? 170,
-            'gender': data['gender'] ?? 'male',
-            'goal': data['primaryGoal'] ?? 'muscle_gain',
-            'level': data['trainingLevel'] ?? 'Beginner',
-            'dietType': data['dietType'] ?? 'veg',
-            'injuries': data['injuries'] ?? 'none',
-            'gymAccess': data['gymAccess'] == true,
-            'daysPerWeek': data['daysPerWeek'] ?? 4,
-          };
-        }
+      // 1. Get gymId from users collection first (much faster)
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      if (!userDoc.exists) return _defaultProfile();
+
+      final gymId = userDoc.data()?['gymId'];
+      if (gymId == null) return _defaultProfile();
+
+      // 2. Fetch full member profile from the correct gym
+      final memberDoc = await FirebaseFirestore.instance
+          .collection('gyms')
+          .doc(gymId)
+          .collection('members')
+          .doc(user.uid)
+          .get();
+
+      if (memberDoc.exists) {
+        final data = memberDoc.data()!;
+        // Return all relevant fields for the AI
+        return {
+          'name': data['firstName'] ?? data['name'] ?? 'Member',
+          'age': data['age'] ?? 25,
+          'weightKg': (data['weight'] is num) ? (data['weight'] as num).toDouble() : 70.0,
+          'heightCm': data['height'] ?? 170,
+          'gender': data['gender'] ?? 'male',
+          'goal': data['primaryGoal'] ?? 'muscle_gain',
+          'level': data['fitnessLevel'] ?? 'Beginner',
+          'dietType': data['dietType'] ?? 'veg',
+          'injuries': data['injuries'] ?? data['injuryHistory'] ?? 'none',
+          'medicalConditions': data['medicalConditions'] ?? 'none',
+          'daysPerWeek': data['workoutFrequency'] ?? '4 days',
+          'equipment': 'gym', // Default to gym access
+        };
       }
     } catch (e) {
       print('Profile fetch error: $e');
@@ -79,11 +101,12 @@ class AiService {
     'level': 'Beginner',
     'dietType': 'veg',
     'injuries': 'none',
-    'gymAccess': true,
-    'daysPerWeek': 4,
+    'medicalConditions': 'none',
+    'daysPerWeek': '4 days',
+    'equipment': 'gym',
   };
 
-  Future<AiResult> ask(String message) async {
+  Future<AiResult> ask(String message, {List<String>? availableExercises}) async {
     final profile = await getFullProfile();
     final name = profile['name'] ?? 'Member';
 
@@ -91,7 +114,7 @@ class AiService {
     _history.add({"role": "user", "content": message});
     if (_history.length > _maxHistory) _history.removeRange(0, _history.length - _maxHistory);
 
-    final systemPrompt = _buildSystemPrompt(profile);
+    final systemPrompt = _buildSystemPrompt(profile, availableExercises);
 
     final messages = [
       {"role": "system", "content": systemPrompt},
@@ -123,7 +146,13 @@ class AiService {
         saveFlag = extracted['save'] == true;
 
         final jsonBlock = _jsonSubstring(content);
-        if (jsonBlock.isNotEmpty) replyText = content.replaceFirst(jsonBlock, '').trim();
+        if (jsonBlock.isNotEmpty) {
+           // Remove the JSON block and anything after it to keep the UI clean
+           final index = content.indexOf(jsonBlock);
+           if (index != -1) {
+             replyText = content.substring(0, index).trim();
+           }
+        }
       } else {
         final fallback = _tryParseMarkdownFallback(content);
         if (fallback != null) {
@@ -150,40 +179,87 @@ class AiService {
     }
   }
 
-  String _buildSystemPrompt(Map<String, dynamic> profile) {
-    final name = profile['name'] ?? 'Member';
-    final age = profile['age'] ?? 25;
-    final weight = profile['weightKg'] ?? 70.0;
-    final height = profile['heightCm'] ?? 170;
-    final goal = profile['goal'] ?? 'muscle_gain';
-    final level = profile['level'] ?? 'Beginner';
-    final dietType = profile['dietType'] ?? 'veg';
-    final gymAccess = profile['gymAccess'] == true;
-    final days = profile['daysPerWeek'] ?? 4;
+  String _buildSystemPrompt(Map<String, dynamic> profile, List<String>? availableExercises) {
+    final name = profile['name'];
+    final age = profile['age'];
+    final weight = profile['weightKg'];
+    final height = profile['heightCm'];
+    final goal = profile['goal'];
+    final level = profile['level'];
+    final dietType = profile['dietType'];
+    final injuries = profile['injuries'];
+    final medical = profile['medicalConditions'];
+    final days = profile['daysPerWeek'];
 
-    final heightM = height / 100.0;
-    final bmi = weight / (heightM * heightM);
-    final bmiCategory = bmi < 18.5 ? 'underweight' : bmi < 25 ? 'normal' : bmi < 30 ? 'overweight' : 'obese';
-
-    final bmr = profile['gender'] == 'male'
-        ? 10 * weight + 6.25 * height - 5 * age + 5
-        : 10 * weight + 6.25 * height - 5 * age - 161;
-
-    int targetCal = (bmr * 1.5).round();
-    if (goal == 'weight_loss') targetCal -= 500;
-    if (goal == 'muscle_gain') targetCal += 300;
-
-    final proteinG = (weight * (goal == 'muscle_gain' ? 2.0 : 1.6)).round();
+    String exerciseConstraint = "";
+    if (availableExercises != null && availableExercises.isNotEmpty) {
+      final exerciseList = availableExercises.join(", ");
+      exerciseConstraint = '''
+IMPORTANT: You must ONLY recommend exercises from the following list to ensure they have images in the app. 
+If a user asks for something not here, find the closest match in this list.
+AVAILABLE EXERCISES: [$exerciseList]
+''';
+    }
 
     return '''
-You are Coach Fitnophedia — a premium AI fitness coach. User: $name (${age}y, ${weight}kg, ${height}cm, $level, Goal: $goal, Diet: $dietType, BMI: ${bmi.toStringAsFixed(1)} - $bmiCategory).
+You are Coach Fitnophedia, a highly intelligent, empathetic, and "human-like" Personal Trainer.
+User Profile:
+- Name: $name
+- Stats: ${age}y, ${weight}kg, ${height}cm
+- Goal: $goal
+- Level: $level
+- Diet: $dietType
+- Schedule: $days/week
+- Issues: Injuries: $injuries, Medical: $medical
 
-RESPONSE RULES:
-1) Start with 1-2 motivational sentences addressing $name.
-2) Only generate workout/diet plans when the user explicitly asks. Otherwise give helpful answers without plans.
-3) If a plan is produced: show MARKDOWN TABLES in human text and append exactly one machine-readable JSON object inside ```json``` at the end (no extra text after the closing fence).
-4) Keep answers concise, professional and friendly.
-5) Keep human text <400 words.
+$exerciseConstraint
+
+CORE ALGORITHM & BEHAVIOR:
+1.  **Analyze First:** Before answering, "think" about the user's prompt. Detect their emotion (motivated, frustrated, confused) and intent.
+2.  **Be a Trainer, Not a Bot:**
+    - Do NOT just dump data. Speak like a real coach.
+    - If a user says "I want to gain 10kg in 3 months", don't just give a plan. Validate it: "That's an aggressive goal, bro! We'll need a serious calorie surplus. Here's how we'll attack it..."
+    - Use "Gen-Z" friendly, Indian-context language (Bro, Chill, Scene sorted, Desi diet).
+    - **Variety is Key:** Do NOT always start with the same exercises. Mix it up! If the user asks for a chest workout, don't always start with Bench Press. Try Dumbbell Press, or Incline, or even a Machine Press sometimes.
+    - **Use Available Exercises:** Prioritize the "AVAILABLE EXERCISES" list provided above.
+3.  **"Learn" & Remember:**
+    - Always check the chat history. If the user previously said they hate "Karela", NEVER suggest it.
+    - If they mentioned an injury before, ask "How's the knee feeling today?" before suggesting squats.
+4.  **Format Rules:**
+    - Keep conversational text engaging but concise.
+    - **ONLY** if a specific WORKOUT or DIET plan is needed/requested, append the **JSON block** at the very end.
+    - Do NOT write anything after the ```json``` block.
+
+JSON STRUCTURE (Use strictly if plan requested):
+```json
+{
+  "workoutPlan": {
+    "title": "Aggressive Hypertrophy Split",
+    "schedule": [
+      {
+        "day": "Monday",
+        "focus": "Push (Chest/Shoulders/Triceps)",
+        "exercises": [
+          {"name": "Bench Press", "sets": "4", "reps": "6-8", "notes": "Heavy loading for mass"},
+          {"name": "Overhead Press", "sets": "3", "reps": "8-10", "notes": "Control the eccentric"}
+        ]
+      }
+    ]
+  },
+  "dietPlan": {
+    "title": "Bulking Surplus Diet",
+    "calories": 2800,
+    "macros": {"protein": "160g", "carbs": "350g", "fats": "80g"},
+    "meals": [
+      {
+        "name": "Pre-Workout",
+        "items": ["Banana", "Black Coffee", "Toast with Peanut Butter"],
+        "calories": 300
+      }
+    ]
+  }
+}
+```
 ''';
   }
 

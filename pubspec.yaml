@@ -81,6 +81,7 @@ dependencies:
   timer_count_down: ^2.2.2
   pull_to_refresh: ^2.0.0
   flutter_svg: ^2.2.3
+  flutter_markdown: ^0.7.7+1
 
 flutter:
 
@@ -109,6 +110,7 @@ flutter:
     - assets/workouts/trending.json
     - assets/animations/Burn calories.json
     - assets/Mention-bro.svg
+    - assets/exercise/
     - .env
 
   uses-material-design: true

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../data/models/exercise_model.dart';
 
 class ExerciseCard extends StatelessWidget {
@@ -13,20 +14,24 @@ class ExerciseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return GestureDetector(
       onTap: onTap,
-      child: AnimatedContainer(
-        duration: Duration(milliseconds: 280),
-        margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        height: 120,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 8), // Removed horizontal margin to let parent control it
+        height: 100,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          color: Colors.white,
+          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark ? Colors.white10 : Colors.grey[200]!,
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
+              color: Colors.black.withOpacity(0.05),
               blurRadius: 10,
-              offset: Offset(0, 4),
+              offset: const Offset(0, 4),
             ),
           ],
         ),
@@ -34,37 +39,39 @@ class ExerciseCard extends StatelessWidget {
           children: [
             // IMAGE LEFT SIDE
             ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: Container(
-                width: 120,
-                height: 120,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                bottomLeft: Radius.circular(16),
+              ),
+              child: SizedBox(
+                width: 100,
+                height: 100,
                 child: Stack(
                   children: [
                     // Image
                     Positioned.fill(
                       child: exercise.imageUrl.isNotEmpty
-                          ? Image.network(
-                        exercise.imageUrl,
-                        fit: BoxFit.cover,
-                      )
-                          : Container(color: Colors.grey.shade300),
+                          ? CachedNetworkImage(
+                              imageUrl: exercise.imageUrl,
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => Container(
+                                color: isDark ? Colors.grey[900] : Colors.grey[200],
+                                child: const Center(
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                              ),
+                              errorWidget: (context, url, error) => Container(
+                                color: isDark ? Colors.grey[900] : Colors.grey[200],
+                                child: Icon(Icons.fitness_center, 
+                                  color: isDark ? Colors.white24 : Colors.black26),
+                              ),
+                            )
+                          : Container(
+                              color: isDark ? Colors.grey[900] : Colors.grey[200],
+                              child: Icon(Icons.fitness_center, 
+                                color: isDark ? Colors.white24 : Colors.black26),
+                            ),
                     ),
-
-                    // Gradient Overlay
-                    Positioned.fill(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topRight,
-                            end: Alignment.bottomLeft,
-                            colors: [
-                              Colors.black.withOpacity(0.10),
-                              Colors.black.withOpacity(0.25),
-                            ],
-                          ),
-                        ),
-                      ),
-                    )
                   ],
                 ),
               ),
@@ -73,10 +80,10 @@ class ExerciseCard extends StatelessWidget {
             // RIGHT SIDE DETAILS
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     // Exercise Name
                     Text(
@@ -84,52 +91,75 @@ class ExerciseCard extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
+                        fontFamily: 'Outfit',
                         fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.black87,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : Colors.black87,
+                        height: 1.2,
                       ),
                     ),
 
-                    SizedBox(height: 6),
+                    const SizedBox(height: 6),
 
-                    // Body Part
-                    Text(
-                      exercise.bodyPart,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-
-                    Spacer(),
-
-                    // Equipment Tag w/ gradient
-                    Container(
-                      padding:
-                      EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.green.shade400,
-                            Colors.blue.shade400,
-                          ],
+                    // Tags Row
+                    Row(
+                      children: [
+                        _buildTag(
+                          text: exercise.bodyPart,
+                          color: const Color(0xFF00E676),
+                          isDark: isDark,
                         ),
-                      ),
-                      child: Text(
-                        exercise.equipment,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                        const SizedBox(width: 8),
+                        if (exercise.equipment.isNotEmpty)
+                          Expanded(
+                            child: Text(
+                              exercise.equipment,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontFamily: 'Outfit',
+                                fontSize: 12,
+                                color: isDark ? Colors.grey : Colors.grey[600],
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ],
                 ),
               ),
             ),
+            
+            // Arrow
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: Icon(
+                Icons.chevron_right,
+                color: isDark ? Colors.white24 : Colors.black12,
+              ),
+            ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTag({required String text, required Color color, required bool isDark}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Text(
+        text.toUpperCase(),
+        style: TextStyle(
+          fontFamily: 'Outfit',
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          color: color,
+          letterSpacing: 0.5,
         ),
       ),
     );

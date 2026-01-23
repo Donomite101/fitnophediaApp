@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:iconsax/iconsax.dart';
 import '../../data/providers/workout_provider.dart';
+import '../../data/models/exercise_model.dart';
 import 'workout_log_screen.dart';
 
 class SavedWorkoutDetailScreen extends StatelessWidget {
@@ -52,24 +53,42 @@ class SavedWorkoutDetailScreen extends StatelessWidget {
        try {
          final aiName = firstExerciseName.toString().toLowerCase().trim();
          
-         // Try exact match
-         var exercise = provider.exercises.firstWhere(
-            (e) => e.name.toLowerCase() == aiName,
-            orElse: () => provider.exercises.first,
-         );
+         // Try to find ID from first exercise if available
+         String? firstId;
+         if (workoutData['exercises'] != null && (workoutData['exercises'] as List).isNotEmpty) {
+            firstId = workoutData['exercises'][0]['exerciseId'] ?? workoutData['exercises'][0]['id'];
+         }
 
-         // Try fuzzy match if exact failed
-         if (exercise.name.toLowerCase() != aiName) {
+         Exercise? exercise;
+         
+         // 1. Try lookup by ID
+         if (firstId != null) {
             try {
-               exercise = provider.exercises.firstWhere((e) {
-                 final dbName = e.name.toLowerCase();
-                 if (aiName.length < 4 || dbName.length < 4) return false;
-                 return dbName.contains(aiName) || aiName.contains(dbName);
-               });
+              exercise = provider.exercises.firstWhere((e) => e.id == firstId.toString());
             } catch (_) {}
          }
+
+         // 2. Try lookup by Name
+         if (exercise == null) {
+             var candidate = provider.exercises.firstWhere(
+                (e) => e.name.toLowerCase() == aiName,
+                orElse: () => provider.exercises.first,
+             );
+
+             // Try fuzzy match if exact failed
+             if (candidate.name.toLowerCase() != aiName) {
+                try {
+                   candidate = provider.exercises.firstWhere((e) {
+                     final dbName = e.name.toLowerCase();
+                     if (aiName.length < 4 || dbName.length < 4) return false;
+                     return dbName.contains(aiName) || aiName.contains(dbName);
+                   });
+                } catch (_) {}
+             }
+             exercise = candidate;
+         }
          
-         if (exercise.imageUrl != null) {
+         if (exercise != null && exercise.imageUrl != null) {
             bgImageProvider = CachedNetworkImageProvider(exercise.imageUrl!);
          } else {
            bgImageProvider = _getFallbackAssetImage(title);
@@ -452,25 +471,45 @@ class SavedWorkoutDetailScreen extends StatelessWidget {
   Widget _buildCompactExerciseCard(BuildContext context, Map<String, dynamic> ex, bool isDark, Color textColor) {
     final provider = Provider.of<WorkoutProvider>(context, listen: false);
     String? imageUrl;
-    
-    try {
-      final aiName = (ex['name'] ?? "").toString().toLowerCase().trim();
-      var exercise = provider.exercises.firstWhere(
-        (e) => e.name.toLowerCase() == aiName,
-        orElse: () => provider.exercises.first,
-      );
+    String displayName = ex['name'] ?? "Exercise";
 
-      if (exercise.name.toLowerCase() != aiName) {
+    try {
+      final id = ex['exerciseId'] ?? ex['id'];
+      final aiName = (ex['name'] ?? "").toString().toLowerCase().trim();
+      
+      Exercise? exercise;
+      
+      // 1. Try lookup by ID
+      if (id != null) {
         try {
-          exercise = provider.exercises.firstWhere((e) {
-            final dbName = e.name.toLowerCase();
-            if (aiName.length < 4 || dbName.length < 4) return false;
-            return dbName.contains(aiName) || aiName.contains(dbName);
-          });
+          exercise = provider.exercises.firstWhere((e) => e.id == id.toString());
         } catch (_) {}
       }
       
-      imageUrl = exercise.imageUrl;
+      // 2. Try lookup by Name if ID failed
+      if (exercise == null) {
+        try {
+          exercise = provider.exercises.firstWhere(
+            (e) => e.name.toLowerCase() == aiName,
+            orElse: () => provider.exercises.first,
+          );
+          
+          // Verify name match (since orElse returns first)
+          if (exercise.name.toLowerCase() != aiName) {
+             // Fuzzy match
+             exercise = provider.exercises.firstWhere((e) {
+               final dbName = e.name.toLowerCase();
+               if (aiName.length < 4 || dbName.length < 4) return false;
+               return dbName.contains(aiName) || aiName.contains(dbName);
+             });
+          }
+        } catch (_) {}
+      }
+      
+      if (exercise != null) {
+        imageUrl = exercise.imageUrl;
+        displayName = exercise.name; // Use the real name from DB
+      }
     } catch (_) {}
 
     return Container(
@@ -520,7 +559,7 @@ class SavedWorkoutDetailScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    ex['name'] ?? "Exercise",
+                    displayName,
                     style: TextStyle(
                       fontFamily: 'Outfit',
                       fontWeight: FontWeight.bold,

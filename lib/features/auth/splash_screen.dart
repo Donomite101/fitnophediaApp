@@ -17,53 +17,22 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _logoController;
-  late final Animation<Offset> _slideUpAnimation;
-  late final Animation<double> _fadeAnimation;
-
+class _SplashScreenState extends State<SplashScreen> {
   final _firestore = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
 
   late StreamSubscription connectivitySub;
 
-  String _phase = 'lottie';
   final Completer<void> _splashCompleter = Completer<void>();
 
   @override
   void initState() {
     super.initState();
-    _initLogoAnimation();
     _startVisualSequence();
     _runStartupFlow();
   }
 
-  void _initLogoAnimation() {
-    _logoController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    );
-
-    _slideUpAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.2),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _logoController, curve: Curves.easeOut));
-
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _logoController, curve: Curves.easeOut),
-    );
-  }
-
   void _startVisualSequence() {
-    Future.delayed(const Duration(seconds: 3), () {
-      if (!mounted) return;
-      setState(() {
-        _phase = 'logo';
-      });
-      _logoController.forward(from: 0.0);
-    });
-
     Future.delayed(const Duration(seconds: 4), () {
       if (!_splashCompleter.isCompleted) _splashCompleter.complete();
     });
@@ -330,7 +299,6 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   void dispose() {
-    _logoController.dispose();
     try {
       connectivitySub.cancel();
     } catch (_) {}
@@ -339,42 +307,22 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
-    final brightness = MediaQuery.platformBrightnessOf(context);
-    final backgroundColor =
-    brightness == Brightness.dark ? Colors.black : Colors.white;
+    // Force black background to match native splash
+    final backgroundColor = Colors.black;
 
 
-    final logoPath = brightness == Brightness.dark
-        ? 'assets/login_logo.png'
-        : 'assets/loginblack_logo.png';
 
     return Scaffold(
       backgroundColor: backgroundColor,
       body: Center(
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 400),
-          child: _phase == 'lottie'
-              ? SizedBox(
-            key: const ValueKey('lottie'),
-            width: 220,
-            height: 220,
-            child: Lottie.asset(
-              'assets/animations/Burn calories.json',
-              fit: BoxFit.contain,
-              repeat: true,
-            ),
-          )
-              : SizedBox(
-            key: const ValueKey('logo'),
-            width: 240, // increased size
-            height: 240, // increased size
-            child: SlideTransition(
-              position: _slideUpAnimation,
-              child: FadeTransition(
-                opacity: _fadeAnimation,
-                child: Image.asset(logoPath),
-              ),
-            ),
+        child: SizedBox(
+          key: const ValueKey('lottie'),
+          width: 220,
+          height: 220,
+          child: Lottie.asset(
+            'assets/animations/Burn calories.json',
+            fit: BoxFit.contain,
+            repeat: true,
           ),
         ),
       ),

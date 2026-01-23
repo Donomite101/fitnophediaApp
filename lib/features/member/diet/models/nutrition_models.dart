@@ -57,6 +57,7 @@ class NutritionMeal {
   final double totalFat;
   final double totalSugar;
   final List<NutritionItem> items;
+  final bool isConsumed;
 
   NutritionMeal({
     required this.mealId,
@@ -69,6 +70,7 @@ class NutritionMeal {
     required this.totalFat,
     required this.totalSugar,
     required this.items,
+    this.isConsumed = false,
   });
 
   factory NutritionMeal.fromDoc(DocumentSnapshot doc) {
@@ -86,6 +88,7 @@ class NutritionMeal {
       items: (data['items'] as List<dynamic>? ?? [])
           .map((e) => NutritionItem.fromMap(e as Map<String, dynamic>))
           .toList(),
+      isConsumed: data['isConsumed'] ?? false,
     );
   }
 
@@ -99,6 +102,7 @@ class NutritionMeal {
     'totalFat': totalFat,
     'totalSugar': totalSugar,
     'items': items.map((e) => e.toMap()).toList(),
+    'isConsumed': isConsumed,
   };
 }
 

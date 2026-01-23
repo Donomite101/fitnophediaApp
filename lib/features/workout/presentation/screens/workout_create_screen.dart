@@ -22,12 +22,27 @@ class _CreateWorkoutScreenState extends State<CreateWorkoutScreen> {
   int _currentStep = 0;
   int _numberOfDays = 1;
   List<Map<String, dynamic>> _days = [];
+  List<Map<String, dynamic>> _customWarmupExercises = [];
   int _currentDayIndex = 0;
   
   String _selectedCategory = 'All';
   String _selectedEquipment = 'All';
   final List<String> _categories = ['All', 'Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core'];
   final List<String> _equipmentTypes = ['All', 'Barbell', 'Dumbbell', 'Bodyweight', 'Machine'];
+
+  String _selectedDifficulty = 'Intermediate';
+  final List<String> _difficulties = ['Beginner', 'Intermediate', 'Advanced'];
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize days list
+    for (int i = 0; i < _numberOfDays; i++) {
+      _days.add({'name': 'Day ${i + 1}', 'exercises': []});
+    }
+  }
+
+
 
   @override
   void dispose() {
@@ -42,65 +57,120 @@ class _CreateWorkoutScreenState extends State<CreateWorkoutScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? const Color(0xFF000000) : const Color(0xFFF5F5F5);
     final textColor = isDark ? Colors.white : Colors.black;
+    final progress = (_currentStep + 1) / (_numberOfDays + 2);
+
+    // Safety check for hot reload or initialization issues
+    if (_days.isEmpty && _numberOfDays > 0) {
+      for (int i = 0; i < _numberOfDays; i++) {
+        _days.add({'name': 'Day ${i + 1}', 'exercises': []});
+      }
+    }
 
     return Scaffold(
-      backgroundColor: bgColor,
-      appBar: AppBar(
-        backgroundColor: bgColor,
-        elevation: 0,
-        leading: _currentStep > 0
-            ? IconButton(
-                icon: Icon(Iconsax.arrow_left, color: textColor),
-                onPressed: _previousStep,
-              )
-            : IconButton(
-                icon: Icon(Iconsax.close_square, color: textColor),
-                onPressed: () => Navigator.pop(context),
-              ),
-        title: Text(
-          _currentStep == 0 ? 'Create Workout' : 'Build Your Plan',
-          style: TextStyle(fontFamily: 'Outfit', color: textColor, fontWeight: FontWeight.bold),
-        ),
-        actions: [
-          // Step Indicator
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Center(
-              child: Text(
-                'Step ${_currentStep + 1}/${_numberOfDays + 1}',
-                style: TextStyle(
-                  fontFamily: 'Outfit',
-                  fontSize: 13,
-                  color: const Color(0xFF00E676),
-                  fontWeight: FontWeight.bold,
-                ),
+      backgroundColor: isDark ? Colors.black : Colors.white,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Custom Header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey[100],
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Iconsax.arrow_left_2, color: textColor, size: 20),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _currentStep == 0 ? "Create Workout" : (_currentStep == 1 ? "Warmup Config" : "Day ${_currentStep - 1}"),
+                          style: TextStyle(
+                            fontFamily: 'Outfit',
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: textColor,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        // Progress Bar
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: progress,
+                            backgroundColor: isDark ? Colors.white10 : Colors.grey[200],
+                            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF00E676)),
+                            minHeight: 4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Text(
+                    "${_currentStep + 1}/${_numberOfDays + 2}",
+                    style: const TextStyle(
+                      fontFamily: 'Outfit',
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-        ],
-      ),
-      body: PageView(
-        controller: _pageController,
-        physics: const NeverScrollableScrollPhysics(),
-        children: [
-          _buildSetupCard(isDark, textColor),
-          ..._days.asMap().entries.map((entry) {
-            return _buildDayCard(entry.key, isDark, textColor);
-          }).toList(),
-        ],
+            
+            // Main Content
+            Expanded(
+              child: PageView(
+                controller: _pageController,
+                physics: const NeverScrollableScrollPhysics(),
+                children: [
+                  _buildSetupCard(isDark, textColor),
+                  _buildWarmupConfigCard(isDark, textColor),
+                  ...List.generate(_numberOfDays, (index) => _buildDayCard(index, isDark, textColor)),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
+  void _updateDuration(int newDays) {
+    setState(() {
+      _numberOfDays = newDays;
+      if (newDays > _days.length) {
+        // Add new days
+        for (int i = _days.length; i < newDays; i++) {
+          _days.add({'name': 'Day ${i + 1}', 'exercises': []});
+        }
+      } else if (newDays < _days.length) {
+        // Remove extra days
+        _days.removeRange(newDays, _days.length);
+      }
+    });
+  }
+
   Widget _buildSetupCard(bool isDark, Color textColor) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header
           Text(
-            'Let\'s Create Your Workout',
+            'Workout Details',
             style: TextStyle(
               fontFamily: 'Outfit',
               fontSize: 24,
@@ -110,7 +180,7 @@ class _CreateWorkoutScreenState extends State<CreateWorkoutScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Start by giving your workout a name and choosing how many days',
+            'Configure your training plan',
             style: TextStyle(
               fontFamily: 'Outfit',
               fontSize: 14,
@@ -119,172 +189,169 @@ class _CreateWorkoutScreenState extends State<CreateWorkoutScreen> {
           ),
           const SizedBox(height: 32),
 
-          // Workout Name Card
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1A1A1A) : Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+          // 1. Workout Name
+          Text(
+            "Name",
+            style: TextStyle(
+              fontFamily: 'Outfit',
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: textColor,
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF00E676).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Iconsax.edit, color: Color(0xFF00E676), size: 20),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Workout Name',
-                      style: TextStyle(
-                        fontFamily: 'Outfit',
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: textColor,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _workoutNameController,
-                  style: TextStyle(fontFamily: 'Outfit', fontSize: 16, color: textColor),
-                  decoration: InputDecoration(
-                    hintText: 'e.g., Upper/Lower Split, PPL Program',
-                    hintStyle: TextStyle(color: isDark ? Colors.white30 : Colors.black26),
-                    filled: true,
-                    fillColor: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100],
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-                  ),
-                ),
-              ],
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _workoutNameController,
+            style: TextStyle(fontFamily: 'Outfit', fontSize: 16, color: textColor),
+            decoration: InputDecoration(
+              hintText: "e.g. Upper Body Power",
+              hintStyle: TextStyle(color: Colors.grey.withOpacity(0.5)),
+              filled: true,
+              fillColor: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[50],
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: isDark ? Colors.white10 : Colors.grey[300]!),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFF00E676), width: 1.5),
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              prefixIcon: Icon(Iconsax.edit_2, color: isDark ? Colors.white54 : Colors.black45, size: 20),
             ),
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
 
-          // Number of Days Card
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1A1A1A) : Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+          // 2. Duration (Days)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "Duration (Days)",
+                style: TextStyle(
+                  fontFamily: 'Outfit',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: textColor,
                 ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF00E676).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Iconsax.calendar, color: Color(0xFF00E676), size: 20),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Number of Days',
-                      style: TextStyle(
-                        fontFamily: 'Outfit',
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: textColor,
-                      ),
-                    ),
-                  ],
+              ),
+              Text(
+                "$_numberOfDays",
+                style: const TextStyle(
+                  fontFamily: 'Outfit',
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF00E676),
                 ),
-                const SizedBox(height: 20),
-                // Day Counter
-                Row(
-                  children: [
-                    Expanded(
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 44,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: 7,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final days = index + 1;
+                final isSelected = _numberOfDays == days;
+                return GestureDetector(
+                  onTap: () => _updateDuration(days),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: 44,
+                    decoration: BoxDecoration(
+                      color: isSelected ? const Color(0xFF00E676) : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isSelected ? const Color(0xFF00E676) : (isDark ? Colors.white24 : Colors.grey[300]!),
+                        width: 1,
+                      ),
+                    ),
+                    child: Center(
                       child: Text(
-                        '$_numberOfDays ${_numberOfDays == 1 ? "Day" : "Days"} Per Week',
+                        "$days",
                         style: TextStyle(
                           fontFamily: 'Outfit',
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: textColor,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: isSelected ? Colors.black : textColor,
                         ),
                       ),
                     ),
-                    Row(
-                      children: [
-                        IconButton(
-                          onPressed: _numberOfDays > 1 ? () => setState(() => _numberOfDays--) : null,
-                          icon: const Icon(Iconsax.minus_cirlce),
-                          color: const Color(0xFF00E676),
-                          iconSize: 32,
-                        ),
-                        Container(
-                          width: 50,
-                          height: 50,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF00E676).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Center(
-                            child: Text(
-                              '$_numberOfDays',
-                              style: const TextStyle(
-                                fontFamily: 'Outfit',
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF00E676),
-                              ),
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: _numberOfDays < 7 ? () => setState(() => _numberOfDays++) : null,
-                          icon: const Icon(Iconsax.add_circle),
-                          color: const Color(0xFF00E676),
-                          iconSize: 32,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                // Quick Selectors
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    _buildQuickDayChip(3, '3 Days'),
-                    _buildQuickDayChip(4, '4 Days'),
-                    _buildQuickDayChip(5, '5 Days'),
-                    _buildQuickDayChip(6, '6 Days'),
-                  ],
-                ),
-              ],
+                  ),
+                );
+              },
             ),
           ),
 
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
 
-          // Continue Button
+          // 3. Difficulty
+          Text(
+            "Difficulty Level",
+            style: TextStyle(
+              fontFamily: 'Outfit',
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: textColor,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            height: 48,
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: isDark ? Colors.white10 : Colors.grey[300]!),
+            ),
+            child: Row(
+              children: _difficulties.map((level) {
+                final isSelected = _selectedDifficulty == level;
+                return Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() => _selectedDifficulty = level),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      margin: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: isSelected ? const Color(0xFF1A1A1A) : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: isSelected ? [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          )
+                        ] : null,
+                      ),
+                      child: Center(
+                        child: Text(
+                          level,
+                          style: TextStyle(
+                            fontFamily: 'Outfit',
+                            fontSize: 13,
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                            color: isSelected ? const Color(0xFF00E676) : (isDark ? Colors.white54 : Colors.black54),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+
+          const SizedBox(height: 40),
+
+          // Start Button
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -292,25 +359,17 @@ class _CreateWorkoutScreenState extends State<CreateWorkoutScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF00E676),
                 foregroundColor: Colors.black,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                padding: const EdgeInsets.symmetric(vertical: 18),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 elevation: 0,
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Text(
-                    'START BUILDING',
-                    style: TextStyle(
-                      fontFamily: 'Outfit',
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  SizedBox(width: 8),
-                  Icon(Iconsax.arrow_right_3, size: 20),
-                ],
+              child: const Text(
+                'Continue to Exercises',
+                style: TextStyle(
+                  fontFamily: 'Outfit',
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
               ),
             ),
           ),
@@ -319,30 +378,222 @@ class _CreateWorkoutScreenState extends State<CreateWorkoutScreen> {
     );
   }
 
-  Widget _buildQuickDayChip(int days, String label) {
-    final isSelected = _numberOfDays == days;
-    return GestureDetector(
-      onTap: () => setState(() => _numberOfDays = days),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF00E676) : Colors.grey.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? const Color(0xFF00E676) : Colors.transparent,
-            width: 2,
+  Widget _buildWarmupConfigCard(bool isDark, Color textColor) {
+    final provider = Provider.of<WorkoutProvider>(context);
+    
+    // Load warmups if not loaded
+    if (provider.warmupExercises.isEmpty && !provider.isLoading) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        provider.loadWarmupExercises();
+      });
+    }
+    
+    return Column(
+      children: [
+        // Warmup Header
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Warmup Configuration",
+                style: TextStyle(
+                  fontFamily: 'Outfit',
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _customWarmupExercises.isEmpty 
+                    ? 'No custom exercises added. Default smart warmup will be used.' 
+                    : '${_customWarmupExercises.length} custom warmup exercises added',
+                style: TextStyle(
+                  fontFamily: 'Outfit',
+                  fontSize: 14,
+                  color: isDark ? Colors.white60 : Colors.black54,
+                ),
+              ),
+            ],
           ),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontFamily: 'Outfit',
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: isSelected ? Colors.black : Colors.grey,
+
+        // Filters (Reused logic)
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: provider.searchWarmupExercises,
+                  style: TextStyle(fontFamily: 'Outfit', color: textColor, fontSize: 14),
+                  decoration: InputDecoration(
+                    hintText: 'Search warmup exercises...',
+                    hintStyle: TextStyle(color: isDark ? Colors.white30 : Colors.black26, fontSize: 14),
+                    prefixIcon: Icon(Iconsax.search_normal, color: isDark ? Colors.white54 : Colors.black45, size: 18),
+                    filled: true,
+                    fillColor: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[50],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                    isDense: true,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
-      ),
+
+        const SizedBox(height: 12),
+
+        // Exercise List
+        Expanded(
+          child: provider.isLoading
+              ? const Center(child: CircularProgressIndicator(color: Color(0xFF00E676)))
+              : GridView.builder(
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 100),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 0.75,
+                  ),
+                  itemCount: provider.filteredWarmupExercises.length,
+                  itemBuilder: (context, index) {
+                    final exercise = provider.filteredWarmupExercises[index];
+                    final isAdded = _customWarmupExercises.any((e) => e['name'] == exercise.name);
+                    
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          if (isAdded) {
+                            _customWarmupExercises.removeWhere((e) => e['name'] == exercise.name);
+                          } else {
+                            _customWarmupExercises.add({
+                              'name': exercise.name,
+                              'sets': 1,
+                              'reps': '60s', // Default for warmup
+                              'weight': 0.0,
+                              'isWarmup': true,
+                              'instructions': exercise.instructions,
+                              'bodyPart': exercise.bodyPart,
+                            });
+                          }
+                        });
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isAdded ? const Color(0xFF00E676) : (isDark ? Colors.white10 : Colors.grey[200]!),
+                            width: isAdded ? 2 : 1,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: ClipRRect(
+                                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                                child: CachedNetworkImage(
+                                  imageUrl: exercise.imageUrl,
+                                  fit: BoxFit.cover,
+                                  width: double.infinity,
+                                  placeholder: (context, url) => Container(color: isDark ? Colors.grey[900] : Colors.grey[200]),
+                                  errorWidget: (context, url, error) => const Icon(Icons.error),
+                                ),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    exercise.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontFamily: 'Outfit',
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      color: textColor,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    exercise.bodyPart,
+                                    style: TextStyle(
+                                      fontFamily: 'Outfit',
+                                      fontSize: 12,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+        
+        // Navigation Buttons
+        Padding(
+          padding: const EdgeInsets.all(24),
+          child: Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () {
+                    setState(() => _currentStep--);
+                    _pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+                  },
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    side: BorderSide(color: isDark ? Colors.white24 : Colors.grey[300]!),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Text("Back", style: TextStyle(fontFamily: 'Outfit', color: textColor)),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    setState(() => _currentStep++);
+                    _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00E676),
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                  ),
+                  child: const Text("Next", style: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -354,18 +605,13 @@ class _CreateWorkoutScreenState extends State<CreateWorkoutScreen> {
     return Column(
       children: [
         // Day Header
-        Container(
-          margin: const EdgeInsets.all(16),
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF00E676), Color(0xFF00D9A3)],
-            ),
-            borderRadius: BorderRadius.circular(20),
-          ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Expanded(
                     child: Column(
@@ -373,49 +619,39 @@ class _CreateWorkoutScreenState extends State<CreateWorkoutScreen> {
                       children: [
                         Text(
                           day['name'],
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontFamily: 'Outfit',
-                            fontSize: 20,
+                            fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            color: Colors.black,
+                            color: textColor,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           '${dayExercises.length} exercises added',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontFamily: 'Outfit',
-                            fontSize: 13,
-                            color: Colors.black87,
+                            fontSize: 14,
+                            color: isDark ? Colors.white60 : Colors.black54,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  // Copy from Day Button
-                  GestureDetector(
-                    onTap: () => _copyFromDayDialog(dayIndex),
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
+                  Row(
+                    children: [
+                      _buildActionButton(
+                        icon: Iconsax.copy,
+                        onTap: () => _copyFromDayDialog(dayIndex),
+                        isDark: isDark,
                       ),
-                      child: const Icon(Iconsax.copy, color: Colors.black, size: 20),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  // Rename Button
-                  GestureDetector(
-                    onTap: () => _renameDayDialog(dayIndex),
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
+                      const SizedBox(width: 8),
+                      _buildActionButton(
+                        icon: Iconsax.edit_2,
+                        onTap: () => _renameDayDialog(dayIndex),
+                        isDark: isDark,
                       ),
-                      child: const Icon(Iconsax.edit_2, color: Colors.black, size: 20),
-                    ),
+                    ],
                   ),
                 ],
               ),
@@ -425,7 +661,7 @@ class _CreateWorkoutScreenState extends State<CreateWorkoutScreen> {
 
         // Filters
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Row(
             children: [
               Expanded(
@@ -434,55 +670,73 @@ class _CreateWorkoutScreenState extends State<CreateWorkoutScreen> {
                   onChanged: provider.searchExercises,
                   style: TextStyle(fontFamily: 'Outfit', color: textColor, fontSize: 14),
                   decoration: InputDecoration(
-                    hintText: 'Search...',
-                    hintStyle: TextStyle(color: isDark ? Colors.white30 : Colors.black26, fontSize: 13),
-                    prefixIcon: const Icon(Iconsax.search_normal, color: Color(0xFF00E676), size: 18),
+                    hintText: 'Search exercises...',
+                    hintStyle: TextStyle(color: isDark ? Colors.white30 : Colors.black26, fontSize: 14),
+                    prefixIcon: Icon(Iconsax.search_normal, color: isDark ? Colors.white54 : Colors.black45, size: 18),
                     filled: true,
-                    fillColor: isDark ? const Color(0xFF1A1A1A) : Colors.white,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                    fillColor: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[50],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: isDark ? Colors.white10 : Colors.grey[300]!),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF00E676), width: 1.5),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
                     isDense: true,
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 12),
               // Equipment Dropdown
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                height: 48,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1A1A1A) : Colors.white,
+                  color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[50],
                   borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: isDark ? Colors.white10 : Colors.grey[300]!),
                 ),
-                child: DropdownButton<String>(
-                  value: _selectedEquipment,
-                  icon: const Icon(Iconsax.arrow_down_1, size: 16, color: Color(0xFF00E676)),
-                  underline: const SizedBox(),
-                  isDense: true,
-                  style: TextStyle(
-                    fontFamily: 'Outfit',
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: textColor,
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _selectedEquipment,
+                    icon: Icon(Iconsax.arrow_down_1, size: 16, color: isDark ? Colors.white54 : Colors.black45),
+                    style: TextStyle(
+                      fontFamily: 'Outfit',
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: textColor,
+                    ),
+                    dropdownColor: isDark ? const Color(0xFF2C2C2C) : Colors.white,
+                    items: _equipmentTypes.map((String equipment) {
+                      return DropdownMenuItem<String>(
+                        value: equipment,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _getEquipmentIcon(equipment),
+                              size: 16,
+                              color: _selectedEquipment == equipment ? const Color(0xFF00E676) : (isDark ? Colors.white54 : Colors.black45),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(equipment),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (String? newValue) {
+                      if (newValue != null) {
+                        setState(() => _selectedEquipment = newValue);
+                        _applyEquipmentFilter(provider);
+                      }
+                    },
                   ),
-                  items: _equipmentTypes.map((String equipment) {
-                    return DropdownMenuItem<String>(
-                      value: equipment,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(_getEquipmentIcon(equipment), size: 16, color: const Color(0xFF00E676)),
-                          const SizedBox(width: 8),
-                          Text(equipment),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (String? newValue) {
-                    if (newValue != null) {
-                      setState(() => _selectedEquipment = newValue);
-                      _applyEquipmentFilter(provider);
-                    }
-                  },
                 ),
               ),
             ],
@@ -493,11 +747,12 @@ class _CreateWorkoutScreenState extends State<CreateWorkoutScreen> {
 
         // Category Filter
         SizedBox(
-          height: 34,
-          child: ListView.builder(
+          height: 36,
+          child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 24),
             itemCount: _categories.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
             itemBuilder: (context, index) {
               final category = _categories[index];
               final isSelected = _selectedCategory == category;
@@ -510,20 +765,26 @@ class _CreateWorkoutScreenState extends State<CreateWorkoutScreen> {
                     provider.filterByBodyPart(category);
                   }
                 },
-                child: Container(
-                  margin: const EdgeInsets.only(right: 6),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
-                    color: isSelected ? const Color(0xFF00E676) : (isDark ? Colors.white.withOpacity(0.08) : Colors.grey[200]),
-                    borderRadius: BorderRadius.circular(16),
+                    color: isSelected ? const Color(0xFF00E676) : Colors.transparent,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: isSelected ? const Color(0xFF00E676) : (isDark ? Colors.white24 : Colors.grey[300]!),
+                      width: 1,
+                    ),
                   ),
-                  child: Text(
-                    category,
-                    style: TextStyle(
-                      fontFamily: 'Outfit',
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: isSelected ? Colors.black : textColor.withOpacity(0.7),
+                  child: Center(
+                    child: Text(
+                      category,
+                      style: TextStyle(
+                        fontFamily: 'Outfit',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: isSelected ? Colors.black : textColor,
+                      ),
                     ),
                   ),
                 ),
@@ -539,12 +800,12 @@ class _CreateWorkoutScreenState extends State<CreateWorkoutScreen> {
           child: provider.isLoading
               ? const Center(child: CircularProgressIndicator(color: Color(0xFF00E676)))
               : GridView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 100),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 12,
-                    childAspectRatio: 0.85,
+                    childAspectRatio: 0.75,
                   ),
                   itemCount: provider.filteredExercises.length,
                   itemBuilder: (context, index) {
@@ -555,16 +816,28 @@ class _CreateWorkoutScreenState extends State<CreateWorkoutScreen> {
                         : null;
                     final isWarmup = exerciseData?['isWarmup'] ?? false;
 
-                    return Container(
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF1A1A1A) : Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: isAdded ? const Color(0xFF00E676) : Colors.transparent,
-                          width: 2,
+                    return GestureDetector(
+                      onTap: () => _toggleDayExercise(dayIndex, exercise, isAdded),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isAdded 
+                                ? const Color(0xFF00E676) 
+                                : (isDark ? Colors.white10 : Colors.grey[200]!),
+                            width: isAdded ? 2 : 1,
+                          ),
+                          boxShadow: isAdded ? [
+                            BoxShadow(
+                              color: const Color(0xFF00E676).withOpacity(0.2),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            )
+                          ] : null,
                         ),
-                      ),
-                      child: Material(
+                        child: Material(
                         color: Colors.transparent,
                         child: InkWell(
                           borderRadius: BorderRadius.circular(14),
@@ -645,6 +918,23 @@ class _CreateWorkoutScreenState extends State<CreateWorkoutScreen> {
                                           child: const Icon(Iconsax.tick_circle5, color: Colors.black, size: 16),
                                         ),
                                       ),
+                                    // Info Button (Bottom Right)
+                                    Positioned(
+                                      bottom: 8,
+                                      right: 8,
+                                      child: GestureDetector(
+                                        onTap: () => _showExerciseDetails(exercise),
+                                        child: Container(
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withOpacity(0.6),
+                                            shape: BoxShape.circle,
+                                            border: Border.all(color: Colors.white24, width: 1),
+                                          ),
+                                          child: const Icon(Iconsax.info_circle, color: Colors.white, size: 16),
+                                        ),
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -697,7 +987,8 @@ class _CreateWorkoutScreenState extends State<CreateWorkoutScreen> {
                           ),
                         ),
                       ),
-                    );
+                    ),
+                  );
                   },
                 ),
         ),
@@ -779,7 +1070,10 @@ class _CreateWorkoutScreenState extends State<CreateWorkoutScreen> {
   }
 
   void _nextDay() {
-    if (_currentStep < _days.length) {
+    // _currentStep includes Setup (0) and Warmup (1), so Day 1 is 2.
+    // We want to allow going up to the last day.
+    // Last page index is _numberOfDays + 1.
+    if (_currentStep < _numberOfDays + 1) {
       setState(() => _currentStep++);
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
@@ -818,7 +1112,7 @@ class _CreateWorkoutScreenState extends State<CreateWorkoutScreen> {
     int sets = 3;
     int reps = 10;
     String weight = '';
-    bool isWarmup = false;
+
 
     showModalBottomSheet(
       context: context,
@@ -873,58 +1167,9 @@ class _CreateWorkoutScreenState extends State<CreateWorkoutScreen> {
                   
                   const SizedBox(height: 20),
 
-                  // Warmup Toggle
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: isWarmup ? Colors.orange.withOpacity(0.1) : (isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100]),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isWarmup ? Colors.orange : Colors.transparent,
-                        width: 2,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Iconsax.flash_15,
-                          color: isWarmup ? Colors.orange : (isDark ? Colors.white60 : Colors.black54),
-                          size: 20,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Warmup Exercise',
-                                style: TextStyle(
-                                  fontFamily: 'Outfit',
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                  color: textColor,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'Lower weight to prepare',
-                                style: TextStyle(
-                                  fontFamily: 'Outfit',
-                                  fontSize: 11,
-                                  color: isDark ? Colors.white60 : Colors.black54,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Switch(
-                          value: isWarmup,
-                          onChanged: (value) => setSheetState(() => isWarmup = value),
-                          activeColor: Colors.orange,
-                        ),
-                      ],
-                    ),
-                  ),
+                  const SizedBox(height: 20),
+                  
+                  // Sets Control
                   
                   const SizedBox(height: 20),
                   
@@ -1055,30 +1300,24 @@ class _CreateWorkoutScreenState extends State<CreateWorkoutScreen> {
                       Container(
                         width: 120,
                         child: TextField(
-                          controller: TextEditingController(text: weight),
-                          onChanged: (value) => weight = value,
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontFamily: 'Outfit',
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: textColor,
-                          ),
+                          keyboardType: TextInputType.number,
                           decoration: InputDecoration(
-                            hintText: 'Optional',
-                            hintStyle: TextStyle(
-                              color: isDark ? Colors.white30 : Colors.black26,
-                              fontSize: 14,
-                            ),
+                            hintText: '0.0',
+                            hintStyle: TextStyle(color: isDark ? Colors.white30 : Colors.black26),
                             filled: true,
                             fillColor: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100],
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide.none,
                             ),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           ),
+                          style: TextStyle(
+                            fontFamily: 'Outfit',
+                            fontWeight: FontWeight.bold,
+                            color: textColor,
+                          ),
+                          onChanged: (value) => weight = value,
                         ),
                       ),
                     ],
@@ -1097,33 +1336,23 @@ class _CreateWorkoutScreenState extends State<CreateWorkoutScreen> {
                             'name': exercise.name,
                             'sets': sets,
                             'reps': reps,
-                            'weight': weight.isEmpty ? '' : weight,
-                            'bodyPart': exercise.bodyPart,
-                            'isWarmup': isWarmup,
+                            'weight': weight,
                           });
                         });
                         Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('${exercise.name} added!'),
-                            backgroundColor: const Color(0xFF00E676),
-                            duration: const Duration(milliseconds: 800),
-                          ),
-                        );
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF00E676),
                         foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        elevation: 0,
                       ),
                       child: const Text(
-                        'ADD EXERCISE',
+                        'Add to Workout',
                         style: TextStyle(
                           fontFamily: 'Outfit',
                           fontWeight: FontWeight.bold,
-                          fontSize: 15,
+                          fontSize: 16,
                         ),
                       ),
                     ),
@@ -1136,6 +1365,189 @@ class _CreateWorkoutScreenState extends State<CreateWorkoutScreen> {
       ),
     );
   }
+
+  void _showExerciseDetails(Exercise exercise) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (_, controller) => Container(
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1A1A1A) : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              // Handle
+              Center(
+                child: Container(
+                  margin: const EdgeInsets.only(top: 12, bottom: 12),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white24 : Colors.black12,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: ListView(
+                  controller: controller,
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                  children: [
+                    // Image
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: exercise.imageUrl.isNotEmpty
+                          ? CachedNetworkImage(
+                              imageUrl: exercise.imageUrl,
+                              height: 250,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorWidget: (context, url, error) => Container(
+                                height: 250,
+                                color: isDark ? Colors.white10 : Colors.grey[200],
+                                child: const Icon(Iconsax.activity, size: 50, color: Color(0xFF00E676)),
+                              ),
+                            )
+                          : Container(
+                              height: 250,
+                              color: isDark ? Colors.white10 : Colors.grey[200],
+                              child: const Icon(Iconsax.activity, size: 50, color: Color(0xFF00E676)),
+                            ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Title
+                    Text(
+                      exercise.name,
+                      style: TextStyle(
+                        fontFamily: 'Outfit',
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Tags
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _buildDetailTag(exercise.bodyPart, Iconsax.user, isDark),
+                        _buildDetailTag(exercise.equipment, Iconsax.weight_1, isDark),
+                        if (exercise.target.isNotEmpty)
+                          _buildDetailTag(exercise.target, Iconsax.gps, isDark),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Instructions
+                    Text(
+                      'Instructions',
+                      style: TextStyle(
+                        fontFamily: 'Outfit',
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    if (exercise.steps.isNotEmpty)
+                      ...exercise.steps.asMap().entries.map((entry) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                width: 24,
+                                height: 24,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF00E676).withOpacity(0.1),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Text(
+                                  '${entry.key + 1}',
+                                  style: const TextStyle(
+                                    fontFamily: 'Outfit',
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                    color: Color(0xFF00E676),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  entry.value,
+                                  style: TextStyle(
+                                    fontFamily: 'Outfit',
+                                    fontSize: 14,
+                                    height: 1.5,
+                                    color: isDark ? Colors.white70 : Colors.black87,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList()
+                    else
+                      Text(
+                        'No instructions available.',
+                        style: TextStyle(
+                          fontFamily: 'Outfit',
+                          fontSize: 14,
+                          color: isDark ? Colors.white54 : Colors.black45,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailTag(String text, IconData icon, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: isDark ? Colors.white10 : Colors.grey[300]!),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: const Color(0xFF00E676)),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: TextStyle(
+              fontFamily: 'Outfit',
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: isDark ? Colors.white70 : Colors.black87,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
 
   void _applyEquipmentFilter(WorkoutProvider provider) {
     if (_selectedEquipment == 'All') {
@@ -1344,10 +1756,77 @@ class _CreateWorkoutScreenState extends State<CreateWorkoutScreen> {
     );
   }
 
+  Widget _buildActionButton({
+    required IconData icon,
+    required VoidCallback onTap,
+    required bool isDark,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isDark ? Colors.white10 : Colors.grey[300]!,
+          ),
+        ),
+        child: Icon(
+          icon,
+          color: isDark ? Colors.white70 : Colors.black87,
+          size: 20,
+        ),
+      ),
+    );
+  }
+
   Future<void> _saveWorkout() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
+
+      // Validation: Ensure at least one exercise is added
+      bool hasExercises = false;
+      for (var day in _days) {
+        if ((day['exercises'] as List).isNotEmpty) {
+          hasExercises = true;
+          break;
+        }
+      }
+
+      if (!hasExercises) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please add at least one exercise to your workout.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Validation: Ensure at least one exercise is added
+      int totalExercises = 0;
+      for (var day in _days) {
+        totalExercises += (day['exercises'] as List).length;
+      }
+
+      if (totalExercises == 0) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please add at least one exercise to your workout.'),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
+        return;
+      }
+
+
+
 
       final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
       final gymId = userDoc.data()?['gymId'];
@@ -1375,6 +1854,8 @@ class _CreateWorkoutScreenState extends State<CreateWorkoutScreen> {
         workoutData = {
           'planName': _workoutNameController.text.trim(),
           'source': 'custom',
+          'difficulty': _selectedDifficulty,
+          'customWarmup': _customWarmupExercises, // Save custom warmups
           'plan': {'schedule': schedule},
           'createdAt': FieldValue.serverTimestamp(),
         };
@@ -1383,6 +1864,7 @@ class _CreateWorkoutScreenState extends State<CreateWorkoutScreen> {
           'name': _workoutNameController.text.trim(),
           'exercises': _days[0]['exercises'],
           'source': 'custom',
+          'difficulty': _selectedDifficulty,
           'createdAt': FieldValue.serverTimestamp(),
         };
       }

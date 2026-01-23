@@ -1,0 +1,912 @@
+[
+    {
+        "id": "veg_1",
+        "name": "Green Goddess Detox",
+        "description": "A cleansing vegetarian plan rich in green vegetables and antioxidants.",
+        "durationDays": 7,
+        "targetCaloriesMin": 1600,
+        "targetCaloriesMax": 1800,
+        "targetProtein": 70,
+        "targetCarbs": 200,
+        "targetFat": 60,
+        "difficulty": "beginner",
+        "tags": [
+            "vegetarian",
+            "detox",
+            "weight-loss"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "veg_2",
+        "name": "Plant Protein Power",
+        "description": "High-protein vegetarian meals for muscle maintenance.",
+        "durationDays": 7,
+        "targetCaloriesMin": 2000,
+        "targetCaloriesMax": 2300,
+        "targetProtein": 120,
+        "targetCarbs": 220,
+        "targetFat": 70,
+        "difficulty": "intermediate",
+        "tags": [
+            "vegetarian",
+            "high-protein",
+            "muscle-gain"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "veg_3",
+        "name": "Mediterranean Veggie",
+        "description": "Vegetarian twist on the classic Mediterranean diet.",
+        "durationDays": 7,
+        "targetCaloriesMin": 1800,
+        "targetCaloriesMax": 2100,
+        "targetProtein": 80,
+        "targetCarbs": 210,
+        "targetFat": 80,
+        "difficulty": "beginner",
+        "tags": [
+            "vegetarian",
+            "mediterranean",
+            "balanced"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "veg_4",
+        "name": "Budget Vegetarian",
+        "description": "Affordable and nutritious vegetarian meals.",
+        "durationDays": 7,
+        "targetCaloriesMin": 1800,
+        "targetCaloriesMax": 2000,
+        "targetProtein": 75,
+        "targetCarbs": 230,
+        "targetFat": 65,
+        "difficulty": "beginner",
+        "tags": [
+            "vegetarian",
+            "budget",
+            "easy"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "veg_5",
+        "name": "Global Veggie Tour",
+        "description": "International vegetarian dishes from around the world.",
+        "durationDays": 7,
+        "targetCaloriesMin": 1900,
+        "targetCaloriesMax": 2200,
+        "targetProtein": 85,
+        "targetCarbs": 240,
+        "targetFat": 75,
+        "difficulty": "intermediate",
+        "tags": [
+            "vegetarian",
+            "international",
+            "variety"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "veg_6",
+        "name": "Low-Carb Vegetarian",
+        "description": "Vegetarian meals with reduced carbohydrates.",
+        "durationDays": 7,
+        "targetCaloriesMin": 1700,
+        "targetCaloriesMax": 1900,
+        "targetProtein": 90,
+        "targetCarbs": 100,
+        "targetFat": 90,
+        "difficulty": "intermediate",
+        "tags": [
+            "vegetarian",
+            "low-carb",
+            "weight-loss"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "veg_7",
+        "name": "Quick Veggie Fix",
+        "description": "Vegetarian meals ready in 20 minutes or less.",
+        "durationDays": 7,
+        "targetCaloriesMin": 1800,
+        "targetCaloriesMax": 2000,
+        "targetProtein": 70,
+        "targetCarbs": 220,
+        "targetFat": 65,
+        "difficulty": "beginner",
+        "tags": [
+            "vegetarian",
+            "quick",
+            "easy"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "veg_8",
+        "name": "Comfort Vegetarian",
+        "description": "Hearty and satisfying vegetarian comfort foods.",
+        "durationDays": 7,
+        "targetCaloriesMin": 2100,
+        "targetCaloriesMax": 2400,
+        "targetProtein": 80,
+        "targetCarbs": 260,
+        "targetFat": 85,
+        "difficulty": "beginner",
+        "tags": [
+            "vegetarian",
+            "comfort-food"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "vegan_1",
+        "name": "Whole Food Plant Based",
+        "description": "Strictly whole foods, no processed ingredients.",
+        "durationDays": 7,
+        "targetCaloriesMin": 1800,
+        "targetCaloriesMax": 2000,
+        "targetProtein": 70,
+        "targetCarbs": 250,
+        "targetFat": 50,
+        "difficulty": "intermediate",
+        "tags": [
+            "vegan",
+            "whole-food",
+            "healthy"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "vegan_2",
+        "name": "Vegan Athlete",
+        "description": "High-performance vegan nutrition for athletes.",
+        "durationDays": 7,
+        "targetCaloriesMin": 2600,
+        "targetCaloriesMax": 3000,
+        "targetProtein": 140,
+        "targetCarbs": 350,
+        "targetFat": 80,
+        "difficulty": "advanced",
+        "tags": [
+            "vegan",
+            "athlete",
+            "high-protein"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "vegan_3",
+        "name": "Raw Vegan Reset",
+        "description": "Raw plant-based meals for maximum enzyme intake.",
+        "durationDays": 7,
+        "targetCaloriesMin": 1600,
+        "targetCaloriesMax": 1800,
+        "targetProtein": 50,
+        "targetCarbs": 200,
+        "targetFat": 70,
+        "difficulty": "advanced",
+        "tags": [
+            "vegan",
+            "raw",
+            "detox"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "vegan_4",
+        "name": "Vegan Keto",
+        "description": "Challenging but rewarding combination of vegan and keto.",
+        "durationDays": 7,
+        "targetCaloriesMin": 1800,
+        "targetCaloriesMax": 2100,
+        "targetProtein": 90,
+        "targetCarbs": 30,
+        "targetFat": 140,
+        "difficulty": "advanced",
+        "tags": [
+            "vegan",
+            "keto",
+            "low-carb"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "vegan_5",
+        "name": "Budget Vegan",
+        "description": "Plant-based eating on a shoestring budget.",
+        "durationDays": 7,
+        "targetCaloriesMin": 1900,
+        "targetCaloriesMax": 2100,
+        "targetProtein": 75,
+        "targetCarbs": 260,
+        "targetFat": 60,
+        "difficulty": "beginner",
+        "tags": [
+            "vegan",
+            "budget",
+            "easy"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "vegan_6",
+        "name": "Gluten-Free Vegan",
+        "description": "Vegan meals free from gluten and wheat.",
+        "durationDays": 7,
+        "targetCaloriesMin": 1800,
+        "targetCaloriesMax": 2000,
+        "targetProtein": 70,
+        "targetCarbs": 220,
+        "targetFat": 65,
+        "difficulty": "intermediate",
+        "tags": [
+            "vegan",
+            "gluten-free",
+            "sensitive"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "vegan_7",
+        "name": "Soy-Free Vegan",
+        "description": "Vegan plan without tofu or soy products.",
+        "durationDays": 7,
+        "targetCaloriesMin": 1800,
+        "targetCaloriesMax": 2000,
+        "targetProtein": 70,
+        "targetCarbs": 230,
+        "targetFat": 65,
+        "difficulty": "intermediate",
+        "tags": [
+            "vegan",
+            "soy-free",
+            "allergy-friendly"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "vegan_8",
+        "name": "Vegan Comfort Classics",
+        "description": "Plant-based versions of classic comfort foods.",
+        "durationDays": 7,
+        "targetCaloriesMin": 2100,
+        "targetCaloriesMax": 2400,
+        "targetProtein": 80,
+        "targetCarbs": 280,
+        "targetFat": 80,
+        "difficulty": "intermediate",
+        "tags": [
+            "vegan",
+            "comfort-food"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "keto_1",
+        "name": "Strict Keto",
+        "description": "Classic ketogenic diet with strict macro ratios.",
+        "durationDays": 7,
+        "targetCaloriesMin": 1800,
+        "targetCaloriesMax": 2100,
+        "targetProtein": 100,
+        "targetCarbs": 20,
+        "targetFat": 150,
+        "difficulty": "intermediate",
+        "tags": [
+            "keto",
+            "strict",
+            "weight-loss"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "keto_2",
+        "name": "Lazy Keto",
+        "description": "Focus on low carbs without strict tracking.",
+        "durationDays": 7,
+        "targetCaloriesMin": 1800,
+        "targetCaloriesMax": 2200,
+        "targetProtein": 110,
+        "targetCarbs": 30,
+        "targetFat": 140,
+        "difficulty": "beginner",
+        "tags": [
+            "keto",
+            "easy",
+            "flexible"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "keto_3",
+        "name": "High-Protein Keto",
+        "description": "Keto with a boost of protein for muscle retention.",
+        "durationDays": 7,
+        "targetCaloriesMin": 2000,
+        "targetCaloriesMax": 2400,
+        "targetProtein": 160,
+        "targetCarbs": 25,
+        "targetFat": 130,
+        "difficulty": "intermediate",
+        "tags": [
+            "keto",
+            "high-protein",
+            "muscle-gain"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "keto_4",
+        "name": "Dairy-Free Keto",
+        "description": "Ketogenic diet without cheese or dairy.",
+        "durationDays": 7,
+        "targetCaloriesMin": 1800,
+        "targetCaloriesMax": 2100,
+        "targetProtein": 110,
+        "targetCarbs": 25,
+        "targetFat": 140,
+        "difficulty": "intermediate",
+        "tags": [
+            "keto",
+            "dairy-free",
+            "paleo"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "keto_5",
+        "name": "Cyclical Keto",
+        "description": "Keto with carb refeed days for athletes.",
+        "durationDays": 7,
+        "targetCaloriesMin": 2200,
+        "targetCaloriesMax": 2600,
+        "targetProtein": 140,
+        "targetCarbs": 150,
+        "targetFat": 100,
+        "difficulty": "advanced",
+        "tags": [
+            "keto",
+            "athlete",
+            "advanced"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "keto_6",
+        "name": "Vegetarian Keto",
+        "description": "Meat-free ketogenic meal plan.",
+        "durationDays": 7,
+        "targetCaloriesMin": 1700,
+        "targetCaloriesMax": 2000,
+        "targetProtein": 90,
+        "targetCarbs": 25,
+        "targetFat": 130,
+        "difficulty": "advanced",
+        "tags": [
+            "keto",
+            "vegetarian",
+            "challenging"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "keto_7",
+        "name": "Keto on a Budget",
+        "description": "Affordable keto meals.",
+        "durationDays": 7,
+        "targetCaloriesMin": 1800,
+        "targetCaloriesMax": 2100,
+        "targetProtein": 100,
+        "targetCarbs": 25,
+        "targetFat": 140,
+        "difficulty": "beginner",
+        "tags": [
+            "keto",
+            "budget",
+            "easy"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "keto_8",
+        "name": "Mediterranean Keto",
+        "description": "Healthy fats from olive oil and fish.",
+        "durationDays": 7,
+        "targetCaloriesMin": 1900,
+        "targetCaloriesMax": 2200,
+        "targetProtein": 110,
+        "targetCarbs": 30,
+        "targetFat": 140,
+        "difficulty": "intermediate",
+        "tags": [
+            "keto",
+            "mediterranean",
+            "healthy-fats"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "protein_1",
+        "name": "Lean Muscle Builder",
+        "description": "Classic bodybuilding diet for lean gains.",
+        "durationDays": 7,
+        "targetCaloriesMin": 2400,
+        "targetCaloriesMax": 2800,
+        "targetProtein": 200,
+        "targetCarbs": 250,
+        "targetFat": 70,
+        "difficulty": "intermediate",
+        "tags": [
+            "high-protein",
+            "muscle-gain",
+            "bodybuilding"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "protein_2",
+        "name": "Fat Loss High Protein",
+        "description": "High protein for satiety during a cut.",
+        "durationDays": 7,
+        "targetCaloriesMin": 1800,
+        "targetCaloriesMax": 2000,
+        "targetProtein": 180,
+        "targetCarbs": 150,
+        "targetFat": 60,
+        "difficulty": "intermediate",
+        "tags": [
+            "high-protein",
+            "weight-loss",
+            "cutting"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "protein_3",
+        "name": "Paleo Protein",
+        "description": "High protein diet based on paleo principles.",
+        "durationDays": 7,
+        "targetCaloriesMin": 2200,
+        "targetCaloriesMax": 2500,
+        "targetProtein": 190,
+        "targetCarbs": 100,
+        "targetFat": 110,
+        "difficulty": "intermediate",
+        "tags": [
+            "high-protein",
+            "paleo",
+            "grain-free"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "protein_4",
+        "name": "Carnivore Lite",
+        "description": "Animal-based diet with minimal plant foods.",
+        "durationDays": 7,
+        "targetCaloriesMin": 2400,
+        "targetCaloriesMax": 2800,
+        "targetProtein": 220,
+        "targetCarbs": 20,
+        "targetFat": 150,
+        "difficulty": "advanced",
+        "tags": [
+            "high-protein",
+            "carnivore",
+            "extreme"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "protein_5",
+        "name": "Pescatarian Protein",
+        "description": "High protein from fish and seafood sources.",
+        "durationDays": 7,
+        "targetCaloriesMin": 2100,
+        "targetCaloriesMax": 2400,
+        "targetProtein": 160,
+        "targetCarbs": 200,
+        "targetFat": 70,
+        "difficulty": "intermediate",
+        "tags": [
+            "high-protein",
+            "pescatarian",
+            "seafood"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "protein_6",
+        "name": "Budget Bulking",
+        "description": "High calorie and protein on a budget.",
+        "durationDays": 7,
+        "targetCaloriesMin": 3000,
+        "targetCaloriesMax": 3500,
+        "targetProtein": 180,
+        "targetCarbs": 400,
+        "targetFat": 100,
+        "difficulty": "beginner",
+        "tags": [
+            "high-protein",
+            "bulking",
+            "budget"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "protein_7",
+        "name": "Clean Eating Protein",
+        "description": "Unprocessed foods high in protein.",
+        "durationDays": 7,
+        "targetCaloriesMin": 2200,
+        "targetCaloriesMax": 2500,
+        "targetProtein": 170,
+        "targetCarbs": 220,
+        "targetFat": 75,
+        "difficulty": "intermediate",
+        "tags": [
+            "high-protein",
+            "clean-eating",
+            "healthy"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "protein_8",
+        "name": "Quick Protein Fix",
+        "description": "High protein meals for busy people.",
+        "durationDays": 7,
+        "targetCaloriesMin": 2000,
+        "targetCaloriesMax": 2300,
+        "targetProtein": 160,
+        "targetCarbs": 200,
+        "targetFat": 70,
+        "difficulty": "beginner",
+        "tags": [
+            "high-protein",
+            "quick",
+            "easy"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "med_1",
+        "name": "Classic Mediterranean",
+        "description": "The gold standard of healthy eating.",
+        "durationDays": 7,
+        "targetCaloriesMin": 2000,
+        "targetCaloriesMax": 2300,
+        "targetProtein": 100,
+        "targetCarbs": 220,
+        "targetFat": 80,
+        "difficulty": "beginner",
+        "tags": [
+            "mediterranean",
+            "balanced",
+            "heart-healthy"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "med_2",
+        "name": "Low-Carb Mediterranean",
+        "description": "Mediterranean diet with reduced grains.",
+        "durationDays": 7,
+        "targetCaloriesMin": 1800,
+        "targetCaloriesMax": 2100,
+        "targetProtein": 110,
+        "targetCarbs": 100,
+        "targetFat": 100,
+        "difficulty": "intermediate",
+        "tags": [
+            "mediterranean",
+            "low-carb",
+            "weight-loss"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "med_3",
+        "name": "Pescatarian Mediterranean",
+        "description": "Focus on fish and seafood.",
+        "durationDays": 7,
+        "targetCaloriesMin": 1900,
+        "targetCaloriesMax": 2200,
+        "targetProtein": 120,
+        "targetCarbs": 180,
+        "targetFat": 80,
+        "difficulty": "intermediate",
+        "tags": [
+            "mediterranean",
+            "pescatarian",
+            "seafood"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "med_4",
+        "name": "Vegetarian Mediterranean",
+        "description": "Plant-based Mediterranean meals.",
+        "durationDays": 7,
+        "targetCaloriesMin": 1800,
+        "targetCaloriesMax": 2100,
+        "targetProtein": 80,
+        "targetCarbs": 210,
+        "targetFat": 80,
+        "difficulty": "beginner",
+        "tags": [
+            "mediterranean",
+            "vegetarian",
+            "plant-based"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "med_5",
+        "name": "Gluten-Free Mediterranean",
+        "description": "Mediterranean diet without wheat.",
+        "durationDays": 7,
+        "targetCaloriesMin": 1900,
+        "targetCaloriesMax": 2200,
+        "targetProtein": 90,
+        "targetCarbs": 200,
+        "targetFat": 85,
+        "difficulty": "intermediate",
+        "tags": [
+            "mediterranean",
+            "gluten-free",
+            "sensitive"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "med_6",
+        "name": "Budget Mediterranean",
+        "description": "Healthy eating that doesn't break the bank.",
+        "durationDays": 7,
+        "targetCaloriesMin": 1900,
+        "targetCaloriesMax": 2200,
+        "targetProtein": 90,
+        "targetCarbs": 230,
+        "targetFat": 75,
+        "difficulty": "beginner",
+        "tags": [
+            "mediterranean",
+            "budget",
+            "easy"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "med_7",
+        "name": "High-Protein Mediterranean",
+        "description": "Mediterranean diet with extra protein.",
+        "durationDays": 7,
+        "targetCaloriesMin": 2200,
+        "targetCaloriesMax": 2500,
+        "targetProtein": 150,
+        "targetCarbs": 200,
+        "targetFat": 90,
+        "difficulty": "intermediate",
+        "tags": [
+            "mediterranean",
+            "high-protein",
+            "muscle-gain"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "med_8",
+        "name": "Quick Mediterranean",
+        "description": "Fast and fresh Mediterranean meals.",
+        "durationDays": 7,
+        "targetCaloriesMin": 1900,
+        "targetCaloriesMax": 2100,
+        "targetProtein": 90,
+        "targetCarbs": 210,
+        "targetFat": 80,
+        "difficulty": "beginner",
+        "tags": [
+            "mediterranean",
+            "quick",
+            "easy"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "quick_1",
+        "name": "15-Minute Meals",
+        "description": "Ultra-fast meals for busy days.",
+        "durationDays": 7,
+        "targetCaloriesMin": 1800,
+        "targetCaloriesMax": 2100,
+        "targetProtein": 90,
+        "targetCarbs": 220,
+        "targetFat": 70,
+        "difficulty": "beginner",
+        "tags": [
+            "quick",
+            "easy",
+            "15-minute"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "quick_2",
+        "name": "5-Ingredient Fix",
+        "description": "Simple meals with minimal ingredients.",
+        "durationDays": 7,
+        "targetCaloriesMin": 1800,
+        "targetCaloriesMax": 2100,
+        "targetProtein": 85,
+        "targetCarbs": 210,
+        "targetFat": 75,
+        "difficulty": "beginner",
+        "tags": [
+            "quick",
+            "minimalist",
+            "easy"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "quick_3",
+        "name": "Meal Prep Master",
+        "description": "Cook once, eat all week.",
+        "durationDays": 7,
+        "targetCaloriesMin": 2000,
+        "targetCaloriesMax": 2300,
+        "targetProtein": 110,
+        "targetCarbs": 230,
+        "targetFat": 75,
+        "difficulty": "intermediate",
+        "tags": [
+            "quick",
+            "meal-prep",
+            "efficient"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "quick_4",
+        "name": "No-Cook Plan",
+        "description": "Meals that require zero cooking.",
+        "durationDays": 7,
+        "targetCaloriesMin": 1700,
+        "targetCaloriesMax": 2000,
+        "targetProtein": 80,
+        "targetCarbs": 200,
+        "targetFat": 70,
+        "difficulty": "beginner",
+        "tags": [
+            "quick",
+            "no-cook",
+            "summer"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "quick_5",
+        "name": "One-Pot Wonders",
+        "description": "Easy cleanup with one-pot meals.",
+        "durationDays": 7,
+        "targetCaloriesMin": 1900,
+        "targetCaloriesMax": 2200,
+        "targetProtein": 95,
+        "targetCarbs": 220,
+        "targetFat": 75,
+        "difficulty": "beginner",
+        "tags": [
+            "quick",
+            "one-pot",
+            "easy-cleanup"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "quick_6",
+        "name": "Smoothie & Salad",
+        "description": "Light and fast meals.",
+        "durationDays": 7,
+        "targetCaloriesMin": 1600,
+        "targetCaloriesMax": 1800,
+        "targetProtein": 60,
+        "targetCarbs": 200,
+        "targetFat": 50,
+        "difficulty": "beginner",
+        "tags": [
+            "quick",
+            "light",
+            "weight-loss"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "quick_7",
+        "name": "Sandwich & Wrap",
+        "description": "Portable meals for on-the-go.",
+        "durationDays": 7,
+        "targetCaloriesMin": 1900,
+        "targetCaloriesMax": 2200,
+        "targetProtein": 80,
+        "targetCarbs": 250,
+        "targetFat": 70,
+        "difficulty": "beginner",
+        "tags": [
+            "quick",
+            "portable",
+            "lunch"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    },
+    {
+        "id": "quick_8",
+        "name": "Frozen Food Hacks",
+        "description": "Healthy meals using frozen staples.",
+        "durationDays": 7,
+        "targetCaloriesMin": 1800,
+        "targetCaloriesMax": 2100,
+        "targetProtein": 85,
+        "targetCarbs": 220,
+        "targetFat": 70,
+        "difficulty": "beginner",
+        "tags": [
+            "quick",
+            "frozen",
+            "convenient"
+        ],
+        "isCustom": false,
+        "dailyPlans": []
+    }
+]

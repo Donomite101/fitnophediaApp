@@ -514,6 +514,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         'savedBy': 'ai',
         'source': 'ai_coach',
         'savedAt': FieldValue.serverTimestamp(),
+        'createdAt': FieldValue.serverTimestamp(),
       };
 
       await FirebaseFirestore.instance

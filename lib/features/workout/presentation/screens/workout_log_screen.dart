@@ -5,6 +5,8 @@ import 'package:iconsax/iconsax.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:percent_indicator/linear_percent_indicator.dart';
+import 'package:percent_indicator/circular_percent_indicator.dart';
+import 'package:vibration/vibration.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,6 +14,10 @@ import '../../../member/streak/service/streak_service.dart';
 import '../../../member/streak/StreakCelebrationOverlay.dart';
 import '../../data/providers/workout_provider.dart';
 import '../../data/models/exercise_model.dart';
+import '../../data/services/recovery_service.dart';
+import '../../data/services/music_service.dart';
+import '../../data/services/warmup_service.dart';
+import '../widgets/music_player_overlay.dart';
 
 class WorkoutLogScreen extends StatefulWidget {
   final String gymId;
@@ -55,6 +61,12 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
   bool _isResting = false;
   bool _showRestOverlay = false;
   
+  // Warmup Timer
+  Timer? _warmupTimer;
+  int _warmupSecondsRemaining = 0;
+  int _warmupTotalSeconds = 0;
+  bool _isWarmupTimerRunning = false;
+  
   // Music Mock
   bool _isPlayingMusic = false;
 
@@ -72,6 +84,9 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
     _pageController = PageController();
     _initializeWorkout();
     _startWorkoutTimer();
+    
+    // Initialize Music Service
+    MusicService.instance.init();
   }
 
   @override
@@ -81,6 +96,7 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
     _workoutTimer?.cancel();
     _restTimer?.cancel();
     _pageController.dispose();
+    MusicService.instance.stop(); // Stop music when leaving screen
     super.dispose();
   }
 
@@ -159,18 +175,32 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
   }
 
   void _parseExercises(List<dynamic> rawExercises) {
-    _exercises = rawExercises.map((e) => e as Map<String, dynamic>).toList();
+    // 1. Convert raw exercises
+    List<Map<String, dynamic>> mainExercises = rawExercises.map((e) => e as Map<String, dynamic>).toList();
+    
+    // 2. Generate Warmups
+    List<Map<String, dynamic>> warmups = [];
+    if (widget.workoutData['customWarmup'] != null && (widget.workoutData['customWarmup'] as List).isNotEmpty) {
+      warmups = List<Map<String, dynamic>>.from(widget.workoutData['customWarmup']);
+    } else {
+      warmups = WarmupService.instance.generateWarmup(mainExercises);
+    }
+    
+    // 3. Combine
+    _exercises = [...warmups, ...mainExercises];
     
     for (int i = 0; i < _exercises.length; i++) {
       _logs[i] = [];
       int targetSets = int.tryParse(_exercises[i]['sets']?.toString() ?? '3') ?? 3;
-      double lastWeight = 0.0; // Auto-suggest logic placeholder
+      double lastWeight = double.tryParse(_exercises[i]['weight']?.toString() ?? '0') ?? 0.0;
+      bool isWarmup = _exercises[i]['isWarmup'] == true;
       
       for (int j = 0; j < targetSets; j++) {
         _logs[i]!.add({
           'weight': lastWeight,
-          'reps': int.tryParse(_exercises[i]['reps']?.toString() ?? '10') ?? 10,
+          'reps': _exercises[i]['reps'] ?? 10, // Could be string "5 min" or int 10
           'completed': false,
+          'isWarmup': isWarmup,
         });
       }
     }
@@ -190,6 +220,8 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
         'restSecondsRemaining': _restSecondsRemaining,
         'exercises': _exercises,
         'logs': _logs.map((key, value) => MapEntry(key.toString(), value)),
+        'workoutName': widget.workoutData['name'] ?? widget.workoutData['planName'] ?? "Workout",
+        'difficulty': widget.workoutData['difficulty'] ?? "Intermediate",
         'timestamp': DateTime.now().millisecondsSinceEpoch,
       };
       await prefs.setString(_draftKey, jsonEncode(draft));
@@ -283,6 +315,30 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
     return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 
+  void _addSet(int exerciseIndex) {
+    setState(() {
+      final lastSet = _logs[exerciseIndex]!.last;
+      _logs[exerciseIndex]!.add({
+        'weight': lastSet['weight'],
+        'reps': lastSet['reps'],
+        'completed': false,
+      });
+      _saveDraft();
+    });
+  }
+
+  void _removeSet(int exerciseIndex) {
+    setState(() {
+      if (_logs[exerciseIndex]!.length > 1) {
+        _logs[exerciseIndex]!.removeLast();
+        if (_currentSetIndex >= _logs[exerciseIndex]!.length) {
+          _currentSetIndex = _logs[exerciseIndex]!.length - 1;
+        }
+        _saveDraft();
+      }
+    });
+  }
+
   void _logSetAndRest() {
     if (_isResting) return;
 
@@ -297,7 +353,33 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
     });
 
     // Determine Rest Duration
-    int restDuration = (_currentSetIndex < _logs[_currentExerciseIndex]!.length - 1) ? 60 : 90;
+    int restDuration = 90; // Default
+    
+    try {
+      final currentLog = _logs[_currentExerciseIndex]![_currentSetIndex];
+      final currentReps = currentLog['reps'];
+      
+      // Check if it's a warmup
+      if (currentLog['isWarmup'] == true) {
+        // Skip rest for warmups, just transition
+        _onRestTimerFinished();
+        _saveDraft();
+        return;
+      }
+
+      int reps = 10;
+      if (currentReps is int) reps = currentReps;
+      else if (currentReps is String && int.tryParse(currentReps) != null) reps = int.parse(currentReps);
+      
+      if (reps <= 5) restDuration = 180; // Heavy Strength: 3 mins
+      else if (reps <= 12) restDuration = 90; // Hypertrophy: 1.5 mins
+      else restDuration = 60; // Endurance: 1 min
+    } catch (_) {}
+
+    // Check if switching exercises
+    if (_currentSetIndex >= _logs[_currentExerciseIndex]!.length - 1) {
+       restDuration = 120; // Between Exercises: 2 mins
+    }
     
     // Auto-advance logic for exercise transitions
     if (_currentSetIndex < _logs[_currentExerciseIndex]!.length - 1) {
@@ -305,7 +387,7 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
     } else {
       // LAST SET transition
       if (_currentExerciseIndex < _exercises.length - 1) {
-        _startRestTimerInternal(90, showOverlay: true);
+        _startRestTimerInternal(restDuration, showOverlay: true);
       } else {
         _finishWorkout();
       }
@@ -318,6 +400,12 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
     setState(() {
       _isResting = false;
       _showRestOverlay = false;
+      
+      // Reset Warmup Timer
+      _warmupTimer?.cancel();
+      _warmupSecondsRemaining = 0;
+      _warmupTotalSeconds = 0;
+      _isWarmupTimerRunning = false;
 
       // HANDS-FREE TRANSITION LOGIC
       if (_currentSetIndex >= _logs[_currentExerciseIndex]!.length - 1) {
@@ -355,6 +443,7 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
           _restSecondsRemaining--;
         } else {
           timer.cancel();
+          if (mounted) Vibration.vibrate();
           _onRestTimerFinished();
         }
       });
@@ -364,6 +453,50 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
   void _skipRest() {
     _restTimer?.cancel();
     _onRestTimerFinished();
+  }
+
+  // --- Warmup Timer Logic ---
+  void _initWarmupTimer(String durationStr) {
+    int seconds = 0;
+    if (durationStr.toLowerCase().contains('min')) {
+      final min = int.tryParse(durationStr.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+      seconds = min * 60;
+    } else {
+      seconds = int.tryParse(durationStr.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+    }
+    
+    if (seconds > 0) {
+      setState(() {
+        _warmupTotalSeconds = seconds;
+        _warmupSecondsRemaining = seconds;
+        _isWarmupTimerRunning = false;
+      });
+    }
+  }
+
+  void _toggleWarmupTimer() {
+    if (_isWarmupTimerRunning) {
+      _warmupTimer?.cancel();
+      setState(() => _isWarmupTimerRunning = false);
+    } else {
+      setState(() => _isWarmupTimerRunning = true);
+      _warmupTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (!mounted) {
+          timer.cancel();
+          return;
+        }
+        setState(() {
+          if (_warmupSecondsRemaining > 0) {
+            _warmupSecondsRemaining--;
+          } else {
+            timer.cancel();
+            _isWarmupTimerRunning = false;
+            // Vibrate on completion
+            if (mounted) Vibration.vibrate();
+          }
+        });
+      });
+    }
   }
 
   void _updateValue(String key, double change) {
@@ -401,9 +534,19 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
         skipGeofence: true, // Allow logging workout from anywhere
       );
 
+      // Update Recovery Score
+      // Calculate duration in minutes
+      final durationMinutes = (_secondsElapsed / 60).ceil();
+      await RecoveryService.instance.updateRecoveryScore(
+        gymId: widget.gymId,
+        memberId: widget.memberId,
+        durationMinutes: durationMinutes,
+        intensity: 2, // Default to medium intensity for now
+      );
+
       if (mounted) {
-        // Show celebration if it's a new streak day OR if we just want to show the current streak
-        if (result.newStreakCount != null && result.newStreakCount! > 0) {
+        // Show celebration ONLY if it's a new streak day (celebrate flag is true)
+        if (result.celebrate && result.newStreakCount != null) {
           final activeDays = await StreakService.instance.getActiveDaysForCurrentWeek(
             gymId: widget.gymId,
             memberId: widget.memberId,
@@ -478,6 +621,12 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
                       setState(() {
                         _currentExerciseIndex = index;
                         _currentSetIndex = 0; // Reset to first set when swiping manually
+                        
+                        // Reset Warmup Timer
+                        _warmupTimer?.cancel();
+                        _warmupSecondsRemaining = 0;
+                        _warmupTotalSeconds = 0;
+                        _isWarmupTimerRunning = false;
                       });
                     },
                     itemCount: _exercises.length,
@@ -497,6 +646,12 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
                 color: isDark ? const Color(0xFF000000) : const Color(0xFFF5F5F5),
                 child: _buildRestScreen(isDark, textColor),
               ),
+            ),
+
+          // Music Player Overlay
+          if (_isPlayingMusic)
+            const Positioned.fill(
+              child: MusicPlayerOverlay(key: ValueKey('music_overlay')),
             ),
         ],
       ),
@@ -544,9 +699,289 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
     );
   }
 
-  Widget _buildExercisePage(BuildContext context, int index, bool isDark, Color textColor) {
+  Widget _buildWarmupPage(BuildContext context, int index, bool isDark, Color textColor) {
     final exercise = _exercises[index];
-    final currentSetData = _logs[index]![_currentSetIndex];
+    // Fix RangeError: Only use _currentSetIndex if this is the active page, otherwise default to 0
+    final setIndex = (index == _currentExerciseIndex) ? _currentSetIndex : 0;
+    // Double check bounds just to be safe
+    final safeSetIndex = setIndex < _logs[index]!.length ? setIndex : 0;
+    final currentSetData = _logs[index]![safeSetIndex];
+    final repsStr = currentSetData['reps'].toString();
+    final isTimeBased = repsStr.contains('s') || repsStr.contains('min');
+    
+    // Initialize timer if needed and not running, BUT ONLY for the current exercise
+    if (isTimeBased && _warmupTotalSeconds == 0 && index == _currentExerciseIndex) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _initWarmupTimer(repsStr);
+      });
+    }
+    
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const SizedBox(height: 10),
+          // Premium Badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.orange.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(color: Colors.orange.withOpacity(0.3)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Iconsax.flash_1, size: 16, color: Colors.orange),
+                const SizedBox(width: 8),
+                Text(
+                  "WARMUP PHASE",
+                  style: TextStyle(
+                    fontFamily: 'Outfit',
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                    color: Colors.orange[700],
+                    letterSpacing: 1.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 30),
+          
+          // Exercise Title
+          Text(
+            exercise['name'] ?? "Warmup",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: 'Outfit',
+              fontSize: 36,
+              fontWeight: FontWeight.bold,
+              color: textColor,
+              height: 1.1,
+            ),
+          ),
+          const SizedBox(height: 30),
+          
+          // Timer/Reps Display (Centerpiece)
+          if (isTimeBased)
+            GestureDetector(
+              onTap: index == _currentExerciseIndex ? _toggleWarmupTimer : null,
+              child: Container(
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                ),
+                child: CircularPercentIndicator(
+                  radius: 110.0,
+                  lineWidth: 12.0,
+                  // Only show progress if this is the active exercise
+                  percent: (index == _currentExerciseIndex && _warmupTotalSeconds > 0) 
+                      ? (_warmupSecondsRemaining / _warmupTotalSeconds).clamp(0.0, 1.0) 
+                      : 1.0,
+                  center: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        // Show active time or full duration
+                        (index == _currentExerciseIndex && _warmupTotalSeconds > 0)
+                            ? _formatTime(_warmupSecondsRemaining)
+                            : repsStr,
+                        style: TextStyle(
+                          fontFamily: 'Outfit',
+                          fontSize: 48,
+                          fontWeight: FontWeight.bold,
+                          color: textColor,
+                          letterSpacing: -1,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.orange,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.orange.withOpacity(0.4),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          (index == _currentExerciseIndex && _isWarmupTimerRunning) ? Iconsax.pause : Iconsax.play,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                      ),
+                    ],
+                  ),
+                  progressColor: Colors.orange,
+                  backgroundColor: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+                  circularStrokeCap: CircularStrokeCap.round,
+                  animation: false,
+                ),
+              ),
+            )
+          else
+            Container(
+              width: 220,
+              height: 220,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isDark ? Colors.grey[900] : Colors.white,
+                border: Border.all(color: Colors.orange.withOpacity(0.2), width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 20,
+                    spreadRadius: 0,
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    repsStr,
+                    style: TextStyle(
+                      fontFamily: 'Outfit',
+                      fontSize: 64,
+                      fontWeight: FontWeight.bold,
+                      color: textColor,
+                      height: 1,
+                    ),
+                  ),
+                  Text(
+                    "REPS",
+                    style: TextStyle(
+                      fontFamily: 'Outfit',
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.orange,
+                      letterSpacing: 2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          
+          const SizedBox(height: 40),
+          
+          // Instructions Card
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: isDark ? Colors.white10 : Colors.grey[200]!),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.03),
+                  blurRadius: 15,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Iconsax.info_circle, size: 18, color: Colors.grey[500]),
+                    const SizedBox(width: 8),
+                    Text(
+                      "INSTRUCTIONS",
+                      style: TextStyle(
+                        fontFamily: 'Outfit',
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[500],
+                        letterSpacing: 1,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  exercise['instructions'] ?? "Get ready!",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: textColor.withOpacity(0.9),
+                    height: 1.5,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 40),
+          
+          // Complete Button
+          Container(
+            width: double.infinity,
+            height: 64,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              gradient: const LinearGradient(
+                colors: [Colors.orange, Colors.deepOrange],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.orange.withOpacity(0.3),
+                  blurRadius: 15,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: ElevatedButton(
+              onPressed: _logSetAndRest,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.transparent,
+                foregroundColor: Colors.white,
+                shadowColor: Colors.transparent,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    "COMPLETE WARMUP",
+                    style: TextStyle(
+                      fontFamily: 'Outfit',
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                  SizedBox(width: 8),
+                  Icon(Iconsax.arrow_right_1),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExercisePage(BuildContext context, int index, bool isDark, Color textColor) {
+    if (_exercises[index]['isWarmup'] == true) {
+      return _buildWarmupPage(context, index, isDark, textColor);
+    }
+
+    final exercise = _exercises[index];
+    // Fix RangeError: Only use _currentSetIndex if this is the active page, otherwise default to 0
+    final setIndex = (index == _currentExerciseIndex) ? _currentSetIndex : 0;
+    // Double check bounds just to be safe
+    final safeSetIndex = setIndex < _logs[index]!.length ? setIndex : 0;
+    final currentSetData = _logs[index]![safeSetIndex];
     final totalSets = _logs[index]!.length;
 
     // Optimized Image Logic with caching
@@ -594,6 +1029,37 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
                     
                     const SizedBox(height: 20),
                     
+                    const SizedBox(height: 20),
+                    
+                    // Warmup Indicator
+                    if (exercise['isWarmup'] == true)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.orange.withOpacity(0.5)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Iconsax.flash_1, size: 14, color: Colors.orange),
+                            const SizedBox(width: 6),
+                            Text(
+                              "WARMUP PHASE",
+                              style: TextStyle(
+                                fontFamily: 'Outfit',
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.orangeAccent : Colors.orange[800],
+                                letterSpacing: 1,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
                     // Exercise Info
                     Text(
                       exercise['name'] ?? "Exercise",
@@ -725,16 +1191,25 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
                     ),
 
                     const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF00E676).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        "Set ${_currentSetIndex + 1} of $totalSets",
-                        style: const TextStyle(fontFamily: 'Outfit', color: Color(0xFF00E676), fontWeight: FontWeight.bold),
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _circleBtn(Icons.remove, () => _removeSet(index)),
+                        const SizedBox(width: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF00E676).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            "Set ${_currentSetIndex + 1} of $totalSets",
+                            style: const TextStyle(fontFamily: 'Outfit', color: Color(0xFF00E676), fontWeight: FontWeight.bold, fontSize: 16),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        _circleBtn(Icons.add, () => _addSet(index)),
+                      ],
                     ),
 
                     const Spacer(),
@@ -782,6 +1257,7 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
   }
 
   Widget _buildControl(bool isDark, String label, dynamic value, Function(double) onChanged, double step) {
+    final isNumeric = value is num;
     return Container(
       padding: const EdgeInsets.all(12), // Reduced padding
       decoration: BoxDecoration(
@@ -794,17 +1270,20 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
           Text(label, style: TextStyle(color: Colors.grey[500], fontSize: 13)), // Reduced font size
           const SizedBox(height: 8), // Reduced spacing
           Text(
-            value.toStringAsFixed(value is int ? 0 : 1),
+            isNumeric ? value.toStringAsFixed(value is int ? 0 : 1) : value.toString(),
             style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black), // Reduced font size
           ),
           const SizedBox(height: 8), // Reduced spacing
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _circleBtn(Icons.remove, () => onChanged(-step)),
-              _circleBtn(Icons.add, () => onChanged(step)),
-            ],
-          ),
+          if (isNumeric)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _circleBtn(Icons.remove, () => onChanged(-step)),
+                _circleBtn(Icons.add, () => onChanged(step)),
+              ],
+            )
+          else
+             const SizedBox(height: 44), // Placeholder to keep height consistent
         ],
       ),
     );

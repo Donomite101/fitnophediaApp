@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -11,6 +13,11 @@ import '../../../../routes/app_routes.dart';
 import '../../data/providers/workout_provider.dart';
 import 'saved_workout_detail_screen.dart';
 import '../../../member/streak/service/streak_service.dart';
+import '../../../member/chat/ai_service.dart';
+import '../../data/services/recovery_service.dart';
+import '../widgets/unified_workout_card.dart';
+import 'workout_create_screen.dart';
+import 'workout_list_screen.dart';
 
 class WorkoutHomeScreen extends StatefulWidget {
   final String gymId;
@@ -32,6 +39,9 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
   int _recoveryScore = 85; // Mocked
   Map<String, double> _workoutProgress = {};
   bool _isInitialized = false;
+  String _lastActiveWorkoutName = "Upper Body Power";
+  String _lastActiveWorkoutDifficulty = "Intermediate";
+  String? _lastActiveWorkoutId;
 
   @override
   void didChangeDependencies() {
@@ -42,11 +52,24 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
     }
   }
 
+  late Stream<QuerySnapshot> _workoutPlansStream;
+
   @override
   void initState() {
     super.initState();
     _fetchUserData();
+    _fetchWorkoutTemplates();
     _loadAllWorkoutProgress();
+    
+    // Initialize stream once to prevent blinking on rebuilds
+    _workoutPlansStream = FirebaseFirestore.instance
+        .collection('gyms')
+        .doc(widget.gymId)
+        .collection('members')
+        .doc(widget.memberId)
+        .collection('workout_plans')
+        .limit(10)
+        .snapshots();
   }
 
   Future<void> _loadAllWorkoutProgress() async {
@@ -57,6 +80,11 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
       
       final prefix = "workout_draft_${widget.memberId}_${widget.gymId}_";
       
+      int latestTimestamp = 0;
+      String? latestName;
+      String? latestId;
+      String? latestDifficulty;
+
       for (String key in keys) {
         if (key.startsWith(prefix)) {
           final workoutId = key.replaceFirst(prefix, "");
@@ -64,7 +92,16 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
           if (draftString != null) {
             final draft = jsonDecode(draftString);
             final Map<String, dynamic> logs = Map<String, dynamic>.from(draft['logs']);
+            final int timestamp = draft['timestamp'] ?? 0;
             
+            // Track latest workout
+            if (timestamp > latestTimestamp) {
+              latestTimestamp = timestamp;
+              latestName = draft['workoutName'];
+              latestId = workoutId;
+              latestDifficulty = draft['difficulty'];
+            }
+
             int totalSets = 0;
             int completedSets = 0;
             
@@ -84,6 +121,13 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
       if (mounted) {
         setState(() {
           _workoutProgress = progressMap;
+          if (latestName != null) {
+            _lastActiveWorkoutName = latestName;
+            _lastActiveWorkoutId = latestId;
+            if (latestDifficulty != null) {
+              _lastActiveWorkoutDifficulty = latestDifficulty;
+            }
+          }
         });
       }
     } catch (e) {
@@ -91,36 +135,94 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
     }
   }
 
+  StreamSubscription<DocumentSnapshot>? _memberSubscription;
+
+  @override
+  void dispose() {
+    _memberSubscription?.cancel();
+    super.dispose();
+  }
+
+  DateTime? _startDate;
+
   Future<void> _fetchUserData() async {
     debugPrint("🔍 _fetchUserData called");
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      debugPrint("👤 User found: ${user.uid}");
-      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-      if (doc.exists) {
-        setState(() {
-          _userName = doc.data()?['name'] ?? "Athlete";
-        });
-      }
+    
+    if (widget.gymId.isEmpty || widget.memberId.isEmpty) {
+      debugPrint("⚠️ GymId or MemberId is empty. Skipping user data fetch.");
+      return;
+    }
 
-      if (widget.gymId.isEmpty || widget.memberId.isEmpty) {
-        debugPrint("⚠️ GymId or MemberId is empty. Skipping streak fetch.");
-        return;
+    // 1. Listen to Member Profile Changes (Real-time Name)
+    _memberSubscription?.cancel();
+    _memberSubscription = FirebaseFirestore.instance
+        .collection('gyms')
+        .doc(widget.gymId)
+        .collection('members')
+        .doc(widget.memberId)
+        .snapshots()
+        .listen((snapshot) {
+      if (snapshot.exists && mounted) {
+        final data = snapshot.data();
+        if (data != null) {
+          final firstName = data['firstName'] as String? ?? "";
+          final lastName = data['lastName'] as String? ?? "";
+          final fullName = "$firstName $lastName".trim();
+          
+          setState(() {
+            _userName = fullName.isNotEmpty ? fullName : "Athlete";
+          });
+          debugPrint("👤 User name updated: $_userName");
+        }
       }
+    }, onError: (e) {
+      debugPrint("❌ Error listening to member profile: $e");
+    });
 
-      // Fetch Streak
+    // 2. Fetch Streak & Recovery (Keep as one-time fetch for now, or move to stream if needed)
+    try {
       debugPrint("🔍 Fetching streak for gym: ${widget.gymId}, member: ${widget.memberId}");
+      final streak = await StreakService.instance.getEffectiveStreak(widget.gymId, widget.memberId);
+      debugPrint("✅ Streak fetched: $streak");
+      
+      final recovery = await RecoveryService.instance.getRecoveryScore(widget.gymId, widget.memberId);
+      debugPrint("✅ Recovery fetched: $recovery");
+
+      // 3. Fetch First Workout Date for Roadmap
+      DateTime? start;
       try {
-        final streak = await StreakService.instance.getEffectiveStreak(widget.gymId, widget.memberId);
-        debugPrint("✅ Streak fetched: $streak");
+        final attendanceSnapshot = await FirebaseFirestore.instance
+            .collection('gyms')
+            .doc(widget.gymId)
+            .collection('members')
+            .doc(widget.memberId)
+            .collection('attendance')
+            .orderBy('timestamp', descending: false)
+            .limit(1)
+            .get();
+
+        if (attendanceSnapshot.docs.isNotEmpty) {
+          final data = attendanceSnapshot.docs.first.data();
+          if (data['timestamp'] != null) {
+            start = (data['timestamp'] as Timestamp).toDate();
+          }
+        }
+      } catch (e) {
+        debugPrint("❌ Error fetching start date: $e");
+      }
+
+      if (mounted) {
         setState(() {
           _streakDays = streak;
+          _recoveryScore = recovery;
+          _startDate = start;
         });
-      } catch (e) {
-        debugPrint("❌ Error fetching streak: $e");
+        
+        // 4. Fetch AI Tip (after basic data is loaded)
+        _fetchAiCoachTip();
       }
-    } else {
-      debugPrint("❌ No user logged in");
+    } catch (e) {
+      debugPrint("❌ Error fetching streak/recovery: $e");
     }
   }
 
@@ -161,6 +263,10 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
 
               // 6. Your Workouts
               _buildYourWorkouts(isDark, textColor),
+              const SizedBox(height: 24),
+
+              // 7. Explore Templates
+              _buildTemplateSection(isDark, textColor),
               const SizedBox(height: 24),
             ],
           ),
@@ -290,28 +396,30 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            "Upper Body Power",
-                            style: TextStyle(
+                          Text(
+                            _lastActiveWorkoutName,
+                            style: const TextStyle(
                               fontFamily: 'Outfit',
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
                               height: 1.1,
                             ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 6),
                           Row(
                             children: [
                               const Icon(Iconsax.timer_1, color: Colors.grey, size: 14),
                               const SizedBox(width: 4),
-                              const Text("45 min",
+                              const Text("Resume", // Changed from 45 min since it's likely a resume
                                   style: TextStyle(color: Colors.grey, fontFamily: 'Outfit', fontSize: 12)),
                               const SizedBox(width: 12),
                               const Icon(Iconsax.flash_1, color: Colors.grey, size: 14),
                               const SizedBox(width: 4),
-                              const Text("Intermediate",
-                                  style: TextStyle(color: Colors.grey, fontFamily: 'Outfit', fontSize: 12)),
+                              Text(_lastActiveWorkoutDifficulty, // Dynamic Difficulty
+                                  style: const TextStyle(color: Colors.grey, fontFamily: 'Outfit', fontSize: 12)),
                             ],
                           ),
                         ],
@@ -319,7 +427,36 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
                     ),
                     ElevatedButton(
                       onPressed: () async {
-                        // Navigate to the first available workout plan in the list
+                        if (_lastActiveWorkoutId != null) {
+                          // Fetch the specific workout
+                          final doc = await FirebaseFirestore.instance
+                              .collection('gyms')
+                              .doc(widget.gymId)
+                              .collection('members')
+                              .doc(widget.memberId)
+                              .collection('workout_plans')
+                              .doc(_lastActiveWorkoutId)
+                              .get();
+
+                          if (doc.exists && mounted) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => SavedWorkoutDetailScreen(
+                                  workoutData: doc.data() as Map<String, dynamic>,
+                                  gymId: widget.gymId,
+                                  memberId: widget.memberId,
+                                ),
+                              ),
+                            ).then((_) {
+                              _loadAllWorkoutProgress();
+                              _fetchUserData();
+                            });
+                            return;
+                          }
+                        }
+
+                        // Fallback: Navigate to the first available workout plan
                         final snapshot = await FirebaseFirestore.instance
                             .collection('gyms')
                             .doc(widget.gymId)
@@ -340,7 +477,10 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
                                 memberId: widget.memberId,
                               ),
                             ),
-                          ).then((_) => _loadAllWorkoutProgress());
+                          ).then((_) {
+                            _loadAllWorkoutProgress();
+                            _fetchUserData(); 
+                          });
                         }
                       },
                       style: ElevatedButton.styleFrom(
@@ -361,7 +501,7 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
                     ),
                   ],
                 ),
-                if (_workoutProgress.isNotEmpty) ...[
+                if (_lastActiveWorkoutId != null && _workoutProgress.containsKey(_lastActiveWorkoutId)) ...[
                   const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -371,7 +511,7 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
                         style: TextStyle(color: Colors.white70, fontSize: 12, fontFamily: 'Outfit'),
                       ),
                       Text(
-                        "${_workoutProgress.isNotEmpty ? (_workoutProgress.values.cast<double>().reduce((a, b) => a > b ? a : b) * 100).toInt() : 0}%",
+                        "${(_workoutProgress[_lastActiveWorkoutId]! * 100).toInt()}%",
                         style: const TextStyle(
                             color: Color(0xFF00E676), fontSize: 12, fontWeight: FontWeight.bold, fontFamily: 'Outfit'),
                       ),
@@ -381,7 +521,7 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
                    ClipRRect(
                     borderRadius: BorderRadius.circular(4),
                     child: LinearProgressIndicator(
-                      value: _workoutProgress.isNotEmpty ? _workoutProgress.values.cast<double>().reduce((a, b) => a > b ? a : b) : 0.0,
+                      value: _workoutProgress[_lastActiveWorkoutId]!,
                       backgroundColor: Colors.white10,
                       valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF00E676)),
                       minHeight: 6,
@@ -414,7 +554,13 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
             isDark,
             icon: Iconsax.add_circle,
             label: "Create Custom",
-            onTap: () => Navigator.pushNamed(context, AppRoutes.createWorkout),
+            onTap: () {
+               // Direct push to avoid route generator issues
+               Navigator.push(
+                 context,
+                 MaterialPageRoute(builder: (_) => const CreateWorkoutScreen()),
+               );
+            },
           ),
         ),
       ],
@@ -453,8 +599,28 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
 
   // --- 4. Program Roadmap ---
   Widget _buildProgramRoadmap(bool isDark, Color textColor) {
+    // Calculate dynamic progress
+    int currentWeek = 1;
+    int currentDay = 1;
+    
     final days = ["M", "T", "W", "T", "F", "S", "S"];
     final todayIndex = DateTime.now().weekday - 1;
+
+    // Calculate progress based on the first workout date (Program Start)
+    // This continues counting even if the streak is broken.
+    if (_startDate != null) {
+      final now = DateTime.now();
+      // Reset time components to ensure day difference is accurate
+      final today = DateTime(now.year, now.month, now.day);
+      final start = DateTime(_startDate!.year, _startDate!.month, _startDate!.day);
+      
+      final difference = today.difference(start).inDays;
+      
+      if (difference >= 0) {
+        currentWeek = (difference / 7).floor() + 1;
+        currentDay = (difference % 7) + 1;
+      }
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -466,7 +632,7 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Hypertrophy Phase 1",
+                  "Week $currentWeek • Day $currentDay",
                   style: TextStyle(
                     fontFamily: 'Outfit',
                     fontSize: 16,
@@ -476,7 +642,7 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  "Week 4 of 12",
+                  "Keep pushing forward!",
                   style: TextStyle(
                     fontFamily: 'Outfit',
                     fontSize: 12,
@@ -484,15 +650,6 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
                   ),
                 ),
               ],
-            ),
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100],
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Iconsax.calendar_1, size: 18, color: Colors.grey),
             ),
           ],
         ),
@@ -575,7 +732,98 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
   }
 
   // --- 5. Coach Insight ---
+  bool _showCoachTip = true;
+  String? _aiCoachTip;
+  bool _isLoadingTip = false;
+
+  final List<String> _coachTips = [
+    "Consistency is key! Even a short workout is better than none.",
+    "Hydrate! Drink water before, during, and after your workout.",
+    "Focus on form over weight. Quality reps build quality muscle.",
+    "Rest days are when your muscles grow. Don't skip them!",
+    "Protein is your friend. Aim for 1.6g-2.2g per kg of body weight.",
+    "Sleep is the best recovery tool. Aim for 7-9 hours.",
+    "Warm up properly to prevent injury and improve performance.",
+    "Track your progress. You can't improve what you don't measure.",
+    "Listen to your body. If it hurts (bad pain), stop.",
+    "Progressive overload: try to do a little more than last time.",
+    "Eat whole foods. Fuel your body with high-quality nutrients.",
+    "Stretch after your workout to improve flexibility and recovery.",
+    "Don't compare your chapter 1 to someone else's chapter 20.",
+    "Visualize your success. Mental preparation is powerful.",
+    "Compound exercises give you the most bang for your buck.",
+    "Control the eccentric (lowering) phase for more muscle growth.",
+    "Breathe! Exhale on the exertion, inhale on the release.",
+    "Set realistic goals. Small wins add up to big results.",
+    "Find a workout buddy. Accountability increases consistency.",
+    "Enjoy the process! Fitness is a journey, not a destination."
+  ];
+
+  List<Map<String, dynamic>> _workoutTemplates = [];
+  bool _isLoadingTemplates = false;
+
+  Future<void> _fetchWorkoutTemplates() async {
+    setState(() => _isLoadingTemplates = true);
+    try {
+      final String response = await rootBundle.loadString('assets/workouts/workout_templates.json');
+      final List<dynamic> data = json.decode(response);
+      setState(() {
+        _workoutTemplates = data.cast<Map<String, dynamic>>();
+      });
+    } catch (e) {
+      debugPrint("Error loading workout templates: $e");
+    } finally {
+      if (mounted) setState(() => _isLoadingTemplates = false);
+    }
+  }
+
+  Future<void> _fetchAiCoachTip() async {
+    if (_aiCoachTip != null) return; // Already fetched
+
+    setState(() => _isLoadingTip = true);
+
+    try {
+      // 1. Fetch Last Workout
+      Map<String, dynamic>? lastWorkout;
+      final snapshot = await FirebaseFirestore.instance
+          .collection('gyms')
+          .doc(widget.gymId)
+          .collection('members')
+          .doc(widget.memberId)
+          .collection('attendance')
+          .orderBy('timestamp', descending: true)
+          .limit(1)
+          .get();
+
+      if (snapshot.docs.isNotEmpty) {
+        lastWorkout = snapshot.docs.first.data();
+      }
+
+      // 2. Call AI Service
+      final tip = await AiService().getGenZCoachTip(lastWorkout);
+      
+      if (mounted && tip != null && tip.isNotEmpty) {
+        setState(() {
+          _aiCoachTip = tip;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error fetching AI tip: $e");
+    } finally {
+      if (mounted) setState(() => _isLoadingTip = false);
+    }
+  }
+
   Widget _buildCoachInsight(bool isDark) {
+    if (!_showCoachTip) return const SizedBox.shrink();
+
+    // Fallback to static tip if AI tip is not ready
+    final dayOfYear = int.parse(DateFormat("D").format(DateTime.now()));
+    final tipIndex = dayOfYear % _coachTips.length;
+    final staticTip = _coachTips[tipIndex];
+    
+    final displayTip = _aiCoachTip ?? staticTip;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -592,25 +840,45 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
               color: const Color(0xFF2196F3).withOpacity(0.2),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Iconsax.lamp_on, color: Color(0xFF2196F3), size: 18),
+            child: _isLoadingTip 
+                ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF2196F3)))
+                : const Icon(Iconsax.lamp_on, color: Color(0xFF2196F3), size: 18),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  "Coach Tip",
-                  style: TextStyle(
-                    fontFamily: 'Outfit',
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF2196F3),
-                    fontSize: 12,
-                  ),
+                Row(
+                  children: [
+                    const Text(
+                      "Coach Tip",
+                      style: TextStyle(
+                        fontFamily: 'Outfit',
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF2196F3),
+                        fontSize: 12,
+                      ),
+                    ),
+                    if (_aiCoachTip != null) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2196F3),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          "AI",
+                          style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  "You crushed your last leg day! Focus on slow eccentrics today to maximize growth.",
+                  displayTip,
                   style: TextStyle(
                     fontFamily: 'Outfit',
                     fontSize: 14,
@@ -623,7 +891,9 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
           IconButton(
             icon: Icon(Iconsax.close_circle, size: 16, color: isDark ? Colors.grey : Colors.black45),
             onPressed: () {
-              // Dismiss logic
+              setState(() {
+                _showCoachTip = false;
+              });
             },
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
@@ -633,7 +903,94 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
     );
   }
 
-  // --- 6. Your Workouts Section ---
+  // --- 6. Explore Templates Section ---
+  Widget _buildTemplateSection(bool isDark, Color textColor) {
+    if (_workoutTemplates.isEmpty && !_isLoadingTemplates) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 0), // Already padded by parent
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "Explore Templates",
+                style: TextStyle(
+                  fontFamily: 'Outfit',
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => WorkoutListScreen(
+                        title: "Explore Templates",
+                        staticWorkouts: _workoutTemplates,
+                        gymId: widget.gymId,
+                        memberId: widget.memberId,
+                      ),
+                    ),
+                  );
+                },
+                child: const Text(
+                  "See All",
+                  style: TextStyle(
+                    fontFamily: 'Outfit',
+                    color: Color(0xFF00E676),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (_isLoadingTemplates)
+          const Center(child: CircularProgressIndicator())
+        else
+          SizedBox(
+            height: 180, // Height for the horizontal list
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _workoutTemplates.length,
+              itemBuilder: (context, index) {
+                final template = _workoutTemplates[index];
+                return Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: SizedBox(
+                    width: 260, // Fixed width for consistency
+                    child: UnifiedWorkoutCard(
+                      data: {
+                        'planName': template['name'],
+                        'level': template['level'],
+                        'category': template['category'],
+                        'tags': template['tags'],
+                        'exercises': template['exercises'],
+                        'source': 'template',
+                        'id': template['id'],
+                        // Mock date for display
+                        'savedAt': Timestamp.now(), 
+                      },
+                      gymId: widget.gymId,
+                      memberId: widget.memberId,
+                      isDark: isDark,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+      ],
+    );
+  }
+
+  // --- 7. Your Workouts Section ---
   Widget _buildYourWorkouts(bool isDark, Color textColor) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -652,7 +1009,24 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
             ),
             TextButton(
               onPressed: () {
-                // Navigate to all saved plans
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => WorkoutListScreen(
+                      title: "Your Workouts",
+                      workoutStream: FirebaseFirestore.instance
+                          .collection('gyms')
+                          .doc(widget.gymId)
+                          .collection('members')
+                          .doc(widget.memberId)
+                          .collection('workout_plans')
+                          .orderBy('createdAt', descending: true)
+                          .snapshots(),
+                      gymId: widget.gymId,
+                      memberId: widget.memberId,
+                    ),
+                  ),
+                );
               },
               child: const Text(
                 "See All",
@@ -668,16 +1042,9 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
         const SizedBox(height: 16),
         
         SizedBox(
-          height: 200, // Increased height for progress bar safety
+          height: 180, // Matched with explore templates
           child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('gyms')
-                .doc(widget.gymId)
-                .collection('members')
-                .doc(widget.memberId)
-                .collection('workout_plans')
-                .limit(10)
-                .snapshots(),
+            stream: _workoutPlansStream,
             builder: (context, snapshot) {
               if (snapshot.hasError) {
                 debugPrint("❌ Error loading plans: ${snapshot.error}");
@@ -700,7 +1067,17 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
                 itemBuilder: (context, index) {
                   final data = docs[index].data() as Map<String, dynamic>;
                   data['id'] = docs[index].id; // Inject ID for deletion
-                  return _buildWorkoutCard(isDark, data);
+                  return UnifiedWorkoutCard(
+                    data: data,
+                    gymId: widget.gymId,
+                    memberId: widget.memberId,
+                    isDark: isDark,
+                    workoutProgress: _workoutProgress,
+                    onRefresh: () {
+                      _loadAllWorkoutProgress();
+                      _fetchUserData();
+                    },
+                  );
                 },
               );
             },
@@ -731,19 +1108,32 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
             children: [
-              _buildWorkoutCard(isDark, {
-                'id': 'feat_1',
-                'name': 'Power Lifting 101',
-                'exercises': List.generate(8, (i) => {'name': 'Squat'}),
-                'source': 'ai',
-              }),
+
+              UnifiedWorkoutCard(
+                data: {
+                  'id': 'feat_1',
+                  'name': 'Power Lifting 101',
+                  'exercises': List.generate(8, (i) => {'name': 'Squat'}),
+                  'source': 'ai',
+                },
+                gymId: widget.gymId,
+                memberId: widget.memberId,
+                isDark: isDark,
+                workoutProgress: _workoutProgress,
+              ),
               const SizedBox(width: 16),
-              _buildWorkoutCard(isDark, {
-                'id': 'feat_2',
-                'name': 'Bodyweight Burner',
-                'exercises': List.generate(6, (i) => {'name': 'Pushups'}),
-                'source': 'custom',
-              }),
+              UnifiedWorkoutCard(
+                data: {
+                  'id': 'feat_2',
+                  'name': 'Bodyweight Burner',
+                  'exercises': List.generate(6, (i) => {'name': 'Pushups'}),
+                  'source': 'custom',
+                },
+                gymId: widget.gymId,
+                memberId: widget.memberId,
+                isDark: isDark,
+                workoutProgress: _workoutProgress,
+              ),
             ],
           ),
         ),
@@ -753,7 +1143,7 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
 
   Widget _buildEmptyWorkoutCard(bool isDark) {
     return Container(
-      width: 280,
+      width: 260,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100],
@@ -777,295 +1167,5 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
     );
   }
 
-  Widget _buildWorkoutCard(bool isDark, Map<String, dynamic> data) {
-    // Handle different field names from AI vs Custom
-    final title = data['planName'] ?? data['name'] ?? "Untitled Workout";
-    
-    final timestamp = data['createdAt'] ?? data['savedAt'];
-    final date = timestamp != null 
-        ? DateFormat('MMM d').format((timestamp as Timestamp).toDate()) 
-        : "Unknown Date";
 
-    // Handle exercises list location
-    int exerciseCount = 0;
-    if (data['exercises'] != null) {
-      // Custom workout (flat list)
-      exerciseCount = (data['exercises'] as List).length;
-    } else if (data['plan'] != null) {
-      // AI Plan
-      if (data['plan']['schedule'] != null) {
-        // Multi-day schedule
-        for (var day in (data['plan']['schedule'] as List)) {
-          if (day['exercises'] != null) {
-            exerciseCount += (day['exercises'] as List).length;
-          }
-        }
-      } else if (data['plan']['exercises'] != null) {
-        // Single day AI plan
-        exerciseCount = (data['plan']['exercises'] as List).length;
-      }
-    }
-    
-    // Determine Tag
-    final isAi = data['source'] == 'ai_coach' || data['source'] == 'ai' || data.containsKey('aiSessionId');
-    final tagLabel = isAi ? "AI Plan" : "Custom";
-    final tagColor = isAi ? Colors.purpleAccent : Colors.orange;
-
-    // Determine Image
-    ImageProvider? bgImageProvider;
-    
-    // 1. Try to get first exercise image
-    String? firstExerciseName;
-    if (data['exercises'] != null && (data['exercises'] as List).isNotEmpty) {
-      firstExerciseName = data['exercises'][0]['name'];
-    } else if (data['plan'] != null) {
-       if (data['plan']['schedule'] != null && (data['plan']['schedule'] as List).isNotEmpty) {
-          final day = data['plan']['schedule'][0];
-          if (day['exercises'] != null && (day['exercises'] as List).isNotEmpty) {
-             firstExerciseName = day['exercises'][0]['name'];
-          }
-       } else if (data['plan']['exercises'] != null && (data['plan']['exercises'] as List).isNotEmpty) {
-          firstExerciseName = data['plan']['exercises'][0]['name'];
-       }
-    }
-
-    if (firstExerciseName != null) {
-       try {
-         final provider = Provider.of<WorkoutProvider>(context, listen: false);
-         final aiName = firstExerciseName.toString().toLowerCase().trim();
-         
-         // Try exact match
-         var exercise = provider.exercises.firstWhere(
-            (e) => e.name.toLowerCase() == aiName,
-            orElse: () => provider.exercises.first,
-         );
-
-         // Try fuzzy match if exact failed
-         if (exercise.name.toLowerCase() != aiName) {
-            try {
-               exercise = provider.exercises.firstWhere((e) {
-                 final dbName = e.name.toLowerCase();
-                 if (aiName.length < 4 || dbName.length < 4) return false;
-                 return dbName.contains(aiName) || aiName.contains(dbName);
-               });
-            } catch (_) {}
-         }
-         
-         if (exercise.imageUrl != null) {
-            bgImageProvider = CachedNetworkImageProvider(exercise.imageUrl!);
-         }
-       } catch (_) {}
-    }
-
-    // 2. Fallback to asset logic
-    if (bgImageProvider == null) {
-        String assetPath = 'assets/exercise/upper_body.jpeg';
-        final lowerTitle = title.toString().toLowerCase();
-        if (lowerTitle.contains('leg') || lowerTitle.contains('lower')) assetPath = 'assets/exercise/legs.jpeg';
-        else if (lowerTitle.contains('ab') || lowerTitle.contains('core')) assetPath = 'assets/exercise/abs.jpeg';
-        else if (lowerTitle.contains('bicep') || lowerTitle.contains('arm')) assetPath = 'assets/exercise/biceps.jpeg';
-        else if (lowerTitle.contains('tricep')) assetPath = 'assets/exercise/triceps.jpeg';
-        else if (lowerTitle.contains('push') || lowerTitle.contains('chest')) assetPath = 'assets/exercise/pushups.jpeg';
-        else if (lowerTitle.contains('cardio') || lowerTitle.contains('rope')) assetPath = 'assets/exercise/rope.jpeg';
-        bgImageProvider = AssetImage(assetPath);
-    }
-
-    return GestureDetector(
-      onTap: () async {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => SavedWorkoutDetailScreen(
-              workoutData: data,
-              gymId: widget.gymId,
-              memberId: widget.memberId,
-            ),
-          ),
-        );
-        _loadAllWorkoutProgress(); // Refresh when back
-      },
-      child: Container(
-        width: 240,
-        margin: const EdgeInsets.only(right: 16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          color: Colors.grey[900], // Fallback color
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Stack(
-          children: [
-            // 1. Background Image with Fade In
-            Positioned.fill(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(24),
-                child: bgImageProvider is CachedNetworkImageProvider
-                    ? CachedNetworkImage(
-                        imageUrl: (bgImageProvider as CachedNetworkImageProvider).url,
-                        fit: BoxFit.cover,
-                        fadeInDuration: const Duration(milliseconds: 700),
-                        placeholder: (context, url) => Container(color: Colors.grey[800]),
-                        errorWidget: (context, url, error) => Image.asset('assets/exercise/upper_body.jpeg', fit: BoxFit.cover),
-                      )
-                    : Image(image: bgImageProvider, fit: BoxFit.cover),
-              ),
-            ),
-            
-            // 2. Gradient Overlay
-            Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withOpacity(0.1),
-                      Colors.black.withOpacity(0.8),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            // 3. Content
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Date Badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.6),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.white24),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Iconsax.calendar_1, color: Colors.white, size: 10),
-                            const SizedBox(width: 4),
-                            Text(
-                              date,
-                              style: const TextStyle(
-                                fontFamily: 'Outfit',
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      // Type Tag
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: tagColor.withOpacity(0.9),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          tagLabel,
-                          style: const TextStyle(
-                            fontFamily: 'Outfit',
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontFamily: 'Outfit',
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          height: 1.2,
-                          shadows: [
-                            Shadow(
-                              offset: Offset(0, 1),
-                              blurRadius: 2,
-                              color: Colors.black,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Iconsax.activity, size: 14, color: Colors.white70),
-                              const SizedBox(width: 4),
-                              Text(
-                                "$exerciseCount Exercises",
-                                style: const TextStyle(
-                                  fontFamily: 'Outfit',
-                                  fontSize: 12,
-                                  color: Colors.white70,
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (data['id'] != null && _workoutProgress.containsKey(data['id'].toString()))
-                            Text(
-                              "${(_workoutProgress[data['id'].toString()]! * 100).toInt()}%",
-                              style: const TextStyle(
-                                  color: Color(0xFF00E676),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  fontFamily: 'Outfit'),
-                            ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            // 4. Premium Progress Bar at Bottom Edge
-            if (data['id'] != null && _workoutProgress.containsKey(data['id'].toString()))
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(24),
-                    bottomRight: Radius.circular(24),
-                  ),
-                  child: LinearProgressIndicator(
-                    value: _workoutProgress[data['id'].toString()],
-                    backgroundColor: Colors.white.withOpacity(0.05),
-                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF00E676)),
-                    minHeight: 3,
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
 }

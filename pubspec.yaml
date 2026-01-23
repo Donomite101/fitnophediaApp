@@ -38,6 +38,7 @@ dependencies:
 
   # Other dependencies (keep your existing)
   timezone: ^0.9.1
+  flutter_timezone: ^5.0.1
   flutter_local_notifications: ^17.2.3
   shared_preferences: ^2.5.3
   file_picker: ^10.3.3
@@ -82,6 +83,8 @@ dependencies:
   pull_to_refresh: ^2.0.0
   flutter_svg: ^2.2.3
   flutter_markdown: ^0.7.7+1
+  on_audio_query: ^2.9.0
+  alarm: ^5.1.5
 
 flutter:
 
@@ -108,9 +111,13 @@ flutter:
     - assets/nutrition/meal_templates.json
     - assets/workouts/weightworkout.json
     - assets/workouts/trending.json
+    - assets/workouts/workout_templates.json
+    - assets/workouts/warmup_exercises.json
     - assets/animations/Burn calories.json
     - assets/Mention-bro.svg
     - assets/exercise/
+    - assets/images/meals/
+    - assets/json/
     - .env
 
   uses-material-design: true
@@ -119,3 +126,17 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.1
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/fitnophedia_icon.jpg"
+  min_sdk_android: 21
+
+flutter_native_splash:
+  color: "#000000"
+  image: "assets/fitnophedia_icon.jpg"
+  android_12:
+    image: "assets/fitnophedia_icon.jpg"
+    color: "#000000"

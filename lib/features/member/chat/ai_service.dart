@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../diet/models/meal_plan_model.dart';
 
 class AiResult {
   final String replyText;
@@ -30,7 +31,7 @@ class AiService {
   static const String MODEL = "llama-3.3-70b-versatile";
   static const int MAX_RETRIES = 4;
   static final Duration INITIAL_BACKOFF = const Duration(seconds: 2);
-  static const int SAFE_MAX_TOKENS = 2000; // safer default; provider may reject huge values
+  static const int SAFE_MAX_TOKENS = 6000; // Increased for larger meal plans
 
   static final List<Map<String, String>> _history = [];
   static const int _maxHistory = 8;
@@ -47,7 +48,7 @@ class AiService {
     if (_history.length > _maxHistory) _history.removeRange(0, _history.length - _maxHistory);
   }
 
-  Future<Map<String, dynamic>> getFullProfile() async {
+  static Future<Map<String, dynamic>> getFullProfile() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return _defaultProfile();
 
@@ -91,7 +92,7 @@ class AiService {
     return _defaultProfile();
   }
 
-  Map<String, dynamic> _defaultProfile() => {
+  static Map<String, dynamic> _defaultProfile() => {
     'name': 'Member',
     'age': 25,
     'weightKg': 70.0,
@@ -179,6 +180,225 @@ class AiService {
     }
   }
 
+  // --- Gen Z Coach Tip ---
+  Future<String?> getGenZCoachTip(Map<String, dynamic>? lastWorkout) async {
+    final profile = await getFullProfile();
+    final name = profile['name'] ?? 'Bro';
+    
+    String context = "The user hasn't worked out recently. They are being lazy.";
+    if (lastWorkout != null) {
+      final title = lastWorkout['planName'] ?? lastWorkout['name'] ?? 'Workout';
+      final duration = lastWorkout['durationMinutes'] ?? 'unknown';
+      final intensity = lastWorkout['intensity'] ?? 'medium'; // 1-3 scale usually
+      context = "Last workout: '$title' for $duration minutes. Intensity: $intensity.";
+    }
+
+    final prompt = '''
+You are a friendly, high-energy personal trainer.
+Target: $name.
+Context: $context.
+Random Seed: ${DateTime.now().millisecondsSinceEpoch}
+
+Task: Give a short, motivating tip or observation based on their last workout (or lack thereof).
+Style: Friendly, positive, encouraging, clear English. No slang.
+Constraints: Max 25 words.
+Output: Just the text. No quotes.
+''';
+
+    final messages = [
+      {"role": "system", "content": prompt},
+    ];
+
+    try {
+      final content = await _callGroqApiWithRetries(messages, temperature: 0.9);
+      return content?.trim();
+    } catch (e) {
+      print('Gen Z Tip Error: $e');
+      return null;
+    }
+  }
+
+  // --- AI Meal Plan Generation ---
+  Future<MealPlan?> generatePersonalizedMealPlan({
+    required List<String> ingredients,
+    required String mealStyle,
+    required int durationDays,
+    required Map<String, dynamic>? userPreferences,
+    int? targetCalories,
+    List<Map<String, dynamic>>? schedule,
+    String cuisine = 'Any',
+  }) async {
+    final profile = await getFullProfile();
+    
+    // Construct the prompt
+    final prompt = _buildMealPlanPrompt(
+      profile: profile,
+      ingredients: ingredients,
+      mealStyle: mealStyle,
+      durationDays: durationDays,
+      prefs: userPreferences,
+      targetCalories: targetCalories,
+      schedule: schedule,
+      cuisine: cuisine,
+    );
+
+    final messages = [
+      {"role": "system", "content": prompt},
+    ];
+
+    try {
+      final content = await _callGroqApiWithRetries(messages, temperature: 0.7);
+      if (content == null) return null;
+
+      // Parse JSON
+      final jsonMap = _extractJsonFromContent(content);
+      if (jsonMap != null && jsonMap is Map<String, dynamic>) {
+        // Ensure the ID is unique
+        final planId = 'ai_${DateTime.now().millisecondsSinceEpoch}';
+        
+        // Map the JSON to MealPlan model
+        // We expect the AI to return a structure matching our MealPlan model
+        // But we might need to adapt it.
+        
+        // Let's assume the AI returns a 'mealPlan' object inside the JSON
+        final planData = jsonMap['mealPlan'] ?? jsonMap;
+        
+        return MealPlan.fromMap({
+          ...planData,
+          'id': planId,
+          'creatorId': 'ai_coach',
+          'isCustom': true,
+          'createdAt': Timestamp.now(),
+          'updatedAt': Timestamp.now(),
+          'tags': [...(planData['tags'] ?? []), 'ai-generated'],
+        }, planId);
+      }
+    } catch (e) {
+      print('AI Meal Plan Error: $e');
+    }
+    return null;
+  }
+
+  String _buildMealPlanPrompt({
+    required Map<String, dynamic> profile,
+    required List<String> ingredients,
+    required String mealStyle,
+    required int durationDays,
+    required Map<String, dynamic>? prefs,
+    int? targetCalories,
+    List<Map<String, dynamic>>? schedule,
+    String cuisine = 'Any',
+  }) {
+    final dietType = prefs?['dietType'] ?? profile['dietType'] ?? 'Balanced';
+    final goal = prefs?['goal'] ?? profile['goal'] ?? 'Maintenance';
+    final allergies = prefs?['allergies'] ?? [];
+    final dislikes = prefs?['dislikedFoods'] ?? [];
+    
+    final caloriesConstraint = targetCalories != null ? "Target Calories: ~$targetCalories kcal/day" : "";
+    
+    String scheduleConstraint = "Structure: 3-4 meals per day";
+    if (schedule != null && schedule.isNotEmpty) {
+      final scheduleStr = schedule.map((s) => s['time']).join(", ");
+      scheduleConstraint = "STRICT SCHEDULE: The user eats at these times: $scheduleStr. You MUST assign appropriate meal types (Breakfast, Lunch, Dinner, Snack, etc.) based on these times. The JSON 'meals' array must match this order and include the 'time' field for each meal.";
+    }
+
+    return '''
+You are an expert Nutritionist and Chef.
+User: ${profile['name']}
+Goal: $goal
+Diet Type: $dietType
+Allergies: $allergies
+Dislikes: $dislikes
+
+Task: Create a personalized $durationDays-day meal plan.
+Constraints:
+- Cuisine Preference: $cuisine
+- Use these ingredients if possible: ${ingredients.join(', ')}
+- Meal Style: $mealStyle
+- Duration: $durationDays days
+- $caloriesConstraint
+- $scheduleConstraint
+- Format: STRICT JSON ONLY. No markdown text outside the JSON.
+- CRITICAL: You MUST generate a unique 'dailyPlans' entry for EACH of the $durationDays days. Do NOT stop after Day 1.
+- If duration is 3 days, the JSON must contain Day 1, Day 2, and Day 3.
+- STRICT DIETARY RULES: 
+  - If Diet Type is 'Vegan', NO animal products (meat, fish, eggs, dairy, honey).
+  - If Diet Type is 'Vegetarian', NO meat or fish. Eggs/Dairy are okay unless specified otherwise.
+  - If Diet Type is 'Non-Veg', meat/fish/eggs are encouraged.
+- Do NOT include "Sample Day" text in the output.
+
+JSON Structure must match this exactly:
+{
+  "name": "Plan Name (e.g., Spicy Keto Week)",
+  "description": "Short description",
+  "durationDays": $durationDays,
+  "targetCaloriesMin": 2000,
+  "targetCaloriesMax": 2200,
+  "targetProtein": 150,
+  "targetCarbs": 200,
+  "targetFat": 70,
+  "difficulty": "intermediate",
+  "tags": ["keto", "spicy", "high-protein"],
+  "dailyPlans": [
+    {
+      "dayNumber": 1,
+      "meals": [
+        {
+          "mealType": "Breakfast",
+          "name": "Oatmeal",
+          "description": "Healthy oats",
+          "calories": 400,
+          "protein": 15,
+          "carbs": 60,
+          "fat": 10,
+          "ingredients": ["Oats", "Milk"],
+          "instructions": "Boil oats in milk.",
+          "prepTimeMinutes": 10,
+          "time": "08:00"
+        },
+        {
+          "mealType": "Lunch",
+          "name": "Chicken Salad",
+          "description": "Grilled chicken with greens",
+          "calories": 600,
+          "protein": 40,
+          "carbs": 20,
+          "fat": 20,
+          "ingredients": ["Chicken", "Lettuce", "Tomato"],
+          "instructions": "Grill chicken, mix with veggies.",
+          "prepTimeMinutes": 20
+        },
+        {
+          "mealType": "Dinner",
+          "name": "Fish Tacos",
+          "description": "Tasty fish tacos",
+          "calories": 500,
+          "protein": 30,
+          "carbs": 40,
+          "fat": 15,
+          "ingredients": ["Fish", "Tortilla", "Salsa"],
+          "instructions": "Cook fish, serve in tortilla.",
+          "prepTimeMinutes": 25
+        },
+        {
+          "mealType": "Snack",
+          "name": "Apple",
+          "description": "Fresh apple",
+          "calories": 80,
+          "protein": 0,
+          "carbs": 20,
+          "fat": 0,
+          "ingredients": ["Apple"],
+          "instructions": "Wash and eat.",
+          "prepTimeMinutes": 1
+        }
+      ]
+    }
+  ]
+}
+''';
+  }
+
   String _buildSystemPrompt(Map<String, dynamic> profile, List<String>? availableExercises) {
     final name = profile['name'];
     final age = profile['age'];
@@ -264,7 +484,7 @@ JSON STRUCTURE (Use strictly if plan requested):
   }
 
   // API call with retries and robust content extraction
-  Future<String?> _callGroqApiWithRetries(List<Map<String, String>> messages) async {
+  Future<String?> _callGroqApiWithRetries(List<Map<String, String>> messages, {double temperature = 0.3}) async {
     var attempt = 0;
     var backoff = INITIAL_BACKOFF;
     while (attempt < MAX_RETRIES) {
@@ -274,7 +494,7 @@ JSON STRUCTURE (Use strictly if plan requested):
         final body = jsonEncode({
           "model": MODEL,
           "messages": messages,
-          "temperature": 0.3,
+          "temperature": temperature,
           "max_tokens": SAFE_MAX_TOKENS,
           "top_p": 0.9,
         });
@@ -331,41 +551,92 @@ JSON STRUCTURE (Use strictly if plan requested):
   }
 
   // --- JSON extraction helpers (fixed regexes) ---
-  static String _jsonSubstring(String content) {
-    final codeFenceRegex = RegExp(r'```json\s*([\s\S]*?)```', multiLine: true);
-    final codeMatch = codeFenceRegex.firstMatch(content);
-    if (codeMatch != null) return codeMatch.group(0) ?? '';
-
-    final lastOpen = content.lastIndexOf('{');
-    if (lastOpen == -1) return '';
-    int depth = 0;
-    for (int i = lastOpen; i < content.length; i++) {
-      final ch = content[i];
-      if (ch == '{') depth++;
-      if (ch == '}') {
-        depth--;
-        if (depth == 0) {
-          return content.substring(lastOpen, i + 1);
-        }
-      }
-    }
-    return '';
-  }
-
   static dynamic _extractJsonFromContent(String content) {
     try {
+      // 1. Try code fence first
       final codeFenceRegex = RegExp(r'```json\s*([\s\S]*?)```', multiLine: true);
       final codeMatch = codeFenceRegex.firstMatch(content);
       if (codeMatch != null) {
         final inside = codeMatch.group(1) ?? '';
         return jsonDecode(inside);
       }
-      final substr = _jsonSubstring(content);
-      if (substr.isNotEmpty) return jsonDecode(substr);
+
+      // 2. Scan for valid JSON object
+      int startIndex = 0;
+      while (true) {
+        final openIndex = content.indexOf('{', startIndex);
+        if (openIndex == -1) break;
+
+        // Try to find the matching closing brace
+        int depth = 0;
+        int closeIndex = -1;
+        for (int i = openIndex; i < content.length; i++) {
+          if (content[i] == '{') depth++;
+          else if (content[i] == '}') {
+            depth--;
+            if (depth == 0) {
+              closeIndex = i;
+              break;
+            }
+          }
+        }
+
+        if (closeIndex != -1) {
+          final potentialJson = content.substring(openIndex, closeIndex + 1);
+          try {
+            return jsonDecode(potentialJson);
+          } catch (e) {
+            // Not valid JSON, continue searching from next character
+          }
+        }
+        
+        startIndex = openIndex + 1;
+      }
     } catch (e) {
       print('extractJson error: $e');
     }
     return null;
+  }
+
+  // Helper to get the string for UI cleanup (removes JSON from display text)
+  static String _jsonSubstring(String content) {
+    // Re-use logic or just find the string that successfully decodes
+    // For simplicity, we'll use a simplified version here just to identify the block to remove
+    final codeFenceRegex = RegExp(r'```json\s*([\s\S]*?)```', multiLine: true);
+    final codeMatch = codeFenceRegex.firstMatch(content);
+    if (codeMatch != null) return codeMatch.group(0) ?? '';
+
+    // Same scanning logic to find the block
+     int startIndex = 0;
+      while (true) {
+        final openIndex = content.indexOf('{', startIndex);
+        if (openIndex == -1) break;
+
+        int depth = 0;
+        int closeIndex = -1;
+        for (int i = openIndex; i < content.length; i++) {
+          if (content[i] == '{') depth++;
+          else if (content[i] == '}') {
+            depth--;
+            if (depth == 0) {
+              closeIndex = i;
+              break;
+            }
+          }
+        }
+
+        if (closeIndex != -1) {
+          final potentialJson = content.substring(openIndex, closeIndex + 1);
+          try {
+            jsonDecode(potentialJson); // Verify validity
+            return potentialJson;
+          } catch (e) {
+            // ignore
+          }
+        }
+        startIndex = openIndex + 1;
+      }
+    return '';
   }
 
   // --- Markdown table fallback (kept simple) ---

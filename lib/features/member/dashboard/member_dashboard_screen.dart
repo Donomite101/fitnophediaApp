@@ -19,6 +19,8 @@ import '../../../core/services/cloudinary_config.dart';
 import '../../../routes/app_routes.dart';
 import '../../workout/data/models/exercise_model.dart';
 import '../../workout/presentation/screens/workout_home_screen.dart';
+import '../../workout/presentation/widgets/unified_workout_card.dart';
+import '../../workout/presentation/screens/workout_list_screen.dart';
 import '../banner/BannerCarousel.dart';
 import '../challenges/member_challenges_screen.dart';
 import '../chat/ChatScreen.dart';
@@ -906,6 +908,17 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
   }
 
   // ========== UI HELPERS ==========
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) {
+      return 'Good Morning';
+    } else if (hour < 17) {
+      return 'Good Afternoon';
+    } else {
+      return 'Good Evening';
+    }
+  }
+
   void _showSnackbar(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -1045,15 +1058,7 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
   }
 
   Widget _buildAppBar(BuildContext context) {
-    final hour = DateTime.now().hour;
-    String greeting;
-    if (hour < 12) {
-      greeting = 'Good Morning';
-    } else if (hour < 18) {
-      greeting = 'Good Afternoon';
-    } else {
-      greeting = 'Good Evening';
-    }
+    final greeting = _getGreeting();
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -1521,7 +1526,26 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
                 ),
               ),
               GestureDetector(
-                onTap: _navigateToWorkouts,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => WorkoutListScreen(
+                        title: "Your Workouts",
+                        workoutStream: FirebaseFirestore.instance
+                            .collection('gyms')
+                            .doc(_gymId)
+                            .collection('members')
+                            .doc(_memberId)
+                            .collection('workout_plans')
+                            .orderBy('createdAt', descending: true)
+                            .snapshots(),
+                        gymId: _gymId,
+                        memberId: _memberId,
+                      ),
+                    ),
+                  );
+                },
                 child: const Text(
                   "See All",
                   style: TextStyle(
@@ -1536,7 +1560,7 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
         ),
         const SizedBox(height: 16),
         SizedBox(
-          height: 200, // Fixed height to match Home Screen
+          height: 180, // Fixed height to match Home Screen
           child: StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('gyms')
@@ -1571,7 +1595,18 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
                 itemBuilder: (context, index) {
                   final data = docs[index].data() as Map<String, dynamic>;
                   data['id'] = docs[index].id;
-                  return _buildWorkoutCard(isDark, data);
+
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 16),
+                    child: UnifiedWorkoutCard(
+                      data: data,
+                      gymId: _gymId,
+                      memberId: _memberId,
+                      isDark: isDark,
+                      workoutProgress: _workoutProgress,
+                      onRefresh: _loadAllWorkoutProgress,
+                    ),
+                  );
                 },
               );
             },
@@ -1581,9 +1616,10 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
     );
   }
 
+
   Widget _buildEmptyWorkoutCard(bool isDark) {
     return Container(
-      width: 280,
+      width: 260,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100],
@@ -1607,212 +1643,7 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
     );
   }
 
-  Widget _buildWorkoutCard(bool isDark, Map<String, dynamic> data) {
-    final title = data['planName'] ?? data['name'] ?? "Untitled Workout";
-    final timestamp = data['createdAt'] ?? data['savedAt'];
-    final date = timestamp != null ? DateFormat('MMM d').format((timestamp as Timestamp).toDate()) : "Unknown Date";
 
-    final isAi = data['source'] == 'ai_coach' || data['source'] == 'ai' || data.containsKey('aiSessionId');
-    final tagLabel = isAi ? "AI Plan" : "Custom";
-    final tagColor = isAi ? Colors.purpleAccent : Colors.orange;
-
-    ImageProvider? bgImageProvider;
-    String? firstExerciseName;
-    int exerciseCount = 0;
-
-    // Count exercises and find first for image
-    if (data['exercises'] != null) {
-      final List list = data['exercises'];
-      exerciseCount = list.length;
-      if (list.isNotEmpty) firstExerciseName = list[0]['name'];
-    } else if (data['plan'] != null) {
-      if (data['plan']['schedule'] != null) {
-        final List schedule = data['plan']['schedule'];
-        for (var day in schedule) {
-          if (day['exercises'] != null) exerciseCount += (day['exercises'] as List).length;
-        }
-        if (schedule.isNotEmpty && schedule[0]['exercises'] != null && (schedule[0]['exercises'] as List).isNotEmpty) {
-          firstExerciseName = schedule[0]['exercises'][0]['name'];
-        }
-      } else if (data['plan']['exercises'] != null) { // Handle plans with direct exercises list
-        final List exercises = data['plan']['exercises'];
-        exerciseCount = exercises.length;
-        if (exercises.isNotEmpty) firstExerciseName = exercises[0]['name'];
-      }
-    }
-
-    if (firstExerciseName != null) {
-      try {
-        final provider = Provider.of<WorkoutProvider>(context, listen: false);
-        final aiName = firstExerciseName.toString().toLowerCase().trim();
-        var exercise = provider.exercises.firstWhere(
-          (e) => e.name.toLowerCase() == aiName,
-          orElse: () => provider.exercises.first,
-        );
-        if (exercise.name.toLowerCase() != aiName) {
-            try {
-               exercise = provider.exercises.firstWhere((e) {
-                 final dbName = e.name.toLowerCase();
-                 if (aiName.length < 4 || dbName.length < 4) return false;
-                 return dbName.contains(aiName) || aiName.contains(dbName);
-               });
-            } catch (_) {}
-         }
-        if (exercise.imageUrl != null) bgImageProvider = CachedNetworkImageProvider(exercise.imageUrl!);
-      } catch (_) {}
-    }
-
-    if (bgImageProvider == null) {
-      bgImageProvider = const AssetImage('assets/exercise/upper_body.jpeg');
-    }
-
-    final String workoutId = data['id']?.toString() ?? "";
-    final double? progress = _workoutProgress[workoutId];
-
-    return GestureDetector(
-      onTap: () async {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => SavedWorkoutDetailScreen(
-              workoutData: data,
-              gymId: _gymId,
-              memberId: _memberId,
-            ),
-          ),
-        );
-        _loadAllWorkoutProgress();
-      },
-      child: Container(
-        width: 240,
-        margin: const EdgeInsets.only(right: 16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: Stack(
-          children: [
-            // 1. Background Image
-            Positioned.fill(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(24),
-                child: bgImageProvider is CachedNetworkImageProvider
-                    ? CachedNetworkImage(
-                        imageUrl: (bgImageProvider as CachedNetworkImageProvider).url,
-                        fit: BoxFit.cover,
-                        fadeInDuration: const Duration(milliseconds: 700),
-                        placeholder: (context, url) => Container(color: Colors.grey[800]),
-                        errorWidget: (context, url, error) => Image.asset('assets/exercise/upper_body.jpeg', fit: BoxFit.cover),
-                      )
-                    : Image(image: bgImageProvider, fit: BoxFit.cover),
-              ),
-            ),
-            // 2. Overlay Gradient
-            Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withOpacity(0.1),
-                      Colors.black.withOpacity(0.8),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            // 3. Content
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: tagColor.withOpacity(0.8),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      tagLabel,
-                      style: const TextStyle(fontFamily: 'Outfit', fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
-                    ),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontFamily: 'Outfit',
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          height: 1.2,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Iconsax.activity, size: 14, color: Colors.white70),
-                              const SizedBox(width: 4),
-                              Text(
-                                "$exerciseCount Exercises",
-                                style: const TextStyle(
-                                  fontFamily: 'Outfit',
-                                  fontSize: 12,
-                                  color: Colors.white70,
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (progress != null)
-                            Text(
-                              "${(progress * 100).toInt()}%",
-                              style: const TextStyle(
-                                  color: Color(0xFF00E676),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  fontFamily: 'Outfit'),
-                            ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            // 4. Premium Progress Bar at Bottom Edge
-            if (progress != null)
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(24),
-                    bottomRight: Radius.circular(24),
-                  ),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    backgroundColor: Colors.white.withOpacity(0.05),
-                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF00E676)),
-                    minHeight: 3,
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
 
 
   Widget _buildBottomTabBar(BuildContext context) {

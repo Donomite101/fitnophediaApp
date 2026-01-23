@@ -120,6 +120,49 @@ class WorkoutProvider extends ChangeNotifier {
   // -------------------------------------------------------------
   // RESET FILTERS
   // -------------------------------------------------------------
+  // -------------------------------------------------------------
+  // WARMUP EXERCISES
+  // -------------------------------------------------------------
+  List<Exercise> _warmupExercises = [];
+  List<Exercise> get warmupExercises => _warmupExercises;
+
+  List<Exercise> _filteredWarmupExercises = [];
+  List<Exercise> get filteredWarmupExercises => _filteredWarmupExercises;
+
+  Future<void> loadWarmupExercises() async {
+    if (_warmupExercises.isNotEmpty) return; // Already loaded
+
+    debugPrint("🔍 [WorkoutProvider] Loading warmup exercises…");
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final data = await repository.loadWarmupExercises();
+      _warmupExercises = data;
+      _filteredWarmupExercises = data;
+      debugPrint("✅ [WorkoutProvider] Loaded ${_warmupExercises.length} warmup exercises");
+    } catch (e) {
+      debugPrint("❌ [WorkoutProvider] Warmup load error: $e");
+    }
+
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  void searchWarmupExercises(String query) {
+    if (query.isEmpty) {
+      _filteredWarmupExercises = List.from(_warmupExercises);
+    } else {
+      final q = query.toLowerCase();
+      _filteredWarmupExercises = _warmupExercises.where((ex) {
+        return ex.name.toLowerCase().contains(q) ||
+            ex.bodyPart.toLowerCase().contains(q) ||
+            ex.target.toLowerCase().contains(q);
+      }).toList();
+    }
+    notifyListeners();
+  }
+
   void resetFilters() {
     _filteredExercises = List.from(_exercises);
     notifyListeners();

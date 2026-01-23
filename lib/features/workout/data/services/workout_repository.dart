@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import '../models/exercise_model.dart';
 import '../services/workout_api_service.dart';
+import 'dart:convert';
+import 'package:flutter/services.dart';
 import '../services/workout_cache_service.dart';
 
 class WorkoutRepository {
@@ -44,6 +46,18 @@ class WorkoutRepository {
     } catch (e) {
       debugPrint("❌ [WorkoutRepository] API fetch failed: $e");
       rethrow;
+    }
+  }
+  Future<List<Exercise>> loadWarmupExercises() async {
+    debugPrint("🔍 [WorkoutRepository] Loading warmup exercises…");
+    try {
+      final String response = await rootBundle.loadString('assets/workouts/warmup_exercises.json');
+      final List<dynamic> data = json.decode(response);
+      
+      return data.map((e) => Exercise.fromJson(e)).toList();
+    } catch (e) {
+      debugPrint("❌ [WorkoutRepository] Warmup load error: $e");
+      return [];
     }
   }
 }

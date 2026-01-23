@@ -29,6 +29,12 @@ class NotificationService {
         debugPrint('Local notification tapped: ${details.payload}');
       },
     );
+
+    final androidImplementation = fln.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    if (androidImplementation != null) {
+      await androidImplementation.requestNotificationsPermission();
+    }
   }
 
   static Future<void> showLocal({
@@ -75,7 +81,7 @@ class NotificationService {
         body,
         when,
         details,
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
         payload: payload,
       );

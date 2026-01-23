@@ -1,0 +1,329 @@
+[
+  {
+    "id": "w1",
+    "name": "Jumping Jacks",
+    "bodyPart": "cardio",
+    "equipment": "body weight",
+    "target": "cardiovascular system",
+    "gifUrl": "assets/exercise/jumping_jacks.gif",
+    "instructions": [
+      "Stand with feet together and arms at your sides.",
+      "Jump up, spreading your feet wide and bringing your arms overhead.",
+      "Jump back to the starting position."
+    ]
+  },
+  {
+    "id": "w2",
+    "name": "Arm Circles",
+    "bodyPart": "shoulders",
+    "equipment": "body weight",
+    "target": "delts",
+    "gifUrl": "assets/exercise/arm_circles.gif",
+    "instructions": [
+      "Stand with feet shoulder-width apart and arms extended to the sides.",
+      "Make small circles with your arms, gradually increasing the size.",
+      "Reverse the direction after 30 seconds."
+    ]
+  },
+  {
+    "id": "w3",
+    "name": "High Knees",
+    "bodyPart": "cardio",
+    "equipment": "body weight",
+    "target": "cardiovascular system",
+    "gifUrl": "assets/exercise/high_knees.gif",
+    "instructions": [
+      "Stand tall with feet hip-width apart.",
+      "Run in place, bringing your knees up towards your chest as high as possible.",
+      "Pump your arms in rhythm with your legs."
+    ]
+  },
+  {
+    "id": "w4",
+    "name": "Torso Twists",
+    "bodyPart": "core",
+    "equipment": "body weight",
+    "target": "obliques",
+    "gifUrl": "assets/exercise/torso_twists.gif",
+    "instructions": [
+      "Stand with feet shoulder-width apart and arms bent at the elbows.",
+      "Twist your torso from side to side, keeping your hips facing forward.",
+      "Look over your shoulder as you twist."
+    ]
+  },
+  {
+    "id": "w5",
+    "name": "Leg Swings (Forward/Back)",
+    "bodyPart": "legs",
+    "equipment": "body weight",
+    "target": "hips",
+    "gifUrl": "assets/exercise/leg_swings.gif",
+    "instructions": [
+      "Stand next to a wall for support.",
+      "Swing one leg forward and backward in a controlled motion.",
+      "Keep your torso upright and core engaged."
+    ]
+  },
+  {
+    "id": "w6",
+    "name": "Leg Swings (Side-to-Side)",
+    "bodyPart": "legs",
+    "equipment": "body weight",
+    "target": "hips",
+    "gifUrl": "assets/exercise/leg_swings_side.gif",
+    "instructions": [
+      "Stand facing a wall for support.",
+      "Swing one leg across your body and then out to the side.",
+      "Keep your hips square to the wall."
+    ]
+  },
+  {
+    "id": "w7",
+    "name": "Bodyweight Squats",
+    "bodyPart": "legs",
+    "equipment": "body weight",
+    "target": "quads",
+    "gifUrl": "assets/exercise/bodyweight_squats.gif",
+    "instructions": [
+      "Stand with feet shoulder-width apart.",
+      "Lower your hips back and down as if sitting in a chair.",
+      "Keep your chest up and back straight.",
+      "Return to the starting position."
+    ]
+  },
+  {
+    "id": "w8",
+    "name": "Lunges",
+    "bodyPart": "legs",
+    "equipment": "body weight",
+    "target": "quads",
+    "gifUrl": "assets/exercise/lunges.gif",
+    "instructions": [
+      "Step forward with one leg and lower your hips until both knees are bent at a 90-degree angle.",
+      "Push back to the starting position.",
+      "Repeat with the other leg."
+    ]
+  },
+  {
+    "id": "w9",
+    "name": "Butt Kicks",
+    "bodyPart": "cardio",
+    "equipment": "body weight",
+    "target": "hamstrings",
+    "gifUrl": "assets/exercise/butt_kicks.gif",
+    "instructions": [
+      "Run in place, kicking your heels up towards your glutes.",
+      "Keep your knees pointing down and torso upright."
+    ]
+  },
+  {
+    "id": "w10",
+    "name": "Shoulder Rolls",
+    "bodyPart": "shoulders",
+    "equipment": "body weight",
+    "target": "traps",
+    "gifUrl": "assets/exercise/shoulder_rolls.gif",
+    "instructions": [
+      "Stand with arms at your sides.",
+      "Roll your shoulders up, back, and down in a circular motion.",
+      "Reverse the direction."
+    ]
+  },
+  {
+    "id": "w11",
+    "name": "Neck Rotations",
+    "bodyPart": "shoulders",
+    "equipment": "body weight",
+    "target": "neck",
+    "gifUrl": "assets/exercise/neck_rotations.gif",
+    "instructions": [
+      "Slowly rotate your head in a circular motion.",
+      "Be gentle and avoid forcing any movement.",
+      "Reverse the direction."
+    ]
+  },
+  {
+    "id": "w12",
+    "name": "Wrist Circles",
+    "bodyPart": "arms",
+    "equipment": "body weight",
+    "target": "forearms",
+    "gifUrl": "assets/exercise/wrist_circles.gif",
+    "instructions": [
+      "Extend your arms in front of you.",
+      "Rotate your wrists in circular motions.",
+      "Reverse the direction."
+    ]
+  },
+  {
+    "id": "w13",
+    "name": "Ankle Circles",
+    "bodyPart": "legs",
+    "equipment": "body weight",
+    "target": "calves",
+    "gifUrl": "assets/exercise/ankle_circles.gif",
+    "instructions": [
+      "Lift one foot off the ground.",
+      "Rotate your ankle in circular motions.",
+      "Reverse the direction and repeat with the other foot."
+    ]
+  },
+  {
+    "id": "w14",
+    "name": "Hip Circles",
+    "bodyPart": "core",
+    "equipment": "body weight",
+    "target": "hips",
+    "gifUrl": "assets/exercise/hip_circles.gif",
+    "instructions": [
+      "Stand with feet hip-width apart and hands on your hips.",
+      "Rotate your hips in large circles.",
+      "Reverse the direction."
+    ]
+  },
+  {
+    "id": "w15",
+    "name": "Cat-Cow Stretch",
+    "bodyPart": "back",
+    "equipment": "body weight",
+    "target": "spine",
+    "gifUrl": "assets/exercise/cat_cow.gif",
+    "instructions": [
+      "Start on your hands and knees.",
+      "Inhale and arch your back (Cow), looking up.",
+      "Exhale and round your spine (Cat), tucking your chin.",
+      "Repeat slowly."
+    ]
+  },
+  {
+    "id": "w16",
+    "name": "Bird-Dog",
+    "bodyPart": "core",
+    "equipment": "body weight",
+    "target": "core",
+    "gifUrl": "assets/exercise/bird_dog.gif",
+    "instructions": [
+      "Start on your hands and knees.",
+      "Extend your opposite arm and leg simultaneously.",
+      "Hold for a moment, then return to the starting position.",
+      "Repeat on the other side."
+    ]
+  },
+  {
+    "id": "w17",
+    "name": "Plank Walkouts",
+    "bodyPart": "core",
+    "equipment": "body weight",
+    "target": "full body",
+    "gifUrl": "assets/exercise/plank_walkouts.gif",
+    "instructions": [
+      "Stand tall, then hinge at your hips to place hands on the floor.",
+      "Walk your hands out until you are in a plank position.",
+      "Walk your hands back to your feet and stand up."
+    ]
+  },
+  {
+    "id": "w18",
+    "name": "Mountain Climbers",
+    "bodyPart": "cardio",
+    "equipment": "body weight",
+    "target": "core",
+    "gifUrl": "assets/exercise/mountain_climbers.gif",
+    "instructions": [
+      "Start in a plank position.",
+      "Drive one knee towards your chest, then quickly switch legs.",
+      "Keep your core engaged and hips level."
+    ]
+  },
+  {
+    "id": "w19",
+    "name": "Jump Rope",
+    "bodyPart": "cardio",
+    "equipment": "rope",
+    "target": "calves",
+    "gifUrl": "assets/exercise/jump_rope.gif",
+    "instructions": [
+      "Hold a jump rope handles at your sides.",
+      "Swing the rope over your head and jump over it as it passes under your feet.",
+      "Keep a steady rhythm."
+    ]
+  },
+  {
+    "id": "w20",
+    "name": "Band Pull-Aparts",
+    "bodyPart": "back",
+    "equipment": "band",
+    "target": "rear delts",
+    "gifUrl": "assets/exercise/band_pull_aparts.gif",
+    "instructions": [
+      "Hold a resistance band with both hands in front of you.",
+      "Pull the band apart by squeezing your shoulder blades together.",
+      "Return to the starting position with control."
+    ]
+  },
+  {
+    "id": "w21",
+    "name": "Wall Pushups",
+    "bodyPart": "chest",
+    "equipment": "body weight",
+    "target": "chest",
+    "gifUrl": "assets/exercise/wall_pushups.gif",
+    "instructions": [
+      "Stand facing a wall and place your hands on it at shoulder height.",
+      "Lower your chest towards the wall by bending your elbows.",
+      "Push back to the starting position."
+    ]
+  },
+  {
+    "id": "w22",
+    "name": "Glute Bridges",
+    "bodyPart": "legs",
+    "equipment": "body weight",
+    "target": "glutes",
+    "gifUrl": "assets/exercise/glute_bridges.gif",
+    "instructions": [
+      "Lie on your back with knees bent and feet flat on the floor.",
+      "Lift your hips towards the ceiling, squeezing your glutes.",
+      "Lower back down."
+    ]
+  },
+  {
+    "id": "w23",
+    "name": "Side Lunges",
+    "bodyPart": "legs",
+    "equipment": "body weight",
+    "target": "adductors",
+    "gifUrl": "assets/exercise/side_lunges.gif",
+    "instructions": [
+      "Stand with feet wide apart.",
+      "Shift your weight to one side, bending that knee while keeping the other leg straight.",
+      "Push back to center and repeat on the other side."
+    ]
+  },
+  {
+    "id": "w24",
+    "name": "Calf Raises",
+    "bodyPart": "legs",
+    "equipment": "body weight",
+    "target": "calves",
+    "gifUrl": "assets/exercise/calf_raises.gif",
+    "instructions": [
+      "Stand with feet hip-width apart.",
+      "Rise up onto your toes, lifting your heels off the ground.",
+      "Lower back down."
+    ]
+  },
+  {
+    "id": "w25",
+    "name": "Scapular Pushups",
+    "bodyPart": "back",
+    "equipment": "body weight",
+    "target": "serratus anterior",
+    "gifUrl": "assets/exercise/scapular_pushups.gif",
+    "instructions": [
+      "Start in a plank position.",
+      "Keep your arms straight and sink your chest towards the floor by squeezing your shoulder blades together.",
+      "Push your upper back towards the ceiling to separate your shoulder blades."
+    ]
+  }
+]

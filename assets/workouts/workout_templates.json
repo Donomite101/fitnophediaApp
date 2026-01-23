@@ -1,0 +1,739 @@
+[
+  {
+    "id": "full_body_beginner",
+    "name": "Full Body Beginner Foundation",
+    "category": "general-fitness",
+    "level": "beginner",
+    "durationMin": 35,
+    "tags": [
+      "full-body",
+      "beginner",
+      "bodyweight"
+    ],
+    "exercises": [
+      {
+        "exerciseId": "01fbee1b-4772-4e56-9c90-fdd629d062e5",
+        "sets": 3,
+        "reps": "12"
+      },
+      {
+        "exerciseId": "091cf045-536e-4a51-87df-1cd1a8006220",
+        "sets": 3,
+        "reps": "10"
+      },
+      {
+        "exerciseId": "09935b15-8def-4b33-b57c-dcf63c902a0f",
+        "sets": 3,
+        "reps": "15"
+      },
+      {
+        "exerciseId": "0b3987fd-be9e-45bc-a222-31767c1efa60",
+        "sets": 3,
+        "reps": "12"
+      },
+      {
+        "exerciseId": "0fec3739-40bf-4670-a4e7-979ff6609b55",
+        "sets": 3,
+        "reps": "12"
+      },
+      {
+        "exerciseId": "0a48ec2e-cb67-4f72-b0f7-6d1e2027c96f",
+        "sets": 3,
+        "reps": "10"
+      },
+      {
+        "exerciseId": "1abb1927-bbd8-48e8-a3fa-bd295292ffc5",
+        "sets": 3,
+        "reps": "12"
+      }
+    ]
+  },
+  {
+    "id": "upper_body_strength",
+    "name": "Upper Body Strength Builder",
+    "category": "muscle-gain",
+    "level": "intermediate",
+    "durationMin": 50,
+    "tags": [
+      "upper-body",
+      "strength"
+    ],
+    "exercises": [
+      {
+        "exerciseId": "173bde77-62a9-49b9-93e2-bde6e0da2ab2",
+        "sets": 4,
+        "reps": "8-10"
+      },
+      {
+        "exerciseId": "168efd7d-2e85-4e66-a417-1c514dc63138",
+        "sets": 4,
+        "reps": "8-10"
+      },
+      {
+        "exerciseId": "175b026e-5034-428e-8b6c-65cf6b23eaff",
+        "sets": 3,
+        "reps": "12"
+      },
+      {
+        "exerciseId": "17722fe4-f97d-401f-8fff-ef7a187cba2b",
+        "sets": 3,
+        "reps": "12"
+      },
+      {
+        "exerciseId": "054dbbbf-81cc-4deb-90e7-ca80a1c91183",
+        "sets": 3,
+        "reps": "15"
+      },
+      {
+        "exerciseId": "01bddaeb-d914-448e-96ee-6cde65f3a66d",
+        "sets": 3,
+        "reps": "15"
+      },
+      {
+        "exerciseId": "0a936980-fc75-4c3e-b663-45349c5bc40d",
+        "sets": 3,
+        "reps": "12"
+      }
+    ]
+  },
+  {
+    "id": "lower_body_strength",
+    "name": "Lower Body Strength Day",
+    "category": "muscle-gain",
+    "level": "intermediate",
+    "durationMin": 55,
+    "tags": [
+      "legs",
+      "glutes",
+      "strength"
+    ],
+    "exercises": [
+      {
+        "exerciseId": "0f5d82f2-97ea-4876-bb11-2f47651a6d87",
+        "sets": 4,
+        "reps": "8-10"
+      },
+      {
+        "exerciseId": "067dea47-93a8-4cdc-a24a-2651ad1fadf5",
+        "sets": 4,
+        "reps": "10-12"
+      },
+      {
+        "exerciseId": "091c905c-4a98-4779-bfee-392f9b046ce6",
+        "sets": 3,
+        "reps": "12"
+      },
+      {
+        "exerciseId": "0ab8a28c-3f70-4dff-a3f8-f40fab0f6be3",
+        "sets": 3,
+        "reps": "12"
+      },
+      {
+        "exerciseId": "0cdf2ece-4d2e-4bc9-8d0e-bfb48dc79b4c",
+        "sets": 3,
+        "reps": "15"
+      },
+      {
+        "exerciseId": "10912329-2e88-44fd-980a-ebe44900d2a1",
+        "sets": 3,
+        "reps": "15"
+      },
+      {
+        "exerciseId": "090b2337-fc3a-4dc1-8e11-1caa3276314a",
+        "sets": 3,
+        "reps": "20"
+      }
+    ]
+  },
+  {
+    "id": "push_day_hypertrophy",
+    "name": "Push Day Hypertrophy",
+    "category": "muscle-gain",
+    "level": "advanced",
+    "durationMin": 60,
+    "tags": [
+      "push",
+      "chest",
+      "shoulders",
+      "triceps"
+    ],
+    "exercises": [
+      {
+        "exerciseId": "0a598abf-cc4e-4371-925c-c253290bc2a9",
+        "sets": 4,
+        "reps": "8-12"
+      },
+      {
+        "exerciseId": "149a4f36-1814-4dab-974c-a9a6e019a267",
+        "sets": 3,
+        "reps": "10-12"
+      },
+      {
+        "exerciseId": "1418c0df-3e0f-4415-a1af-259339a7293a",
+        "sets": 3,
+        "reps": "12-15"
+      },
+      {
+        "exerciseId": "0ecb799c-3269-4c53-8096-163e2ef97b1f",
+        "sets": 3,
+        "reps": "12-15"
+      },
+      {
+        "exerciseId": "06263e10-153e-48f4-83b1-1af76296a872",
+        "sets": 3,
+        "reps": "15"
+      },
+      {
+        "exerciseId": "14d176b0-e7f7-476f-89e4-4a72abdf42eb",
+        "sets": 3,
+        "reps": "15"
+      },
+      {
+        "exerciseId": "091cf045-536e-4a51-87df-1cd1a8006220",
+        "sets": 2,
+        "reps": "Failure"
+      }
+    ]
+  },
+  {
+    "id": "pull_day_hypertrophy",
+    "name": "Pull Day Hypertrophy",
+    "category": "muscle-gain",
+    "level": "advanced",
+    "durationMin": 60,
+    "tags": [
+      "pull",
+      "back",
+      "biceps"
+    ],
+    "exercises": [
+      {
+        "exerciseId": "03378145-0a16-42b5-a6f7-e77ceded149d",
+        "sets": 4,
+        "reps": "8-12"
+      },
+      {
+        "exerciseId": "168efd7d-2e85-4e66-a417-1c514dc63138",
+        "sets": 3,
+        "reps": "10-12"
+      },
+      {
+        "exerciseId": "1a5c3c17-43f0-4e0b-b5e4-51585ca8b7f6",
+        "sets": 3,
+        "reps": "12-15"
+      },
+      {
+        "exerciseId": "173bde77-62a9-49b9-93e2-bde6e0da2ab2",
+        "sets": 3,
+        "reps": "Failure"
+      },
+      {
+        "exerciseId": "05a53b1d-720c-4e8d-ac8a-6dcf1cc15451",
+        "sets": 3,
+        "reps": "12-15"
+      },
+      {
+        "exerciseId": "0657be30-cd0e-43ca-8198-e90e164a8646",
+        "sets": 3,
+        "reps": "15"
+      },
+      {
+        "exerciseId": "0b88a6a4-6bea-424b-8549-dcc407d47e99",
+        "sets": 3,
+        "reps": "15"
+      }
+    ]
+  },
+  {
+    "id": "legs_glutes_athletic",
+    "name": "Legs & Glutes Athletic Power",
+    "category": "performance",
+    "level": "advanced",
+    "durationMin": 55,
+    "tags": [
+      "legs",
+      "glutes",
+      "athletic",
+      "power"
+    ],
+    "exercises": [
+      {
+        "exerciseId": "0f5d82f2-97ea-4876-bb11-2f47651a6d87",
+        "sets": 4,
+        "reps": "6-8"
+      },
+      {
+        "exerciseId": "056fb0e8-52b7-42aa-8460-2daf1c85223b",
+        "sets": 3,
+        "reps": "8-10"
+      },
+      {
+        "exerciseId": "1180b6f0-62c3-46c9-9de5-ef6537998ca6",
+        "sets": 3,
+        "reps": "10-12"
+      },
+      {
+        "exerciseId": "0efa8070-c9a9-4b41-be63-da726f5bd0c7",
+        "sets": 3,
+        "reps": "12"
+      },
+      {
+        "exerciseId": "16109b07-fcbe-4abc-9b66-e461e54e4daf",
+        "sets": 3,
+        "reps": "15"
+      },
+      {
+        "exerciseId": "01b43115-cb95-4013-aed1-c12e1b49a821",
+        "sets": 3,
+        "reps": "20"
+      },
+      {
+        "exerciseId": "024add4b-208a-402f-9dc7-5a8bba08cef7",
+        "sets": 3,
+        "reps": "20"
+      }
+    ]
+  },
+  {
+    "id": "full_body_athlete",
+    "name": "Full Body Athlete Performance",
+    "category": "performance",
+    "level": "advanced",
+    "durationMin": 60,
+    "tags": [
+      "full-body",
+      "power",
+      "conditioning"
+    ],
+    "exercises": [
+      {
+        "exerciseId": "133b9164-5098-4bb4-b4d5-825984c68450",
+        "sets": 4,
+        "reps": "5"
+      },
+      {
+        "exerciseId": "1a390e47-4f7c-49b2-82eb-cd82d2de9a64",
+        "sets": 3,
+        "reps": "8"
+      },
+      {
+        "exerciseId": "1a6eb8d6-b16f-4e0c-8397-b076d0a7734b",
+        "sets": 3,
+        "reps": "10"
+      },
+      {
+        "exerciseId": "102e0533-05ef-4c9b-a667-985ee9bbb928",
+        "sets": 3,
+        "reps": "12"
+      },
+      {
+        "exerciseId": "15289eb4-029c-47db-8d0a-f2ef3e244470",
+        "sets": 3,
+        "reps": "12"
+      },
+      {
+        "exerciseId": "0c4b3aae-93aa-437e-a5c3-936291407931",
+        "sets": 3,
+        "reps": "15"
+      },
+      {
+        "exerciseId": "15f3126d-b9b7-48cb-ae56-19deeb458c3f",
+        "sets": 3,
+        "reps": "15"
+      }
+    ]
+  },
+  {
+    "id": "hiit_fat_loss",
+    "name": "HIIT Fat Loss Conditioning",
+    "category": "weight-loss",
+    "level": "intermediate",
+    "durationMin": 30,
+    "tags": [
+      "hiit",
+      "fat-loss",
+      "conditioning"
+    ],
+    "exercises": [
+      {
+        "exerciseId": "101337f0-1251-415b-ada9-afd689a5116e",
+        "sets": 4,
+        "reps": "45s"
+      },
+      {
+        "exerciseId": "124519dd-87ad-434c-b153-fc8d0f949b7d",
+        "sets": 4,
+        "reps": "45s"
+      },
+      {
+        "exerciseId": "12784a1d-cbb8-4e87-affc-193667a4ba00",
+        "sets": 4,
+        "reps": "45s"
+      },
+      {
+        "exerciseId": "14e83846-ee83-4937-a11a-49399d05a3c7",
+        "sets": 4,
+        "reps": "45s"
+      },
+      {
+        "exerciseId": "00b34db4-859f-49ec-b8d2-849b25e1261a",
+        "sets": 4,
+        "reps": "45s"
+      },
+      {
+        "exerciseId": "024add4b-208a-402f-9dc7-5a8bba08cef7",
+        "sets": 4,
+        "reps": "45s"
+      },
+      {
+        "exerciseId": "09935b15-8def-4b33-b57c-dcf63c902a0f",
+        "sets": 4,
+        "reps": "45s"
+      },
+      {
+        "exerciseId": "144185d9-0081-4fe9-91b6-f29a49885a37",
+        "sets": 4,
+        "reps": "45s"
+      }
+    ]
+  },
+  {
+    "id": "core_and_abs",
+    "name": "Core & Abs Builder",
+    "category": "general-fitness",
+    "level": "intermediate",
+    "durationMin": 35,
+    "tags": [
+      "core",
+      "abs",
+      "stability"
+    ],
+    "exercises": [
+      {
+        "exerciseId": "00320ccd-2b50-4e13-90cb-d25c0f81eb51",
+        "sets": 3,
+        "reps": "20"
+      },
+      {
+        "exerciseId": "0358eac3-32b7-4afa-a159-e34cca912363",
+        "sets": 3,
+        "reps": "15"
+      },
+      {
+        "exerciseId": "08041bcb-2b6f-4877-a375-3bbac6990455",
+        "sets": 3,
+        "reps": "15"
+      },
+      {
+        "exerciseId": "0b3987fd-be9e-45bc-a222-31767c1efa60",
+        "sets": 3,
+        "reps": "20"
+      },
+      {
+        "exerciseId": "0d6e07c5-5a03-4d39-9cd3-c1f09c93c9ef",
+        "sets": 3,
+        "reps": "15"
+      },
+      {
+        "exerciseId": "0fec3739-40bf-4670-a4e7-979ff6609b55",
+        "sets": 3,
+        "reps": "20"
+      },
+      {
+        "exerciseId": "14a6a43c-02b1-4a0a-ad94-666199409166",
+        "sets": 3,
+        "reps": "30s"
+      },
+      {
+        "exerciseId": "10321ba6-92dd-4ec2-97bd-80f03ead3247",
+        "sets": 3,
+        "reps": "30s"
+      }
+    ]
+  },
+  {
+    "id": "chest_day_bodyweight_dumbbell",
+    "name": "Chest Day (Bodyweight & DB)",
+    "category": "muscle-gain",
+    "level": "intermediate",
+    "durationMin": 45,
+    "tags": [
+      "chest",
+      "upper-body",
+      "bodyweight",
+      "dumbbell"
+    ],
+    "exercises": [
+      {
+        "exerciseId": "01fbee1b-4772-4e56-9c90-fdd629d062e5",
+        "sets": 4,
+        "reps": "15"
+      },
+      {
+        "exerciseId": "0974c95a-3dd7-4565-88cb-2d4044a41a7f",
+        "sets": 3,
+        "reps": "12"
+      },
+      {
+        "exerciseId": "0fdec729-2cb6-49c7-9982-3ecfb561fac9",
+        "sets": 3,
+        "reps": "12"
+      },
+      {
+        "exerciseId": "15bba5e9-0eca-4858-a075-2ea3ff5be48a",
+        "sets": 3,
+        "reps": "15"
+      },
+      {
+        "exerciseId": "173bde77-62a9-49b9-93e2-bde6e0da2ab2",
+        "sets": 3,
+        "reps": "Failure"
+      },
+      {
+        "exerciseId": "1828c20c-3eaa-44d0-94f4-3797721903de",
+        "sets": 3,
+        "reps": "12"
+      },
+      {
+        "exerciseId": "048b8e97-5548-4909-9a7d-329ab8cb0f59",
+        "sets": 3,
+        "reps": "15"
+      },
+      {
+        "exerciseId": "13f654ff-327e-499b-8bc4-48e161161699",
+        "sets": 3,
+        "reps": "15"
+      }
+    ]
+  },
+  {
+    "id": "upper_lower_split_upper",
+    "name": "Upper/Lower Split – Upper",
+    "category": "muscle-gain",
+    "level": "intermediate",
+    "durationMin": 55,
+    "tags": [
+      "upper-body",
+      "split",
+      "hypertrophy"
+    ],
+    "exercises": [
+      {
+        "exerciseId": "173c06c3-321f-47cf-ae3f-39d341faee2f",
+        "sets": 4,
+        "reps": "8-10"
+      },
+      {
+        "exerciseId": "1713444c-e30c-4156-b85e-93b2d209cab6",
+        "sets": 4,
+        "reps": "8-10"
+      },
+      {
+        "exerciseId": "14f4f281-b3f4-4a76-b07a-9e7072390293",
+        "sets": 3,
+        "reps": "12"
+      },
+      {
+        "exerciseId": "13714b39-6448-4042-ba94-9d79873a9e13",
+        "sets": 3,
+        "reps": "12"
+      },
+      {
+        "exerciseId": "19e390cc-a857-432d-9c12-94b5c38cd466",
+        "sets": 3,
+        "reps": "15"
+      },
+      {
+        "exerciseId": "17722fe4-f97d-401f-8fff-ef7a187cba2b",
+        "sets": 3,
+        "reps": "15"
+      },
+      {
+        "exerciseId": "054dbbbf-81cc-4deb-90e7-ca80a1c91183",
+        "sets": 3,
+        "reps": "15"
+      },
+      {
+        "exerciseId": "01bddaeb-d914-448e-96ee-6cde65f3a66d",
+        "sets": 3,
+        "reps": "15"
+      }
+    ]
+  },
+  {
+    "id": "upper_lower_split_lower",
+    "name": "Upper/Lower Split – Lower",
+    "category": "muscle-gain",
+    "level": "intermediate",
+    "durationMin": 55,
+    "tags": [
+      "lower-body",
+      "split",
+      "legs"
+    ],
+    "exercises": [
+      {
+        "exerciseId": "1889d3e6-fe4a-443b-beb1-b5c2e51a302b",
+        "sets": 4,
+        "reps": "8-10"
+      },
+      {
+        "exerciseId": "16ede365-5464-4703-98b1-611f21e4f702",
+        "sets": 4,
+        "reps": "10-12"
+      },
+      {
+        "exerciseId": "115546da-a956-4933-a00c-3374a2488df2",
+        "sets": 3,
+        "reps": "12"
+      },
+      {
+        "exerciseId": "110def2f-c4e9-4ea4-a8dc-f1484864cee3",
+        "sets": 3,
+        "reps": "12"
+      },
+      {
+        "exerciseId": "0cdf2ece-4d2e-4bc9-8d0e-bfb48dc79b4c",
+        "sets": 3,
+        "reps": "15"
+      },
+      {
+        "exerciseId": "1180b6f0-62c3-46c9-9de5-ef6537998ca6",
+        "sets": 3,
+        "reps": "15"
+      },
+      {
+        "exerciseId": "0bc9ae27-56be-4f75-9848-3f7dfeb8e111",
+        "sets": 3,
+        "reps": "15"
+      },
+      {
+        "exerciseId": "1925408a-06ef-4108-bcc8-82638b6f1918",
+        "sets": 3,
+        "reps": "20"
+      }
+    ]
+  },
+  {
+    "id": "trending_weight_loss_1",
+    "name": "Fat Burn Express",
+    "durationMin": 30,
+    "level": "intermediate",
+    "category": "weight-loss",
+    "tags": [
+      "Cardio",
+      "Quick",
+      "Metabolic"
+    ],
+    "exercises": [
+      {
+        "exerciseId": "101337f0-1251-415b-ada9-afd689a5116e",
+        "sets": 3,
+        "reps": "45s"
+      },
+      {
+        "exerciseId": "09935b15-8def-4b33-b57c-dcf63c902a0f",
+        "sets": 3,
+        "reps": "45s"
+      },
+      {
+        "exerciseId": "024add4b-208a-402f-9dc7-5a8bba08cef7",
+        "sets": 3,
+        "reps": "45s"
+      },
+      {
+        "exerciseId": "00b34db4-859f-49ec-b8d2-849b25e1261a",
+        "sets": 3,
+        "reps": "45s"
+      },
+      {
+        "exerciseId": "12784a1d-cbb8-4e87-affc-193667a4ba00",
+        "sets": 3,
+        "reps": "45s"
+      }
+    ]
+  },
+  {
+    "id": "trending_weight_loss_2",
+    "name": "HIIT Blast",
+    "durationMin": 45,
+    "level": "advanced",
+    "category": "weight-loss",
+    "tags": [
+      "HIIT",
+      "Intense",
+      "Full Body"
+    ],
+    "exercises": [
+      {
+        "exerciseId": "101337f0-1251-415b-ada9-afd689a5116e",
+        "sets": 4,
+        "reps": "45s"
+      },
+      {
+        "exerciseId": "124519dd-87ad-434c-b153-fc8d0f949b7d",
+        "sets": 4,
+        "reps": "45s"
+      },
+      {
+        "exerciseId": "024add4b-208a-402f-9dc7-5a8bba08cef7",
+        "sets": 4,
+        "reps": "45s"
+      },
+      {
+        "exerciseId": "14e83846-ee83-4937-a11a-49399d05a3c7",
+        "sets": 4,
+        "reps": "45s"
+      },
+      {
+        "exerciseId": "12784a1d-cbb8-4e87-affc-193667a4ba00",
+        "sets": 4,
+        "reps": "45s"
+      },
+      {
+        "exerciseId": "09935b15-8def-4b33-b57c-dcf63c902a0f",
+        "sets": 4,
+        "reps": "45s"
+      }
+    ]
+  },
+  {
+    "id": "trending_weight_loss_3",
+    "name": "Cardio Core",
+    "durationMin": 40,
+    "level": "intermediate",
+    "category": "weight-loss",
+    "tags": [
+      "Core",
+      "Cardio",
+      "Abs"
+    ],
+    "exercises": [
+      {
+        "exerciseId": "00320ccd-2b50-4e13-90cb-d25c0f81eb51",
+        "sets": 3,
+        "reps": "20"
+      },
+      {
+        "exerciseId": "0b3987fd-be9e-45bc-a222-31767c1efa60",
+        "sets": 3,
+        "reps": "15"
+      },
+      {
+        "exerciseId": "0fec3739-40bf-4670-a4e7-979ff6609b55",
+        "sets": 3,
+        "reps": "20"
+      },
+      {
+        "exerciseId": "144185d9-0081-4fe9-91b6-f29a49885a37",
+        "sets": 3,
+        "reps": "30s"
+      },
+      {
+        "exerciseId": "12784a1d-cbb8-4e87-affc-193667a4ba00",
+        "sets": 3,
+        "reps": "30s"
+      }
+    ]
+  }
+]

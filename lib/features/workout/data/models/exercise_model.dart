@@ -47,7 +47,7 @@ class Exercise {
     // Base URL for Supabase Storage (bucket is 'workouts')
     const String storageBaseUrl = "https://ojjwvrdigxerkuetxfar.supabase.co/storage/v1/object/public/workouts";
     
-    String imgPath = json["image_path"] ?? json["gif_path"] ?? "";
+    String imgPath = json["image_path"] ?? json["gif_path"] ?? json["imageUrl"] ?? json["gifUrl"] ?? "";
     String fullImageUrl = "";
     if (imgPath.isNotEmpty) {
       if (imgPath.startsWith("http")) {
@@ -85,6 +85,8 @@ class Exercise {
       "target": target,
       "secondaryMuscles": secondaryMuscles,
       "gifUrl": gifUrl,
+      "imageUrl": imageUrl,
+      "image_path": gifUrl, // Store full URL here for fromJson to pick up
       "instructions": steps,
       "videoUrl": videoUrl,
       "category": category,

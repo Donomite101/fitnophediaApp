@@ -1,6 +1,8 @@
 import 'package:alarm/alarm.dart';
 import 'package:flutter/material.dart';
 import 'dart:math';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'notification_service.dart';
 
 class HydrationAlarmService {
   static final HydrationAlarmService _instance = HydrationAlarmService._internal();
@@ -81,9 +83,7 @@ class HydrationAlarmService {
   }
 
   /// Get a time-appropriate message (morning, afternoon, evening)
-  Map<String, String> _getTimeBasedMessage() {
-    final hour = DateTime.now().hour;
-    
+  Map<String, String> _getTimeBasedMessage(int hour) {
     if (hour >= 6 && hour < 12) {
       // Morning messages
       final morningMessages = [
@@ -135,12 +135,16 @@ class HydrationAlarmService {
     int intervalMinutes = 60,
   }) async {
     await initialize();
-    debugPrint('scheduleHydrationReminders (Alarm) called: Start=${startTime.toString()}, End=${endTime.toString()}, Interval=$intervalMinutes');
     
-    await cancelReminders(); // Clear existing alarms
+    debugPrint('scheduleHydrationReminders (Pure Alarm) called: Start=${startTime.toString()}, End=${endTime.toString()}, Interval=$intervalMinutes');
+    
+    // Clear all existing alarms/notifications first
+    await cancelReminders();
 
     final now = DateTime.now();
-    var scheduledTime = DateTime(
+    
+    // Start scheduling from the start time
+    var currentSchedule = DateTime(
       now.year,
       now.month,
       now.day,
@@ -148,7 +152,8 @@ class HydrationAlarmService {
       startTime.minute,
     );
 
-    final endDateTime = DateTime(
+    // End boundary
+    var boundaryEnd = DateTime(
       now.year,
       now.month,
       now.day,
@@ -156,27 +161,37 @@ class HydrationAlarmService {
       endTime.minute,
     );
 
-    DateTime effectiveEndDateTime = endDateTime;
-    if (effectiveEndDateTime.isBefore(scheduledTime)) {
-       effectiveEndDateTime = effectiveEndDateTime.add(const Duration(days: 1));
+    // If end is before start, it spans to the next day
+    if (boundaryEnd.isBefore(currentSchedule)) {
+       boundaryEnd = boundaryEnd.add(const Duration(days: 1));
     }
 
     int id = 0;
-    while (scheduledTime.isBefore(effectiveEndDateTime) ||
-        scheduledTime.isAtSameMomentAs(effectiveEndDateTime)) {
+    while (currentSchedule.isBefore(boundaryEnd) ||
+        currentSchedule.isAtSameMomentAs(boundaryEnd)) {
+      
+      // Only schedule if the time is in the future
+      // If it's today but already passed, move this specific hit to tomorrow
+      DateTime targetTime = currentSchedule;
+      if (targetTime.isBefore(now)) {
+        targetTime = targetTime.add(const Duration(days: 1));
+      }
       
       // Use time-based message for variety
-      final message = _getTimeBasedMessage();
-      
+      final message = _getTimeBasedMessage(targetTime.hour);
+
       await _scheduleAlarm(
         id: 100 + id,
-        dateTime: scheduledTime,
+        dateTime: targetTime,
         title: message['title']!,
         body: message['body']!,
       );
 
-      scheduledTime = scheduledTime.add(Duration(minutes: intervalMinutes));
+      currentSchedule = currentSchedule.add(Duration(minutes: intervalMinutes));
       id++;
+      
+      // Safety break to prevent infinite loops if interval is 0
+      if (id > 48) break; 
     }
   }
 
@@ -204,6 +219,7 @@ class HydrationAlarmService {
       notificationSettings: NotificationSettings(
         title: title,
         body: body,
+        icon: 'ic_launcher',
       ),
       warningNotificationOnKill: true,
     );
@@ -224,16 +240,23 @@ class HydrationAlarmService {
         await Alarm.stop(100 + i);
       } catch (_) {}
     }
-    debugPrint('Cancelled existing hydration alarms');
+    
+    // Also cancel standard notifications
+    try {
+      await NotificationService().cancelReminders();
+    } catch (e) {
+      debugPrint('Error canceling notifications: $e');
+    }
+    
+    debugPrint('Cancelled existing hydration alarms and notifications');
   }
 
   Future<void> showTestAlarm() async {
     await initialize();
     final now = DateTime.now();
-    final targetTime = now.add(const Duration(seconds: 10)); // 10 seconds from now
+    final targetTime = now.add(const Duration(seconds: 5));
 
-    // Use a random engaging message for testing
-    final message = _getRandomMessage();
+    final timeStr = "${targetTime.hour > 12 ? targetTime.hour - 12 : (targetTime.hour == 0 ? 12 : targetTime.hour)}:${targetTime.minute.toString().padLeft(2, '0')} ${targetTime.hour >= 12 ? 'PM' : 'AM'}";
 
     final alarmSettings = AlarmSettings(
       id: 999,
@@ -243,13 +266,14 @@ class HydrationAlarmService {
       vibrate: true,
       volumeSettings: const VolumeSettings.fixed(),
       notificationSettings: NotificationSettings(
-        title: message['title']!,
-        body: message['body']!,
+        title: '🔔 Hydration System Test',
+        body: 'Hydration system active! Time to drink up 💧',
+        icon: 'ic_launcher',
       ),
       warningNotificationOnKill: true,
     );
 
     await Alarm.set(alarmSettings: alarmSettings);
-    debugPrint('Test alarm scheduled for 10 seconds from now');
+    debugPrint('Test alarm scheduled for 5 seconds from now at $timeStr');
   }
 }

@@ -111,11 +111,7 @@ Future<void> setupAlarmNotificationHandler() async {
     
     // Check if this is a hydration alarm (IDs 100-149)
     if (alarmSettings.id >= 100 && alarmSettings.id < 150) {
-      debugPrint('Hydration alarm detected, stopping alarm and preparing navigation...');
-      
-      // Stop the alarm immediately to dismiss the notification
-      await Alarm.stop(alarmSettings.id);
-      debugPrint('Alarm ${alarmSettings.id} stopped');
+      debugPrint('Hydration alarm detected, preparing background navigation context...');
       
       // Wait a moment for the app to be ready
       await Future.delayed(const Duration(milliseconds: 500));

@@ -18,16 +18,16 @@ class WorkoutRepository {
     debugPrint("🔍 [WorkoutRepository] Loading exercises…");
 
     // 1. Try loading cache
-    // final cached = await cache.getCachedExercises();
-    // if (cached != null) {
-    //   debugPrint("💾 [WorkoutRepository] Returning cached exercises");
-    //   return cached
-    //       .map<Exercise>((e) => Exercise.fromJson(e))
-    //       .toList();
-    // }
+    final cached = await cache.getCachedExercises();
+    if (cached != null) {
+      debugPrint("💾 [WorkoutRepository] Returning cached exercises");
+      return cached
+          .map<Exercise>((e) => Exercise.fromJson(e))
+          .toList();
+    }
 
-    // 2. Cache empty → call API
-    debugPrint("📡 [WorkoutRepository] Cache miss → calling ExerciseDB API…");
+    // 2. Cache empty or expired → call API
+    debugPrint("📡 [WorkoutRepository] Cache miss or expired → calling ExerciseDB API…");
 
     try {
       final apiData = await api.fetchExercises(); // returns List<Map>
@@ -44,7 +44,17 @@ class WorkoutRepository {
 
       return exercises;
     } catch (e) {
-      debugPrint("❌ [WorkoutRepository] API fetch failed: $e");
+      debugPrint("❌ [WorkoutRepository] API fetch failed: $e. Checking for any cache (even expired)...");
+      
+      // If API fails, try to return WHATEVER is in the cache (ignoring expiry)
+      final fallbackCache = await cache.getCachedExercises(ignoreExpiry: true);
+      if (fallbackCache != null) {
+        debugPrint("💾 [WorkoutRepository] Returning expired cache as fallback");
+        return fallbackCache
+            .map<Exercise>((e) => Exercise.fromJson(e))
+            .toList();
+      }
+      
       rethrow;
     }
   }

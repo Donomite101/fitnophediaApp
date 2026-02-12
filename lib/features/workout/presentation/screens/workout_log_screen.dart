@@ -18,6 +18,7 @@ import '../../data/services/recovery_service.dart';
 import '../../data/services/music_service.dart';
 import '../../data/services/warmup_service.dart';
 import '../widgets/music_player_overlay.dart';
+import '../widgets/workout_completion_overlay.dart';
 
 class WorkoutLogScreen extends StatefulWidget {
   final String gymId;
@@ -135,10 +136,14 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
         
         // Try initial day if provided
         if (widget.initialDayName != null) {
-          final match = schedule.firstWhere(
-            (d) => d['day'].toString().toLowerCase() == widget.initialDayName!.toLowerCase(),
-            orElse: () => null,
-          );
+          dynamic match;
+          try {
+            match = schedule.firstWhere(
+              (d) => d['day'].toString().toLowerCase() == widget.initialDayName!.toLowerCase(),
+            );
+          } catch (_) {
+            match = null;
+          }
           if (match != null) {
             _loadDay(match);
             return;
@@ -147,10 +152,14 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
 
         // Try to match today
         final today = DateFormat('EEEE').format(DateTime.now()); // e.g., "Monday"
-        final match = schedule.firstWhere(
-          (d) => d['day'].toString().toLowerCase() == today.toLowerCase(),
-          orElse: () => null,
-        );
+        dynamic match;
+        try {
+          match = schedule.firstWhere(
+            (d) => d['day'].toString().toLowerCase() == today.toLowerCase(),
+          );
+        } catch (_) {
+          match = null;
+        }
 
         if (match != null) {
           _loadDay(match);
@@ -234,34 +243,53 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
     try {
       final prefs = await SharedPreferences.getInstance();
       final draftString = prefs.getString(_draftKey);
+      
+      // No draft exists - start fresh
       if (draftString == null) return false;
 
       final draft = jsonDecode(draftString);
       final timestamp = draft['timestamp'] as int;
       
-      // If draft is older than 4 hours, ignore it
+      // If draft is older than 4 hours, ignore it and start fresh
       if (DateTime.now().millisecondsSinceEpoch - timestamp > 14400000) {
         await prefs.remove(_draftKey);
         return false;
       }
 
+      // Valid draft exists - show resume dialog
       final resume = await showDialog<bool>(
         context: context,
+        barrierDismissible: false, // Force user to choose
         builder: (ctx) => AlertDialog(
           backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1E1E1E) : Colors.white,
-          title: const Text("Resume Workout?"),
-          content: const Text("We found an unfinished workout. Would you like to continue?"),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              const Icon(Icons.fitness_center, color: Color(0xFF00E676), size: 28),
+              const SizedBox(width: 12),
+              const Text("Resume Workout?", style: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: const Text(
+            "We found an unfinished workout session. Would you like to continue where you left off?",
+            style: TextStyle(fontFamily: 'Outfit', fontSize: 14),
+          ),
           actions: [
             TextButton(
-              onPressed: () {
-                prefs.remove(_draftKey);
+              onPressed: () async {
+                await prefs.remove(_draftKey);
                 Navigator.pop(ctx, false);
               },
-              child: const Text("Start New", style: TextStyle(color: Colors.grey)),
+              child: const Text("Start Fresh", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600)),
             ),
-            TextButton(
+            ElevatedButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text("Resume", style: TextStyle(color: Color(0xFF00E676), fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00E676),
+                foregroundColor: Colors.black,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text("Resume", style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -281,11 +309,18 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
         rawLogs.forEach((key, value) {
           _logs[int.parse(key)] = List<Map<String, dynamic>>.from(value);
         });
+      });
 
-        _pageController = PageController(initialPage: _currentExerciseIndex);
-        
-        if (_isResting && _restSecondsRemaining > 0) {
-          _startRestTimerInternal(_restSecondsRemaining);
+      // Rebuild PageController after state is set
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _pageController = PageController(initialPage: _currentExerciseIndex);
+            
+            if (_isResting && _restSecondsRemaining > 0) {
+              _startRestTimerInternal(_restSecondsRemaining);
+            }
+          });
         }
       });
 
@@ -501,10 +536,24 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
 
   void _updateValue(String key, double change) {
     setState(() {
-      double current = (_logs[_currentExerciseIndex]![_currentSetIndex][key] as num).toDouble();
+      final rawValue = _logs[_currentExerciseIndex]![_currentSetIndex][key];
+      double current = 0;
+      
+      if (rawValue is num) {
+        current = rawValue.toDouble();
+      } else if (rawValue is String) {
+        // Handle strings like "10" or "5 min"
+        // Try to extract the first number found
+        final match = RegExp(r'(\d+\.?\d*)').firstMatch(rawValue);
+        if (match != null) {
+          current = double.tryParse(match.group(0)!) ?? 0;
+        }
+      }
+      
       double newValue = (current + change).clamp(0, 999);
       if (key == 'reps') newValue = newValue.roundToDouble();
       _logs[_currentExerciseIndex]![_currentSetIndex][key] = newValue;
+      _saveDraft(); // Persist changes
     });
   }
 
@@ -528,56 +577,120 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
 
     try {
       await _clearDraft(); // Success! Clear the draft
-      final result = await StreakService.instance.recordAttendanceAndUpdateStreak(
-        gymId: widget.gymId,
-        memberId: widget.memberId,
-        skipGeofence: true, // Allow logging workout from anywhere
-      );
-
-      // Update Recovery Score
-      // Calculate duration in minutes
-      final durationMinutes = (_secondsElapsed / 60).ceil();
-      await RecoveryService.instance.updateRecoveryScore(
-        gymId: widget.gymId,
-        memberId: widget.memberId,
-        durationMinutes: durationMinutes,
-        intensity: 2, // Default to medium intensity for now
-      );
-
-      if (mounted) {
-        // Show celebration ONLY if it's a new streak day (celebrate flag is true)
-        if (result.celebrate && result.newStreakCount != null) {
-          final activeDays = await StreakService.instance.getActiveDaysForCurrentWeek(
-            gymId: widget.gymId,
-            memberId: widget.memberId,
-          );
-          
-          if (mounted) {
-            await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => StreakCelebrationOverlay(
-                  currentStreak: result.newStreakCount!,
-                  activeDays: activeDays,
-                  onContinue: () => Navigator.pop(context),
-                ),
-              ),
-            );
+      
+      // Calculate workout stats
+      int totalSets = 0;
+      int totalReps = 0;
+      double totalVolume = 0;
+      
+      _logs.forEach((exerciseIndex, sets) {
+        for (var set in sets) {
+          if (set['completed'] == true) {
+            totalSets++;
+            final reps = set['reps'];
+            if (reps is num) {
+              totalReps += reps.toInt();
+            }
+            final weight = set['weight'];
+            if (weight is num && reps is num) {
+              totalVolume += weight * reps;
+            }
           }
         }
+      });
+      
+      final workoutName = widget.workoutData['planName'] ?? widget.workoutData['name'] ?? "Workout";
 
-        Navigator.pop(context); // Pop WorkoutLogScreen
-        Navigator.pop(context); // Pop SavedWorkoutDetailScreen
-        
+      // 1) Record attendance and streak verification BEFORE overlays
+      // Ensures we have result & context is active.
+      final streakResult = await StreakService.instance.recordAttendanceAndUpdateStreak(
+        gymId: widget.gymId,
+        memberId: widget.memberId,
+        skipGeofence: false, // Enforce location verification
+      );
+
+      // Inform user if location check failed
+      if (!streakResult.success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(result.message.isNotEmpty ? result.message : "Workout Logged! 🔥"), 
-            backgroundColor: const Color(0xFF00E676)
+            content: Text(streakResult.message),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
-    } catch (e) {
-      debugPrint("Error finishing workout: $e");
+      
+      // 2) Update Recovery Score
+      try {
+        final durationMinutes = (_secondsElapsed / 60).ceil();
+        await RecoveryService.instance.updateRecoveryScore(
+          gymId: widget.gymId,
+          memberId: widget.memberId,
+          durationMinutes: durationMinutes,
+          intensity: 2, 
+        );
+      } catch (e) {
+        debugPrint('Recovery score update error: $e');
+      }
+
+      // 3) Show completion overlay
+      if (mounted) {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => WorkoutCompletionOverlay(
+              totalDurationSeconds: _secondsElapsed,
+              totalExercises: _exercises.length,
+              totalSets: totalSets,
+              totalReps: totalReps,
+              totalVolume: totalVolume,
+              workoutName: workoutName,
+              onContinue: () => Navigator.pop(context), 
+            ),
+          ),
+        );
+      }
+      
+      // 4) If it was a new streak day, show celebration
+      if (mounted && streakResult.celebrate && streakResult.newStreakCount != null) {
+        final activeDays = await StreakService.instance.getActiveDaysForCurrentWeek(
+          gymId: widget.gymId,
+          memberId: widget.memberId,
+        );
+        
+        if (mounted) {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => StreakCelebrationOverlay(
+                currentStreak: streakResult.newStreakCount!,
+                activeDays: activeDays,
+                onContinue: () => Navigator.pop(context),
+              ),
+            ),
+          );
+        }
+      }
+
+      // 5) Final Feedback & Return to dashboard
+      if (mounted) {
+        if (streakResult.success) {
+           ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(streakResult.message.isNotEmpty ? streakResult.message : "Workout Logged! 🔥"), 
+              backgroundColor: const Color(0xFF00E676)
+            ),
+          );
+        }
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
+    } catch (e, st) {
+      debugPrint("Error finishing workout: $e\n$st");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Error saving workout. Please try again.")),
+        );
+      }
     }
   }
 

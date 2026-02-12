@@ -164,7 +164,16 @@ class StreakViewModel extends ChangeNotifier {
       notifyListeners();
 
     } catch (e) {
-      _loadMockData();
+      debugPrint("Error loading streak data: $e. Using cache if available.");
+      // Firestore should have served data from cache if configured, 
+      // but if we reach here, we might want to try to keep what we have 
+      // instead of switching to mock data immediately.
+      if (workoutDates.isEmpty) {
+        _loadMockData();
+      } else {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 

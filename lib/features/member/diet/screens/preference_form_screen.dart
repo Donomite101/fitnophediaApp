@@ -44,6 +44,40 @@ class _PreferenceFormScreenState extends State<PreferenceFormScreen> {
       gymId: widget.gymId,
       memberId: widget.memberId,
     );
+    _loadExistingPreferences();
+  }
+
+  Future<void> _loadExistingPreferences() async {
+    try {
+      final prefs = await _repo.getMealPreferences();
+      if (prefs != null) {
+        setState(() {
+          _currentStep = 1; // Skip welcome screen
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (_pageController.hasClients) {
+              _pageController.jumpToPage(1);
+            }
+          });
+          
+          // Pre-fill existing values
+          if (prefs['dietType'] != null) {
+            _selectedDietType = DietType.values.firstWhere(
+              (e) => e.name == prefs['dietType'],
+              orElse: () => DietType.balanced,
+            );
+          }
+          if (prefs['goal'] != null) {
+            _selectedGoal = FitnessGoal.values.firstWhere(
+              (e) => e.name == prefs['goal'],
+              orElse: () => FitnessGoal.maintenance,
+            );
+          }
+          // Load other preferences if needed
+        });
+      }
+    } catch (e) {
+      print('Error checking preferences: $e');
+    }
   }
 
   @override

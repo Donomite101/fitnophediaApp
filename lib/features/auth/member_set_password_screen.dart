@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/app_theme.dart';
 import '../../routes/app_routes.dart';
@@ -151,6 +152,19 @@ class _MemberSetPasswordScreenState extends State<MemberSetPasswordScreen> {
         'gymId': gymId,
         'createdAt': FieldValue.serverTimestamp(),
       }).timeout(const Duration(seconds: 6));
+
+      // Cache data for auto-login
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('isLoggedIn', true);
+        await prefs.setString('role', 'member');
+        await prefs.setString('gymId', gymId);
+        await prefs.setString('memberId', memberId);
+        await prefs.setString('userEmail', email);
+        await prefs.setString('userName', name);
+      } catch (e) {
+        debugPrint('Error caching member data: $e');
+      }
 
       // Re-fetch member from server to read subscription status (best-effort)
       bool hasSub = false;

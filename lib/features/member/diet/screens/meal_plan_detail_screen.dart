@@ -89,8 +89,8 @@ class _MealPlanDetailScreenState extends State<MealPlanDetailScreen> {
       // Normalize to midnight to ensure consistent date keys
       final startDate = DateTime(now.year, now.month, now.day);
       
-      // Iterate through each day of the plan
-      for (final dayPlan in _currentPlan.dailyPlans) {
+      // Use Future.wait to process all days in parallel for faster performance
+      await Future.wait(_currentPlan.dailyPlans.map((dayPlan) async {
         // Calculate the date for this day of the plan
         // dayNumber is 1-based
         final date = startDate.add(Duration(days: dayPlan.dayNumber - 1));
@@ -99,6 +99,7 @@ class _MealPlanDetailScreenState extends State<MealPlanDetailScreen> {
         await _repo.clearMealsForDay(date);
         
         // Save each meal for this day
+        // We can also parallelize meal saving if needed, but per-day sequence is safer for order
         for (final mealEntry in dayPlan.meals) {
           final nutritionMeal = _convertToNutritionMeal(mealEntry, date);
           await _repo.saveMeal(date, nutritionMeal);
@@ -106,7 +107,8 @@ class _MealPlanDetailScreenState extends State<MealPlanDetailScreen> {
         
         // Recalculate summary for the day
         await _repo.recalculateSummary(date);
-      }
+      }));
+
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

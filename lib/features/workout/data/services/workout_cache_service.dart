@@ -7,7 +7,7 @@ class WorkoutCache {
   static const String timeKey = "cached_exercises_time";
 
   // read
-  Future<List<Map<String, dynamic>>?> getCachedExercises() async {
+  Future<List<Map<String, dynamic>>?> getCachedExercises({bool ignoreExpiry = false}) async {
     final prefs = await SharedPreferences.getInstance();
     final jsonString = prefs.getString(key);
     final timestamp = prefs.getInt(timeKey);
@@ -18,10 +18,12 @@ class WorkoutCache {
     }
 
     // Cache validity: 24 hours
-    final age = DateTime.now().millisecondsSinceEpoch - timestamp;
-    if (age > 86400000) {
-      debugPrint("⏳ [WorkoutCache] Cache expired");
-      return null;
+    if (!ignoreExpiry) {
+      final age = DateTime.now().millisecondsSinceEpoch - timestamp;
+      if (age > 86400000) {
+        debugPrint("⏳ [WorkoutCache] Cache expired");
+        return null;
+      }
     }
 
     debugPrint("💾 [WorkoutCache] Loaded cache");

@@ -174,15 +174,15 @@ class StreakService {
       // 4) Geofence
       double? gymLat;
       double? gymLng;
-      double radius = 30.0; // Strict 30m radius
+      double radius = 100.0; // Increased to 100m to account for GPS drift indoors
 
       if (geoLocation != null) {
         // New schema: location is GeoPoint, radius stored separately
         gymLat = geoLocation.latitude;
         gymLng = geoLocation.longitude;
         radius = _toDouble(
-          gymData['radiusMeters'] ?? gymData['geofenceRadiusMeters'] ?? 30,
-          defaultValue: 30,
+          gymData['radiusMeters'] ?? gymData['geofenceRadiusMeters'] ?? 100,
+          defaultValue: 100,
         );
       } else if (locationMap != null) {
         // Old schema: location is a Map { lat, lng, radiusMeters }
@@ -191,8 +191,8 @@ class StreakService {
           gymLng = _toDouble(locationMap['lng']);
         }
         radius = _toDouble(
-          locationMap['radiusMeters'] ?? 30,
-          defaultValue: 30,
+          locationMap['radiusMeters'] ?? 100,
+          defaultValue: 100,
         );
       }
 
@@ -278,11 +278,21 @@ class StreakService {
       if (lastCounted != null) {
         try {
           final lastDate = DateFormat('yyyy-MM-dd').parse(lastCounted);
-          final daysDifference = now.difference(lastDate).inDays;
+          final todayDate = DateFormat('yyyy-MM-dd').parse(todayKey);
+          final daysDifference = todayDate.difference(lastDate).inDays;
 
           if (daysDifference == 1) {
             // Consecutive day
             current += 1;
+          } else if (daysDifference == 0) {
+            // Already counted today (should have been caught by attSnap.exists)
+            // But just in case:
+            return StreakResult(
+              success: true,
+              message: 'Workout already logged today!',
+              newStreakCount: current,
+              celebrate: false,
+            );
           } else {
             // Streak broken (missed at least one day)
             current = 1;
@@ -317,7 +327,8 @@ class StreakService {
         delta: 1,
       );
 
-      final bool shouldCelebrate = current > previousStreak;
+      // Celebrate EVERY successful daily check-in
+      final bool shouldCelebrate = true;
 
       debugPrint(
         'Streak updated: previous=$previousStreak, current=$current, '
@@ -377,6 +388,43 @@ class StreakService {
       debugPrint("Error calculating effective streak: $e");
       return 0;
     }
+  }
+
+  Stream<int> getStreakStream(String gymId, String memberId) {
+    return _db
+        .collection('gyms')
+        .doc(gymId)
+        .collection('members')
+        .doc(memberId)
+        .collection('stats')
+        .doc('streak')
+        .snapshots()
+        .map((doc) {
+      if (!doc.exists) return 0;
+
+      final data = doc.data()!;
+      final current = _readInt(data, 'currentStreak');
+      final lastCounted = data['lastCounted'] as String?;
+
+      if (lastCounted == null) return 0;
+
+      try {
+        final now = DateTime.now();
+        final lastDate = DateFormat('yyyy-MM-dd').parse(lastCounted);
+        
+        final today = DateTime(now.year, now.month, now.day);
+        final lastDay = DateTime(lastDate.year, lastDate.month, lastDate.day);
+        final diff = today.difference(lastDay).inDays;
+
+        if (diff <= 1) {
+          return current;
+        } else {
+          return 0; 
+        }
+      } catch (e) {
+        return 0;
+      }
+    });
   }
 
   int _readInt(Map<String, dynamic> data, String key) {

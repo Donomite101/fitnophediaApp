@@ -11,6 +11,7 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:intl/intl.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:provider/provider.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 import 'widgets/plan_card.dart';
 import 'ai_service.dart';
@@ -41,6 +42,10 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   // Speech to Text
   late stt.SpeechToText _speech;
   bool _isListening = false;
+  
+  // Connectivity
+  bool _isOffline = false;
+  late StreamSubscription<List<ConnectivityResult>> _connectivitySubscription;
 
   // Typing animation
   late AnimationController _typingController;
@@ -56,6 +61,14 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       vsync: this,
       duration: const Duration(milliseconds: 1000),
     )..repeat();
+    
+    _checkConnectivity();
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> results) {
+      final isOffline = results.contains(ConnectivityResult.none);
+      if (mounted) {
+        setState(() => _isOffline = isOffline);
+      }
+    });
 
     _currentSessionId = widget.sessionId;
     _isNewSession = _currentSessionId == null;
@@ -64,6 +77,13 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       _checkLanguageAndInit();
     } else {
       _loadSessionMessages();
+    }
+  }
+
+  Future<void> _checkConnectivity() async {
+    final results = await Connectivity().checkConnectivity();
+    if (mounted) {
+      setState(() => _isOffline = results.contains(ConnectivityResult.none));
     }
   }
 
@@ -144,6 +164,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    _connectivitySubscription.cancel();
     _controller.dispose();
     _scrollController.dispose();
     _typingController.dispose();
@@ -276,8 +297,15 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _sendMessage() async {
+    if (_isOffline) {
+      _showOfflineMessage();
+      return;
+    }
     final text = _controller.text.trim();
     if (text.isEmpty) return;
+
+    // Clear immediately after getting the text
+    _controller.clear();
 
     // Handle language choice flow (only for new sessions if not saved)
     if (_messages.isNotEmpty && _messages.length == 1 && _messages[0]['isLanguageChoice'] == true) {
@@ -299,7 +327,6 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       // We start the session here with the bot's confirmation
       await _saveMessageToSession(newMsg);
       
-      _controller.clear();
       _scrollToBottom();
       return;
     }
@@ -314,7 +341,6 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     // Save user message (creates session if needed)
     await _saveMessageToSession(userMsg);
     
-    _controller.clear();
     _scrollToBottom();
 
     // Prepare message for AI
@@ -407,7 +433,21 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     );
   }
 
+  void _showOfflineMessage() {
+    setState(() {
+      _messages.add({
+        'role': 'bot',
+        'text': "You are currently offline. Please check your internet connection to chat with Coach Fitnophedia.",
+      });
+    });
+    _scrollToBottom();
+  }
+
   Future<void> _processImage(ImageSource source) async {
+    if (_isOffline) {
+      _showOfflineMessage();
+      return;
+    }
     final picker = ImagePicker();
     final picked = await picker.pickImage(source: source, maxWidth: 600);
     if (picked == null) return;
@@ -908,6 +948,23 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       ),
       body: Column(
         children: [
+          if (_isOffline)
+            Container(
+              width: double.infinity,
+              color: Colors.redAccent,
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  Icon(Icons.wifi_off, color: Colors.white, size: 16),
+                  SizedBox(width: 8),
+                  Text(
+                    "You are offline. Sending is disabled.",
+                    style: TextStyle(color: Colors.white, fontSize: 13, fontFamily: 'Outfit'),
+                  ),
+                ],
+              ),
+            ),
           Expanded(
             child: ListView.builder(
               controller: _scrollController,

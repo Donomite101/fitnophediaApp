@@ -12,6 +12,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../../../core/app_theme.dart';
 import '../../../core/theme_notifier.dart';
 import '../../../routes/app_routes.dart';
@@ -204,7 +206,14 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
               backgroundColor: Colors.white,
               child: ClipOval(
                 child: profileImageUrl != null && profileImageUrl.isNotEmpty
-                    ? Image.network(profileImageUrl, width: 68, height: 68, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Iconsax.user, size: 36))
+                    ? CachedNetworkImage(
+                        imageUrl: profileImageUrl,
+                        width: 68,
+                        height: 68,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => const CircularProgressIndicator(),
+                        errorWidget: (context, url, error) => const Icon(Iconsax.user, size: 36),
+                      )
                     : const Icon(Iconsax.user, size: 36),
               ),
             ),
@@ -613,6 +622,11 @@ class _MemberEditProfileScreenState extends State<MemberEditProfileScreen> {
   }
 
   Future<void> _pickImage(ImageSource source) async {
+    final connectivity = await Connectivity().checkConnectivity();
+    if (connectivity.contains(ConnectivityResult.none)) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cannot upload image while offline'), backgroundColor: Colors.orange));
+      return;
+    }
     try {
       final picker = ImagePicker();
       final XFile? picked = await picker.pickImage(source: source, imageQuality: 85, maxWidth: 1200);
@@ -704,10 +718,17 @@ class _MemberEditProfileScreenState extends State<MemberEditProfileScreen> {
   // ---------------- Save ----------------
 
   Future<void> _save() async {
+    final connectivity = await Connectivity().checkConnectivity();
+    final isOffline = connectivity.contains(ConnectivityResult.none);
+    
     if (!_formKey.currentState!.validate()) return;
     if (_isUploadingImage) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please wait for the image upload to finish')));
       return;
+    }
+    
+    if (isOffline) {
+       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Working offline. Changes will be saved when you are online.'), backgroundColor: Colors.orange));
     }
 
     setState(() => _isSaving = true);
@@ -792,9 +813,9 @@ class _MemberEditProfileScreenState extends State<MemberEditProfileScreen> {
 
   Widget _avatarPicker() {
     final url = _profileImageUrl.text;
-    final displayImageProvider = _localPickedImageFile != null
+    final ImageProvider? displayImageProvider = _localPickedImageFile != null
         ? FileImage(_localPickedImageFile!)
-        : (url.isNotEmpty ? NetworkImage(url) as ImageProvider : null);
+        : (url.isNotEmpty ? CachedNetworkImageProvider(url) : null);
 
     return Column(
       children: [
@@ -808,7 +829,7 @@ class _MemberEditProfileScreenState extends State<MemberEditProfileScreen> {
                 radius: 46,
                 backgroundColor: AppTheme.primaryGreen.withOpacity(0.12),
                 child: displayImageProvider != null
-                    ? ClipOval(child: Image(image: displayImageProvider, width: 92, height: 92, fit: BoxFit.cover))
+                    ? ClipOval(child: Image(image: displayImageProvider as ImageProvider, width: 92, height: 92, fit: BoxFit.cover))
                     : const Icon(Iconsax.user, size: 48),
               ),
             ),
@@ -1054,7 +1075,16 @@ class MemberFullProfileScreen extends StatelessWidget {
               radius: 40,
               backgroundColor: AppTheme.primaryGreen.withOpacity(0.12),
               child: memberData['profileImageUrl'] != null && (memberData['profileImageUrl'] as String).isNotEmpty
-                  ? ClipOval(child: Image.network(memberData['profileImageUrl'], width: 72, height: 72, fit: BoxFit.cover))
+                  ? ClipOval(
+                      child: CachedNetworkImage(
+                        imageUrl: memberData['profileImageUrl'],
+                        width: 72,
+                        height: 72,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => const CircularProgressIndicator(),
+                        errorWidget: (context, url, error) => const Icon(Iconsax.user, size: 40),
+                      ),
+                    )
                   : const Icon(Iconsax.user, size: 40),
             ),
           ),

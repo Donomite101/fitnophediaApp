@@ -7,13 +7,15 @@ class DietTimelineWidget extends StatelessWidget {
   final List<NutritionMeal> meals;
   final bool isDark;
   final Function(NutritionMeal) onToggleConsumed;
+  final Function(NutritionMeal)? onDeleteMeal;
 
   const DietTimelineWidget({
-    Key? key,
+    super.key,
     required this.meals,
     required this.isDark,
     required this.onToggleConsumed,
-  }) : super(key: key);
+    this.onDeleteMeal,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -118,11 +120,15 @@ class DietTimelineWidget extends StatelessWidget {
                   child: MealItemCard(
                     title: meal.name,
                     calories: meal.totalCalories.toStringAsFixed(0),
+                    protein: meal.totalProtein.toStringAsFixed(0),
+                    carbs: meal.totalCarbs.toStringAsFixed(0),
+                    fat: meal.totalFat.toStringAsFixed(0),
                     time: meal.timeOfDay,
                     isDark: isDark,
                     isConsumed: meal.isConsumed,
                     onTap: () {},
                     onToggleConsumed: () => onToggleConsumed(meal),
+                    onDelete: onDeleteMeal != null ? () => onDeleteMeal!(meal) : null,
                   ),
                 ),
               ),

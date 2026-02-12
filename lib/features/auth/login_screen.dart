@@ -161,6 +161,15 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     final role = data['role'] ?? '';
+    
+    // Cache data for auto-login
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('role', role);
+    await prefs.setBool('onboardingCompleted', data['onboardingCompleted'] == true);
+    await prefs.setBool('approved', data['approved'] == true);
+    await prefs.setBool('subscriptionActive', data['subscriptionActive'] == true);
+    if (data['email'] != null) await prefs.setString('userEmail', data['email']);
+
     switch (role) {
       case 'superadmin':
         Navigator.pushReplacementNamed(context, AppRoutes.superAdminDashboard);
@@ -245,6 +254,21 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _redirectMember(
       String? gymId, String memberId, Map<String, dynamic> data) async {
+    
+    final role = data['role'] ?? 'member';
+    
+    // Cache basic member data
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('role', role);
+    await prefs.setString('memberId', memberId);
+    await prefs.setString('gymId', gymId ?? '');
+    await prefs.setBool('profileCompleted', data['profileCompleted'] == true);
+    await prefs.setBool('hasOngoingSubscription', data['hasOngoingSubscription'] == true);
+    if (data['email'] != null) await prefs.setString('userEmail', data['email']);
+    if (data['name'] != null || data['memberName'] != null) {
+       await prefs.setString('userName', data['name'] ?? data['memberName'] ?? '');
+    }
+
     // 1) Basic flags
     final hasProfile = data['profileCompleted'] == true;
     bool hasSubscription = (data['hasOngoingSubscription'] ?? false) == true;

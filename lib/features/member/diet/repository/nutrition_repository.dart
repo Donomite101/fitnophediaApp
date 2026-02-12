@@ -194,13 +194,14 @@ class NutritionRepository {
   }
 
   // REMINDER SETTINGS
-  Future<void> saveReminderSettings(bool enabled, int startHour, int startMinute, int endHour, int endMinute) async {
+  Future<void> saveReminderSettings(bool enabled, int startHour, int startMinute, int endHour, int endMinute, bool repeating) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('hydration_reminders_enabled', enabled);
     await prefs.setInt('hydration_start_hour', startHour);
     await prefs.setInt('hydration_start_minute', startMinute);
     await prefs.setInt('hydration_end_hour', endHour);
     await prefs.setInt('hydration_end_minute', endMinute);
+    await prefs.setBool('hydration_reminders_repeating', repeating);
   }
 
   Future<Map<String, dynamic>> getReminderSettings() async {
@@ -211,6 +212,7 @@ class NutritionRepository {
       'startMinute': prefs.getInt('hydration_start_minute') ?? 0,
       'endHour': prefs.getInt('hydration_end_hour') ?? 20,
       'endMinute': prefs.getInt('hydration_end_minute') ?? 0,
+      'isRepeating': prefs.getBool('hydration_reminders_repeating') ?? true,
     };
   }
 

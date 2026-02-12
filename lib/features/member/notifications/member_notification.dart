@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/app_theme.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MemberNotificationsScreen extends StatefulWidget {
   const MemberNotificationsScreen({Key? key}) : super(key: key);
@@ -53,13 +54,31 @@ class _MemberNotificationsScreenState extends State<MemberNotificationsScreen>
             .doc(user.uid)
             .get();
 
-        if (memberDoc.exists) {
+      if (memberDoc.exists) {
+          final gymId = gymDoc.id;
+          final memberId = user.uid;
+          
           setState(() {
-            _gymId = gymDoc.id;
-            _memberId = user.uid;
+            _gymId = gymId;
+            _memberId = memberId;
           });
+          
+          // Cache for offline use
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('cached_gymId', gymId);
+          await prefs.setString('cached_memberId', memberId);
+          
           break;
         }
+      }
+      
+      // If still null, try loading from cache
+      if (_gymId == null) {
+        final prefs = await SharedPreferences.getInstance();
+        setState(() {
+          _gymId = prefs.getString('cached_gymId');
+          _memberId = prefs.getString('cached_memberId');
+        });
       }
     } catch (e) {
       debugPrint('Error loading gym and member ID: $e');

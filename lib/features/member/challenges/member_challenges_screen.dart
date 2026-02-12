@@ -10,10 +10,15 @@ class MemberChallengesScreen extends StatefulWidget {
   final String gymId;
   final String memberId;
 
+  final String? initialChallengeId;
+  final Map<String, dynamic>? initialChallengeData;
+
   const MemberChallengesScreen({
     Key? key,
     required this.gymId,
     required this.memberId,
+    this.initialChallengeId,
+    this.initialChallengeData,
   }) : super(key: key);
 
   @override
@@ -23,6 +28,32 @@ class MemberChallengesScreen extends StatefulWidget {
 
 class _MemberChallengesScreenState extends State<MemberChallengesScreen> {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialChallengeId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _openInitialChallenge();
+      });
+    }
+  }
+
+  Future<void> _openInitialChallenge() async {
+    try {
+      final challengeDoc = await _challengesRef.doc(widget.initialChallengeId).get();
+      if (!challengeDoc.exists) return;
+
+      final achSnap = await _achievementDoc(widget.initialChallengeId!).get();
+      final achData = achSnap.data() as Map<String, dynamic>? ?? {};
+
+      if (mounted) {
+        _openDetails(challengeDoc, achData);
+      }
+    } catch (e) {
+      debugPrint('Error opening initial challenge: $e');
+    }
+  }
 
   CollectionReference get _challengesRef =>
       _db.collection('global_challenges');

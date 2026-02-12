@@ -3,6 +3,7 @@ import 'package:iconsax/iconsax.dart';
 import 'package:percent_indicator/linear_percent_indicator.dart';
 import 'water_glass_widget.dart';
 import '../services/hydration_alarm_service.dart';
+import '../services/notification_service.dart';
 
 import '../repository/nutrition_repository.dart';
 
@@ -40,20 +41,19 @@ class CompactHydrationCard extends StatelessWidget {
     final subTextColor = isDark ? Colors.grey[400] : Colors.grey[600];
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: cardBg,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(20), // Slightly more compact corners
         border: Border.all(
-          color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.1),
+          color: isDark ? Colors.white.withOpacity(0.08) : const Color(0xFF2196F3).withOpacity(0.12),
         ),
         boxShadow: [
-          if (!isDark)
-            BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
+          BoxShadow(
+            color: const Color(0xFF2196F3).withOpacity(isDark ? 0.05 : 0.08),
+            blurRadius: 15, // Reduced blur
+            offset: const Offset(0, 6), // Reduced offset
+          ),
         ],
       ),
       child: Row(
@@ -64,8 +64,8 @@ class CompactHydrationCard extends StatelessWidget {
             padding: const EdgeInsets.only(top: 2.0),
             child: WaterGlassWidget(
               percentage: progress,
-              height: 80,
-              width: 45,
+              height: 65, // Reduced from 80
+              width: 40,  // Reduced from 45
               isDark: isDark,
             ),
           ),
@@ -123,64 +123,72 @@ class CompactHydrationCard extends StatelessWidget {
                       ],
                     ),
                     // Count & Goal Setting (Liters)
-                    GestureDetector(
-                      onTap: () => _showGoalDialog(context),
-                      child: RichText(
-                        text: TextSpan(
-                          children: [
-                            TextSpan(
-                              text: (currentMl / 1000).toStringAsFixed(1), // Convert to L
-                              style: TextStyle(
-                                fontFamily: 'Outfit',
-                                fontSize: 20, // Larger, more prominent
-                                fontWeight: FontWeight.w600, // Premium weight
-                                color: textColor,
-                                height: 1.0,
+                    Row(
+                      children: [
+                        RichText(
+                          text: TextSpan(
+                            children: [
+                              TextSpan(
+                                text: (currentMl / 1000).toStringAsFixed(1),
+                                style: TextStyle(
+                                  fontFamily: 'Outfit',
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w600,
+                                  color: textColor,
+                                  height: 1.0,
+                                ),
                               ),
-                            ),
-                            TextSpan(
-                              text: " / ${(goalMl / 1000).toStringAsFixed(1)} L", // Convert to L
-                              style: TextStyle(
-                                fontFamily: 'Outfit',
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                color: subTextColor,
-                              ),
-                            ),
-                            WidgetSpan(
-                              child: Padding(
-                                padding: const EdgeInsets.only(left: 4.0),
-                                child: Icon(
-                                  Icons.edit,
-                                  size: 16, // Increased from 12
+                              TextSpan(
+                                text: " / ${(goalMl / 1000).toStringAsFixed(1)} L",
+                                style: TextStyle(
+                                  fontFamily: 'Outfit',
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
                                   color: subTextColor,
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 4),
+                        Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () => _showGoalDialog(context),
+                            borderRadius: BorderRadius.circular(8),
+                            child: const Padding(
+                              padding: EdgeInsets.all(8.0),
+                              child: Icon(
+                                Iconsax.setting_2,
+                                size: 18,
+                                color: Color(0xFF2196F3),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
                 
-                const SizedBox(height: 12), // Increased spacing
+                const SizedBox(height: 8), // Reduced from 12
                 
                 // Progress Bar
                 ClipRRect(
                   borderRadius: BorderRadius.circular(4),
                   child: LinearPercentIndicator(
-                    lineHeight: 6.0, // Slightly thicker bar
+                    lineHeight: 6.0, // Reduced from 8.0
                     percent: progress,
-                    backgroundColor: isDark ? Colors.grey[800] : Colors.grey[200],
+                    backgroundColor: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100],
                     progressColor: _getStatusColor(currentMl, goalMl),
                     padding: EdgeInsets.zero,
                     barRadius: const Radius.circular(4),
                     animation: true,
+                    curve: Curves.easeOutCubic,
                   ),
                 ),
                 
-                const SizedBox(height: 12), // Increased spacing
+                const SizedBox(height: 8), // Reduced from 12
                 
                 // Smart Message (Compact)
                 if (_getSmartMessage(currentMl, goalMl).isNotEmpty)
@@ -253,29 +261,30 @@ class CompactHydrationCard extends StatelessWidget {
         onAddWater(amountToAdd.toInt());
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 6), // Reduced padding
+        padding: const EdgeInsets.symmetric(vertical: 8), // Reduced from 10
         decoration: BoxDecoration(
-          color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100],
-          borderRadius: BorderRadius.circular(12),
+          color: const Color(0xFF2196F3).withOpacity(isDark ? 0.05 : 0.03),
+          borderRadius: BorderRadius.circular(12), // More compact
           border: Border.all(
-            color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey[300]!,
+            color: const Color(0xFF2196F3).withOpacity(isDark ? 0.15 : 0.1),
           ),
         ),
-        child: Column(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              Icons.add,
-              size: 14, // Smaller icon
-              color: isDark ? Colors.grey[400] : Colors.grey[600],
+              Iconsax.add_square,
+              size: 14, // Reduced from 16
+              color: const Color(0xFF2196F3),
             ),
-            const SizedBox(height: 1),
+            const SizedBox(width: 4), // Reduced from 8
             Text(
               "${amount}ml",
               style: TextStyle(
                 fontFamily: 'Outfit',
-                fontSize: 11, // Smaller font
-                fontWeight: FontWeight.w600,
-                color: isDark ? Colors.white : Colors.black,
+                fontSize: 12, // Reduced from 13
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : Colors.black87,
               ),
             ),
           ],
@@ -285,7 +294,6 @@ class CompactHydrationCard extends StatelessWidget {
   }
 
   void _showGoalDialog(BuildContext context) {
-    // Initialize with current goal in Liters
     final TextEditingController controller = TextEditingController(
       text: (goalMl / 1000).toStringAsFixed(1),
     );
@@ -295,11 +303,10 @@ class CompactHydrationCard extends StatelessWidget {
       builder: (context) => FutureBuilder<Map<String, dynamic>>(
         future: repo.getReminderSettings(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) return const SizedBox(); // Wait for data
+          if (!snapshot.hasData) return const SizedBox();
 
-          // Initialize state from prefs
-          // Default to true if null (first time)
           bool enableReminders = snapshot.data!['enabled'] ?? true; 
+          bool isRepeating = snapshot.data!['isRepeating'] ?? true;
           TimeOfDay startTime = TimeOfDay(
             hour: snapshot.data!['startHour'] ?? 8,
             minute: snapshot.data!['startMinute'] ?? 0,
@@ -311,290 +318,379 @@ class CompactHydrationCard extends StatelessWidget {
 
           return StatefulBuilder(
             builder: (context, setState) => Dialog(
-          backgroundColor: isDark ? const Color(0xFF1C1C1E) : Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Daily Hydration Goal",
-                    style: TextStyle(
-                      fontFamily: 'Outfit',
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : Colors.black,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    "Set a goal between 1.5 L and 10.0 L",
-                    style: TextStyle(
-                      fontFamily: 'Outfit',
-                      fontSize: 14,
-                      color: isDark ? Colors.grey[400] : Colors.grey[600],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  
-                  // Input Field
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100],
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey[300]!,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: controller,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            style: TextStyle(
-                              fontFamily: 'Outfit',
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: isDark ? Colors.white : Colors.black,
-                            ),
-                            decoration: const InputDecoration(
-                              border: InputBorder.none,
-                              hintText: "0.0",
-                            ),
-                          ),
-                        ),
-                        Text(
-                          "Liters",
-                          style: TextStyle(
-                            fontFamily: 'Outfit',
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: isDark ? Colors.grey[400] : Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 16),
-                  
-                  // Recommended Button
-                  InkWell(
-                    onTap: () {
-                      controller.text = "3.0";
-                    },
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                      decoration: BoxDecoration(
-                        color: isDark ? Colors.blue.withOpacity(0.1) : Colors.blue.withOpacity(0.05),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: isDark ? Colors.blue.withOpacity(0.3) : Colors.blue.withOpacity(0.1),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Iconsax.magic_star,
-                            size: 16,
-                            color: isDark ? Colors.blue[200] : Colors.blue[700],
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            "Use Recommended (3.0 L)",
-                            style: TextStyle(
-                              fontFamily: 'Outfit',
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: isDark ? Colors.blue[100] : Colors.blue[800],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 24),
-                  Divider(color: isDark ? Colors.grey[800] : Colors.grey[200]),
-                  const SizedBox(height: 16),
-
-                  // Reminders Section
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              backgroundColor: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+              insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 400),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "Hydration Reminders",
-                            style: TextStyle(
-                              fontFamily: 'Outfit',
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: isDark ? Colors.white : Colors.black,
+                      // Header with subtle gradient/accent
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2196F3).withOpacity(0.05),
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  "Hydration Goal",
+                                  style: TextStyle(
+                                    fontFamily: 'Outfit',
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? Colors.white : Colors.black,
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF2196F3).withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  child: const Icon(Iconsax.drop, size: 24, color: Color(0xFF2196F3)),
+                                ),
+                              ],
                             ),
-                          ),
-                          Text(
-                            "Get notified to drink water",
-                            style: TextStyle(
-                              fontFamily: 'Outfit',
-                              fontSize: 12,
-                              color: isDark ? Colors.grey[400] : Colors.grey[600],
+                            const SizedBox(height: 4),
+                            Text(
+                              "Customize your daily intake & reminders",
+                              style: TextStyle(
+                                fontFamily: 'Outfit',
+                                fontSize: 13,
+                                color: isDark ? Colors.grey[400] : Colors.grey[600],
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                      Switch(
-                        value: enableReminders,
-                        onChanged: (val) {
-                          setState(() => enableReminders = val);
-                        },
-                        activeColor: const Color(0xFF2196F3),
+
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Liters Input Section
+                            Text(
+                              "Daily Target",
+                              style: TextStyle(
+                                fontFamily: 'Outfit',
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? Colors.grey[300] : Colors.grey[800],
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: isDark ? Colors.white.withOpacity(0.03) : Colors.grey[50],
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: isDark ? Colors.white.withOpacity(0.08) : Colors.grey[200]!,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: TextField(
+                                      controller: controller,
+                                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                      style: TextStyle(
+                                        fontFamily: 'Outfit',
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.bold,
+                                        color: isDark ? Colors.white : Colors.black,
+                                        letterSpacing: -0.5,
+                                      ),
+                                      decoration: const InputDecoration(
+                                        border: InputBorder.none,
+                                        hintText: "0.0",
+                                        isDense: true,
+                                        contentPadding: EdgeInsets.zero,
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    "Liters",
+                                    style: TextStyle(
+                                      fontFamily: 'Outfit',
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color(0xFF2196F3),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            
+                            const SizedBox(height: 12),
+                            
+                            // Recommended Presets
+                            Row(
+                              children: [
+                                _buildGoalPreset("2.0 L", () => controller.text = "2.0"),
+                                const SizedBox(width: 8),
+                                _buildGoalPreset("3.0 L", () => controller.text = "3.0"),
+                                const SizedBox(width: 8),
+                                _buildGoalPreset("4.0 L", () => controller.text = "4.0"),
+                              ],
+                            ),
+                            
+                            const SizedBox(height: 24),
+                            Divider(color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100]),
+                            const SizedBox(height: 24),
+
+                            // Reminders Header Row
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      "Hydration Reminders",
+                                      style: TextStyle(
+                                        fontFamily: 'Outfit',
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
+                                        color: isDark ? Colors.white : Colors.black,
+                                      ),
+                                    ),
+                                    Text(
+                                      "Push notifications to stay hydrated",
+                                      style: TextStyle(
+                                        fontFamily: 'Outfit',
+                                        fontSize: 12,
+                                        color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Transform.scale(
+                                  scale: 0.85,
+                                  child: Switch(
+                                    value: enableReminders,
+                                    onChanged: (val) => setState(() => enableReminders = val),
+                                    activeColor: const Color(0xFF2196F3),
+                                    trackColor: MaterialStateProperty.resolveWith((states) {
+                                      if (states.contains(MaterialState.selected)) {
+                                        return const Color(0xFF2196F3).withOpacity(0.5);
+                                      }
+                                      return isDark ? Colors.white10 : Colors.black12;
+                                    }),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            
+                            if (enableReminders) ...[
+                              const SizedBox(height: 20),
+                              // Daily Repeat Button/Toggle
+                              InkWell(
+                                onTap: () => setState(() => isRepeating = !isRepeating),
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                                  decoration: BoxDecoration(
+                                    color: isRepeating 
+                                      ? const Color(0xFF2196F3).withOpacity(0.1) 
+                                      : (isDark ? Colors.white.withOpacity(0.03) : Colors.grey[100]),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: isRepeating 
+                                        ? const Color(0xFF2196F3).withOpacity(0.2) 
+                                        : (isDark ? Colors.white.withOpacity(0.05) : Colors.grey[200]!),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        isRepeating ? Iconsax.refresh_2 : Iconsax.calendar_1,
+                                        size: 18,
+                                        color: isRepeating ? const Color(0xFF2196F3) : (isDark ? Colors.grey[400] : Colors.grey[600]),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Text(
+                                        isRepeating ? "Remind Daily" : "Remind Today Only",
+                                        style: TextStyle(
+                                          fontFamily: 'Outfit',
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: isRepeating ? const Color(0xFF2196F3) : (isDark ? Colors.grey[300] : Colors.grey[700]),
+                                        ),
+                                      ),
+                                      const Spacer(),
+                                      if (isRepeating)
+                                        const Icon(Icons.check_circle, size: 16, color: Color(0xFF2196F3)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildTimePicker(
+                                      context,
+                                      "Active From",
+                                      startTime,
+                                      (t) => setState(() => startTime = t),
+                                      isDark,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _buildTimePicker(
+                                      context,
+                                      "Active Until",
+                                      endTime,
+                                      (t) => setState(() => endTime = t),
+                                      isDark,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+
+                            const SizedBox(height: 32),
+                            
+                            // Action Buttons
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    style: TextButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(vertical: 14),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                    ),
+                                    child: Text(
+                                      "Discard",
+                                      style: TextStyle(
+                                        fontFamily: 'Outfit',
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark ? Colors.grey[500] : Colors.grey[600],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  flex: 2,
+                                  child: ElevatedButton(
+                                    onPressed: () async {
+                                      final val = double.tryParse(controller.text);
+                                      if (val == null || val < 1.0 || val > 15.0) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              "Enter a valid goal between 1L and 15L",
+                                              style: TextStyle(
+                                                color: isDark ? Colors.black : Colors.white,
+                                                fontFamily: 'Outfit',
+                                              ),
+                                            ),
+                                            backgroundColor: isDark ? Colors.white : Colors.black,
+                                            behavior: SnackBarBehavior.floating,
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                          ),
+                                        );
+                                        return;
+                                      }
+                                      
+                                      await repo.saveReminderSettings(
+                                        enableReminders,
+                                        startTime.hour,
+                                        startTime.minute,
+                                        endTime.hour,
+                                        endTime.minute,
+                                        isRepeating,
+                                      );
+
+                                      onGoalChange((val * 1000).toInt());
+                                      Navigator.pop(context);
+                                      
+                                      // Trigger scheduling
+                                      final alarmService = HydrationAlarmService();
+                                      if (enableReminders) {
+                                        alarmService.initialize().then((_) {
+                                          return alarmService.scheduleHydrationReminders(
+                                            startTime: startTime,
+                                            endTime: endTime,
+                                          );
+                                        });
+                                      } else {
+                                        alarmService.cancelReminders();
+                                      }
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF2196F3),
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 14),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                      elevation: 0,
+                                    ),
+                                    child: const Text(
+                                      "Save Changes",
+                                      style: TextStyle(
+                                        fontFamily: 'Outfit',
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
-                  
-                  if (enableReminders) ...[
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildTimePicker(
-                            context,
-                            "Start Time",
-                            startTime,
-                            (t) => setState(() => startTime = t),
-                            isDark,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _buildTimePicker(
-                            context,
-                            "End Time",
-                            endTime,
-                            (t) => setState(() => endTime = t),
-                            isDark,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-
-                  const SizedBox(height: 24),
-                  
-                  // Actions
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          child: Text(
-                            "Cancel",
-                            style: TextStyle(
-                              fontFamily: 'Outfit',
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                              color: isDark ? Colors.grey[400] : Colors.grey[600],
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () async {
-                            final val = double.tryParse(controller.text);
-                            if (val != null) {
-                              if (val < 1.5) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text("Goal cannot be less than 1.5 Liters")),
-                                );
-                                return;
-                              }
-                              if (val > 10.0) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text("Goal cannot exceed 10 Liters")),
-                                );
-                                return;
-                              }
-                              
-                              // Handle Reminders in background
-                              final alarmService = HydrationAlarmService();
-                              
-                              // Save Settings
-                              await repo.saveReminderSettings(
-                                enableReminders,
-                                startTime.hour,
-                                startTime.minute,
-                                endTime.hour,
-                                endTime.minute,
-                              );
-
-                              // Convert L to ml for storage
-                              onGoalChange((val * 1000).toInt());
-                              
-                              // Close dialog immediately
-                              Navigator.pop(context);
-                              
-                              // Schedule alarms in background (don't await)
-                              if (enableReminders) {
-                                debugPrint('Scheduling reminders in background. Start: ${startTime.format(context)}, End: ${endTime.format(context)}');
-                                alarmService.initialize().then((_) {
-                                  return alarmService.scheduleHydrationReminders(
-                                    startTime: startTime,
-                                    endTime: endTime,
-                                  );
-                                }).catchError((e) {
-                                  debugPrint('Error scheduling reminders: $e');
-                                });
-                              } else {
-                                alarmService.initialize().then((_) {
-                                  return alarmService.cancelReminders();
-                                }).catchError((e) {
-                                  debugPrint('Error canceling reminders: $e');
-                                });
-                              }
-
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF2196F3),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            elevation: 0,
-                          ),
-                          child: const Text(
-                            "Save Goal",
-                            style: TextStyle(
-                              fontFamily: 'Outfit',
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                ),
               ),
+            ),
+          );
+        }
+      ),
+    );
+  }
+
+  Widget _buildGoalPreset(String label, VoidCallback onTap) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isDark ? Colors.white.withOpacity(0.04) : Colors.grey[100],
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isDark ? Colors.white.withOpacity(0.08) : Colors.grey[300]!,
+            ),
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: 'Outfit',
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.white.withOpacity(0.9) : Colors.black87,
             ),
           ),
         ),
-          );
-        }
       ),
     );
   }
@@ -606,61 +702,93 @@ class CompactHydrationCard extends StatelessWidget {
     Function(TimeOfDay) onTimeChanged,
     bool isDark,
   ) {
-    return InkWell(
-      onTap: () async {
-        final picked = await showTimePicker(
-          context: context,
-          initialTime: time,
-        );
-        if (picked != null) {
-          onTimeChanged(picked);
-        }
-      },
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-        decoration: BoxDecoration(
-          color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100],
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey[300]!,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontFamily: 'Outfit',
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.grey[400] : Colors.grey[700],
+            ),
           ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontFamily: 'Outfit',
-                fontSize: 11,
-                color: isDark ? Colors.grey[400] : Colors.grey[600],
+        InkWell(
+          onTap: () async {
+            final picked = await showTimePicker(
+              context: context,
+              initialTime: time,
+              builder: (context, child) {
+                return Theme(
+                  data: Theme.of(context).copyWith(
+                    colorScheme: ColorScheme.fromSeed(
+                      seedColor: const Color(0xFF2196F3),
+                      brightness: isDark ? Brightness.dark : Brightness.light,
+                    ),
+                  ),
+                  child: child!,
+                );
+              },
+            );
+            if (picked != null) {
+              onTimeChanged(picked);
+            }
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white.withOpacity(0.04) : Colors.grey[50],
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isDark ? Colors.white.withOpacity(0.08) : Colors.grey[200]!,
               ),
             ),
-            const SizedBox(height: 4),
-            Row(
+            child: Row(
               children: [
-                Icon(
-                  Iconsax.clock,
-                  size: 14,
-                  color: isDark ? Colors.white : Colors.black,
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2196F3).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Iconsax.clock,
+                    size: 16,
+                    color: Color(0xFF2196F3),
+                  ),
                 ),
-                const SizedBox(width: 6),
-                Text(
-                  time.format(context),
-                  style: TextStyle(
-                    fontFamily: 'Outfit',
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? Colors.white : Colors.black,
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _formatTime12Hrs(time),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontFamily: 'Outfit',
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.black,
+                    ),
                   ),
                 ),
               ],
             ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
+  }
+
+  String _formatTime12Hrs(TimeOfDay time) {
+    final hour = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
+    final minute = time.minute.toString().padLeft(2, '0');
+    final period = time.period == DayPeriod.am ? "AM" : "PM";
+    return "$hour:$minute $period";
   }
 
   Color _getStatusColor(double current, double goal) {

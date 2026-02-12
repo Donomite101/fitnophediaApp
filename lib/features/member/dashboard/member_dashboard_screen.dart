@@ -21,7 +21,7 @@ import '../../workout/data/models/exercise_model.dart';
 import '../../workout/presentation/screens/workout_home_screen.dart';
 import '../../workout/presentation/widgets/unified_workout_card.dart';
 import '../../workout/presentation/screens/workout_list_screen.dart';
-import '../banner/BannerCarousel.dart';
+
 import '../challenges/member_challenges_screen.dart';
 import '../chat/ChatScreen.dart';
 import '../diet/screens/daily_diet_plan_screen.dart';
@@ -64,6 +64,7 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
   int _notificationCount = 0;
   List<Map<String, dynamic>> _notices = [];
   List<Map<String, dynamic>> _challenges = [];
+  bool _isLoadingChallenges = true;
   Map<String, double> _workoutProgress = {};
 
   // Controllers
@@ -71,6 +72,8 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
   final RefreshController _refreshController = RefreshController(initialRefresh: false);
   late AnimationController _lottiePulseController;
   StreamSubscription? _notificationSubscription;
+  StreamSubscription<int>? _streakSubscription;
+  Stream<QuerySnapshot>? _yourWorkoutsStream;
 
   // Cache
   static const String _cacheKeyUserData = 'dashboard_user_data_v7';
@@ -127,6 +130,7 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
   void dispose() {
     _lottiePulseController.dispose();
     _notificationSubscription?.cancel();
+    _streakSubscription?.cancel();
     _refreshController.dispose();
     super.dispose();
   }
@@ -175,6 +179,7 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
             _gymName = userData['gymName']?.toString() ?? 'My Gym';
             _hasActiveSubscription = userData['hasActiveSubscription'] == true;
           });
+          _initWorkoutsStream();
         }
       }
 
@@ -196,6 +201,7 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
           if (isRecent && _hasActiveSubscription && _gymId.isNotEmpty) {
             _subscriptionCheckComplete = true;
           }
+          _initWorkoutsStream(); // Ensure stream is ready if keys available
         });
       }
 
@@ -226,6 +232,31 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
       await _prefs.remove(_cacheKeyStats);
     } catch (_) {
       // Non-critical failure
+    }
+  }
+
+  void _setupStreakListener(String gymId, String memberId) {
+    _streakSubscription?.cancel();
+    _streakSubscription = StreakService.instance
+        .getStreakStream(gymId, memberId)
+        .listen((streak) {
+      if (mounted) {
+        setState(() => _currentStreak = streak);
+      }
+    });
+  }
+
+  void _initWorkoutsStream() {
+    if (_gymId.isNotEmpty && _memberId.isNotEmpty && _yourWorkoutsStream == null) {
+      _yourWorkoutsStream = FirebaseFirestore.instance
+          .collection('gyms')
+          .doc(_gymId)
+          .collection('members')
+          .doc(_memberId)
+          .collection('workout_plans')
+          .orderBy('createdAt', descending: true)
+          .limit(10)
+          .snapshots();
     }
   }
 
@@ -286,6 +317,9 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
             _gymId = gymId;
             _memberId = memberId;
           });
+          
+          // Initialize streams immediately after IDs are ready
+          _initWorkoutsStream();
         }
       });
 
@@ -316,6 +350,7 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           _setupNotificationListener(gymId, memberId);
+          _setupStreakListener(gymId, memberId);
         }
       });
 
@@ -674,6 +709,8 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
 
   Future<void> _loadChallenges() async {
     try {
+      setState(() => _isLoadingChallenges = true);
+      
       final challengesSnapshot = await FirebaseFirestore.instance
           .collection('global_challenges')
           .where('status', isEqualTo: 'active')
@@ -706,10 +743,16 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
           .toList();
 
       if (mounted) {
-        setState(() => _challenges = challenges);
+        setState(() {
+          _challenges = challenges;
+          _isLoadingChallenges = false;
+        });
       }
     } catch (e) {
       debugPrint('Challenges loading error: $e');
+      if (mounted) {
+        setState(() => _isLoadingChallenges = false);
+      }
     }
   }
 
@@ -890,12 +933,16 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
     });
   }
 
-  Future<void> _navigateToChallenges() async {
+  Future<void> _navigateToChallenges({String? challengeId}) async {
     await _navigateWithThrottle(() async {
       await Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => MemberChallengesScreen(gymId: _gymId, memberId: _memberId),
+          builder: (_) => MemberChallengesScreen(
+            gymId: _gymId,
+            memberId: _memberId,
+            initialChallengeId: challengeId,
+          ),
         ),
       );
     });
@@ -914,8 +961,10 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
       return 'Good Morning';
     } else if (hour < 17) {
       return 'Good Afternoon';
-    } else {
+    } else if (hour < 21) {
       return 'Good Evening';
+    } else {
+      return 'Good Night';
     }
   }
 
@@ -957,13 +1006,15 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
       return _buildLoadingScreen(context);
     }
 
-    // If subscription check is not complete yet, show loading
-    if (!_subscriptionCheckComplete) {
-      return _buildLoadingScreenWithMessage(context, 'Verifying subscription...');
+    // If subscription check is not complete yet, we still show the dashboard
+    // if we have cached data, otherwise show loading.
+    if (!_subscriptionCheckComplete && !_hasActiveSubscription) {
+      return _buildLoadingScreen(context);
     }
 
-    // If subscription is not active, redirect
-    if (!_hasActiveSubscription) {
+    // If subscription is definitely not active, redirect. 
+    // This is now handled in _backgroundInitialize to avoid blocking the first frame.
+    if (_subscriptionCheckComplete && !_hasActiveSubscription) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _redirectToSubscription());
       return _buildLoadingScreen(context);
     }
@@ -1038,9 +1089,9 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
             physics: const BouncingScrollPhysics(),
             slivers: [
               SliverToBoxAdapter(child: _buildAppBar(context)),
+              SliverToBoxAdapter(child: const SizedBox(height: 8)),
+              SliverToBoxAdapter(child: _buildBannerAd(context)),
               SliverToBoxAdapter(child: const SizedBox(height: 16)),
-              SliverToBoxAdapter(child: _buildBannerSection(context)),
-              SliverToBoxAdapter(child: const SizedBox(height: 24)),
               SliverToBoxAdapter(child: _buildStatsCard(context, isDarkMode)),
             SliverToBoxAdapter(child: const SizedBox(height: 24)),
             SliverToBoxAdapter(child: _buildYourWorkouts(context)),
@@ -1069,7 +1120,7 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
             child: _profileImageUrl.isNotEmpty
                 ? CircleAvatar(
               radius: 24,
-              backgroundImage: NetworkImage(_profileImageUrl),
+              backgroundImage: CachedNetworkImageProvider(_profileImageUrl),
               onBackgroundImageError: (_, __) {
                 if (mounted) {
                   setState(() => _profileImageUrl = '');
@@ -1100,7 +1151,7 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  _userName,
+                  _userName.split(' ').first,
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
@@ -1180,65 +1231,25 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
     );
   }
 
-  Widget _buildBannerSection(BuildContext context) {
-    if (_notices.isEmpty) {
-      return _buildDefaultBanner();
-    }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Latest Notices',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: _textPrimary(context),
-                ),
-              ),
-              if (_notices.length > 1)
-                Text(
-                  '${_notices.length} notices',
-                  style: TextStyle(
-                    color: _greyText(context),
-                    fontSize: 14,
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 160,
-            child: PageView.builder(
-              itemCount: _notices.length,
-              itemBuilder: (context, index) => _buildNoticeBanner(context, _notices[index]),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildDefaultBanner() {
-    return BannerCarousel(
-      assetPaths: ['assets/ads/ad1.jpg', 'assets/ads/ad2.jpg', 'assets/ads/ad3.jpg'],
-      autoScrollDuration: const Duration(seconds: 5),
-      borderRadius: 20,
-    );
-  }
 
-  Widget _buildNoticeBanner(BuildContext context, Map<String, dynamic> notice) {
+
+  Widget _buildBannerAd(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(right: 16),
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      height: 70, // Compact banner height
       decoration: BoxDecoration(
-        color: _cardBackground(context),
-        borderRadius: BorderRadius.circular(20),
+        color: const Color(0xFF1E1E1E), // Dark premium background
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        image: DecorationImage(
+          image: const AssetImage('assets/images/banner_bg_pattern.png'), // Optional pattern if available
+          fit: BoxFit.cover,
+          opacity: 0.1,
+          onError: (_, __) {}, // Fallback gracefully
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
@@ -1247,35 +1258,65 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Text(
-            notice['title'] ?? '',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: _textPrimary(context),
-              fontSize: 16,
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF00E676).withOpacity(0.15),
+              borderRadius: BorderRadius.circular(8),
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+            child: const Icon(Iconsax.flash_1, color: Color(0xFF00E676), size: 20),
           ),
-          const SizedBox(height: 8),
-          Text(
-            notice['message'] ?? '',
-            style: TextStyle(
-              color: _greyText(context),
-              fontSize: 14,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text(
+                  'Fitnophedia Premium',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    fontFamily: 'Outfit',
+                  ),
+                ),
+                Text(
+                  'Unlock advanced analytics',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.6),
+                    fontSize: 11,
+                    fontFamily: 'Outfit',
+                  ),
+                ),
+              ],
             ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
           ),
-          const Spacer(),
-          Text(
-            DateFormat('MMM dd').format(notice['date'] ?? DateTime.now()),
-            style: TextStyle(
-              color: _greyText(context),
-              fontSize: 12,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF00E676), Color(0xFF00C853)],
+              ),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF00E676).withOpacity(0.3),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: const Text(
+              'PRO',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 10,
+                letterSpacing: 0.5,
+              ),
             ),
           ),
         ],
@@ -1285,156 +1326,155 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
 
   Widget _buildStatsCard(BuildContext context, bool isDarkMode) {
     final stepPercent = _goal > 0 ? (_steps / _goal).clamp(0.0, 1.0) : 0.0;
-    final weekdayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => StreakScreen(gymId: _gymId, memberId: _memberId),
-          ),
-        );
-      },
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 20),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: _cardBackground(context),
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
+    
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+      decoration: BoxDecoration(
+        color: _cardBackground(context),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDarkMode ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.1),
         ),
-        child: Column(
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDarkMode ? 0.2 : 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: IntrinsicHeight(
+        child: Row(
           children: [
-            // Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Your Stats',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: _textPrimary(context),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.local_fire_department, color: Colors.orange, size: 16),
-                      const SizedBox(width: 4),
-                      Text(
-                        '$_currentStreak Day Streak',
-                        style: const TextStyle(
-                          color: Colors.orange,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
+            // STREAK SECTION
+            Expanded(
+              child: InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => StreakScreen(gymId: _gymId, memberId: _memberId),
+                    ),
+                  );
+                },
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Iconsax.flash_1, size: 16, color: Colors.orange[400]),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Streak',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: _greyText(context),
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            
-            // Content Row
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Fire Animation (Left)
-                SizedBox(
-                  height: 60,
-                  width: 60,
-                  child: Lottie.asset(
-                    'assets/animations/streak_fire.json',
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) {
-                      return const Icon(Icons.local_fire_department, size: 40, color: Colors.orange);
-                    },
-                  ),
-                ),
-                const SizedBox(width: 16),
-                
-                // Steps & Week (Right)
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Steps
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    RichText(
+                      text: TextSpan(
                         children: [
-                          Text(
-                            'Steps',
+                          TextSpan(
+                            text: '$_currentStreak',
                             style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
                               color: _textPrimary(context),
+                              fontFamily: 'Outfit',
                             ),
                           ),
-                          Text(
-                            '$_steps / $_goal',
+                          TextSpan(
+                            text: ' days',
                             style: TextStyle(
+                              fontSize: 12,
                               color: _greyText(context),
-                              fontSize: 11,
+                              fontFamily: 'Outfit',
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 6),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(3),
-                        child: LinearProgressIndicator(
-                          value: stepPercent,
-                          backgroundColor: isDarkMode ? Colors.grey[800] : Colors.grey[200],
-                          valueColor: const AlwaysStoppedAnimation<Color>(Colors.green),
-                          minHeight: 6,
-                        ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _currentStreak > 0 ? 'Keep it up!' : 'Start today',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.green,
+                        fontWeight: FontWeight.w500,
                       ),
-                      const SizedBox(height: 12),
-                      
-                      // Week Dots
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: List.generate(7, (index) {
-                          return Container(
-                            width: 20,
-                            height: 20,
-                            decoration: BoxDecoration(
-                              color: _activeDays[index] 
-                                  ? Colors.green 
-                                  : (isDarkMode ? Colors.grey[800] : Colors.grey[200]),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Center(
-                              child: Text(
-                                weekdayLabels[index],
-                                style: TextStyle(
-                                  color: _activeDays[index] ? Colors.white : _greyText(context),
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 10,
-                                ),
-                              ),
-                            ),
-                          );
-                        }),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            
+            // DIVIDER
+            Container(
+              width: 1,
+              color: isDarkMode ? Colors.white10 : Colors.grey[200],
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+            ),
+            
+            // STEPS SECTION
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Iconsax.activity, size: 16, color: Colors.blue[400]),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Activity',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: _greyText(context),
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  // Progress Bar
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: stepPercent,
+                      backgroundColor: isDarkMode ? Colors.white10 : Colors.grey[100],
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        stepPercent >= 1.0 ? Colors.green : Colors.blue,
+                      ),
+                      minHeight: 6,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '$_steps',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: _textPrimary(context),
+                        ),
+                      ),
+                      Text(
+                        '/ $_goal',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: _greyText(context),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -1475,28 +1515,61 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
           const SizedBox(height: 16),
           SizedBox(
             height: 180,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _challenges.length,
-              itemBuilder: (context, index) {
-                final challenge = _challenges[index];
-                return Container(
-                  width: 280,
-                  margin: EdgeInsets.only(right: 16),
-                  child: ChallengeCard(
-                    title: challenge['title'] ?? '',
-                    description: challenge['description'] ?? '',
-                    startDate: challenge['startDate'],
-                    endDate: challenge['endDate'],
-                    participants: challenge['participants'] ?? 0,
-                    status: 'active',
-                    type: challenge['type'] ?? 'general',
-                    onTap: () => _showSnackbar('Opening ${challenge['title']}'),
-                    isDarkMode: _isDarkMode(context),
-                  ),
-                );
-              },
-            ),
+            child: _isLoadingChallenges
+                ? ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: 2,
+                    itemBuilder: (context, index) {
+                      return Container(
+                        width: 280,
+                        margin: const EdgeInsets.only(right: 16),
+                        decoration: BoxDecoration(
+                          color: _isDarkMode(context) 
+                              ? Colors.white.withOpacity(0.05) 
+                              : Colors.grey.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            color: const Color(0xFF00E676),
+                            strokeWidth: 2,
+                          ),
+                        ),
+                      );
+                    },
+                  )
+                : _challenges.isEmpty
+                    ? Center(
+                        child: Text(
+                          'No active challenges',
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontSize: 14,
+                          ),
+                        ),
+                      )
+                    : ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _challenges.length,
+                        itemBuilder: (context, index) {
+                          final challenge = _challenges[index];
+                          return Container(
+                            width: 280,
+                            margin: const EdgeInsets.only(right: 16),
+                            child: ChallengeCard(
+                              title: challenge['title'] ?? '',
+                              description: challenge['description'] ?? '',
+                              startDate: challenge['startDate'],
+                              endDate: challenge['endDate'],
+                              participants: challenge['participants'] ?? 0,
+                              status: 'active',
+                              type: challenge['type'] ?? 'general',
+                              onTap: () => _navigateToChallenges(challengeId: challenge['id']),
+                              isDarkMode: _isDarkMode(context),
+                            ),
+                          );
+                        },
+                      ),
           ),
         ],
       ),
@@ -1560,14 +1633,15 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
         ),
         const SizedBox(height: 16),
         SizedBox(
-          height: 180, // Fixed height to match Home Screen
+          height: 180, // Matched with Explore Templates
           child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
+            stream: _yourWorkoutsStream ?? FirebaseFirestore.instance
                 .collection('gyms')
                 .doc(_gymId)
                 .collection('members')
                 .doc(_memberId)
                 .collection('workout_plans')
+                .orderBy('createdAt', descending: true)
                 .limit(10)
                 .snapshots(),
             builder: (context, snapshot) {

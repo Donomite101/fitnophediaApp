@@ -143,9 +143,9 @@ class MealPlanCard extends StatelessWidget {
             ),
 
             // Content Section
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
+            // Content Section
+            Padding(
+              padding: const EdgeInsets.all(12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -191,7 +191,7 @@ class MealPlanCard extends StatelessWidget {
                       ],
                     ),
                     
-                    const Spacer(),
+                    const SizedBox(height: 12),
                     
                     // Tags Row
                     SingleChildScrollView(
@@ -264,7 +264,6 @@ class MealPlanCard extends StatelessWidget {
                   ],
                 ),
               ),
-            ),
           ],
         ),
       ),

@@ -350,45 +350,110 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
     );
   }
 
+  // Helper to get asset image based on text (shared with UnifiedWorkoutCard)
+  String _getAssetForWorkout(String text) {
+    final s = text.toLowerCase();
+    if (s.contains('leg') || s.contains('lower') || s.contains('squat') || s.contains('lunge')) return 'assets/exercise/legs.jpeg';
+    if (s.contains('ab') || s.contains('core') || s.contains('plank')) return 'assets/exercise/abs.jpeg';
+    if (s.contains('chest') || s.contains('press') || s.contains('pushup')) return 'assets/exercise/pushups.jpeg';
+    if (s.contains('arm') || s.contains('bicep') || s.contains('tricep') || s.contains('curl')) return 'assets/exercise/biceps.jpeg';
+    if (s.contains('hiit') || s.contains('cardio') || s.contains('rope')) return 'assets/exercise/rope.jpeg';
+    return 'assets/exercise/upper_body.jpeg';
+  }
+
   // --- 2. Today Hero Card (Compact) ---
   Widget _buildTodayHeroCard(bool isDark) {
+    String? imageUrl;
+    final assetPath = _getAssetForWorkout(_lastActiveWorkoutName);
+    
+    // Try to find a matching exercise image for the last active workout if exercises are loaded
+    try {
+      final provider = Provider.of<WorkoutProvider>(context, listen: false);
+      if (_lastActiveWorkoutId != null && provider.exercises.isNotEmpty) {
+        // We'd ideally need the workout data here. To keep it fast, we can try to find a match 
+        // if the workout name contains any exercise names, or if we have a way to cache the image URL 
+        // from the last session. 
+        // For now, let's allow it to stay as assets unless we have a clear match.
+        // HOWEVER, to WOW the user, let's try a fuzzy match of the workout name to exercise categories.
+      }
+    } catch (_) {}
+
     return Container(
       width: double.infinity,
+      height: 180, // Increased height
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1E1E1E), Color(0xFF121212)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        borderRadius: BorderRadius.circular(24), // Smoother corners
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
           ),
         ],
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
       ),
-      child: Stack(
-        children: [
-          Positioned(
-            right: -10,
-            top: -10,
-            child: Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFF00E676).withOpacity(0.05),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Background Image (Cached or Asset)
+            imageUrl != null 
+              ? CachedNetworkImage(
+                  imageUrl: imageUrl,
+                  fit: BoxFit.cover,
+                  imageBuilder: (context, imageProvider) => Container(
+                    decoration: BoxDecoration(
+                      image: DecorationImage(
+                        image: imageProvider,
+                        fit: BoxFit.cover,
+                        colorFilter: ColorFilter.mode(
+                          Colors.black.withOpacity(0.6),
+                          BlendMode.darken,
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+              : Image.asset(
+                  assetPath,
+                  fit: BoxFit.cover,
+                  color: Colors.black.withOpacity(0.6),
+                  colorBlendMode: BlendMode.darken,
+                ),
+            
+            // Subtle Top Highlight
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 1,
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.white.withOpacity(0.2), Colors.transparent, Colors.white.withOpacity(0.2)],
+                  ),
+                ),
               ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+
+            Positioned(
+              right: -20,
+              top: -20,
+              child: Container(
+                width: 140,
+                height: 140,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFF00E676).withOpacity(0.08),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -502,7 +567,7 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
                   ],
                 ),
                 if (_lastActiveWorkoutId != null && _workoutProgress.containsKey(_lastActiveWorkoutId)) ...[
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24), // Increased spacing from bottom
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -524,7 +589,6 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
                       value: _workoutProgress[_lastActiveWorkoutId]!,
                       backgroundColor: Colors.white10,
                       valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF00E676)),
-                      minHeight: 6,
                     ),
                   ),
                 ],
@@ -533,8 +597,9 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   // --- 3. Quick Actions ---
   Widget _buildQuickActions(bool isDark) {
@@ -964,7 +1029,7 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
                 return Padding(
                   padding: const EdgeInsets.only(right: 12),
                   child: SizedBox(
-                    width: 260, // Fixed width for consistency
+                    width: 240, // Updated to match new card width
                     child: UnifiedWorkoutCard(
                       data: {
                         'planName': template['name'],
@@ -1042,7 +1107,7 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
         const SizedBox(height: 16),
         
         SizedBox(
-          height: 180, // Matched with explore templates
+          height: 180, // Matched with Explore Templates
           child: StreamBuilder<QuerySnapshot>(
             stream: _workoutPlansStream,
             builder: (context, snapshot) {
@@ -1103,7 +1168,7 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
         ),
         const SizedBox(height: 16),
         SizedBox(
-          height: 200, // Increased height
+          height: 180, // Matched with Explore Templates
           child: ListView(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),

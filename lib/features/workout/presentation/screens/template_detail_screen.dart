@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../data/models/exercise_model.dart';
 
 class ExerciseDetailScreen extends StatelessWidget {
@@ -129,10 +129,12 @@ class ExerciseDetailScreen extends StatelessWidget {
         children: [
           Positioned.fill(
             child: exercise.imageUrl.isNotEmpty
-                ? Image.network(
-              exercise.imageUrl,
-              fit: BoxFit.cover,
-            )
+                ? CachedNetworkImage(
+                    imageUrl: exercise.imageUrl,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Container(color: Colors.grey.shade200),
+                    errorWidget: (context, url, error) => const Icon(Icons.error),
+                  )
                 : Container(color: Colors.grey.shade300),
           ),
 

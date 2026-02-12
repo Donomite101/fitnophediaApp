@@ -744,6 +744,7 @@ class _AiMealPlanCreateScreenState extends State<AiMealPlanCreateScreen> {
                               context: context,
                               initialTime: TimeOfDay(hour: hour, minute: minute),
                               builder: (BuildContext context, Widget? child) {
+                                final isDark = Theme.of(context).brightness == Brightness.dark;
                                 return Theme(
                                   data: Theme.of(context).copyWith(
                                     colorScheme: isDark 

@@ -81,14 +81,8 @@ class WorkoutListScreen extends StatelessWidget {
   Widget _buildGrid(List<Map<String, dynamic>> workouts, bool isDark) {
     if (workouts.isEmpty) return _buildEmptyState(isDark);
 
-    return GridView.builder(
+    return ListView.builder(
       padding: const EdgeInsets.all(16),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 0.75, // Adjusted for card height
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-      ),
       itemCount: workouts.length,
       itemBuilder: (context, index) {
         final workout = workouts[index];
@@ -97,22 +91,15 @@ class WorkoutListScreen extends StatelessWidget {
              workout['savedAt'] = Timestamp.now();
         }
         
-        return SizedBox(
-          // UnifiedWorkoutCard expects a specific width context, but in GridView it expands.
-          // We might need to wrap it or let it be flexible.
-          // The card has a fixed width of 260 in its definition, let's see how it behaves.
-          // We might need to modify UnifiedWorkoutCard to accept width or be flexible.
-          // For now, let's try wrapping in a FittedBox or just letting it render.
-          // Actually, UnifiedWorkoutCard has `width: 260`. In a grid, we want it to fill the cell.
-          // We should probably wrap it in a LayoutBuilder or modify the card.
-          // Let's assume for now we can just use it, but we might need to override the width.
-          // Since we can't easily override without changing the widget, let's wrap it.
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 16),
           child: UnifiedWorkoutCard(
             data: workout,
             gymId: gymId,
             memberId: memberId,
             isDark: isDark,
             width: double.infinity,
+            height: 320, // Taller card for feed look
             margin: EdgeInsets.zero,
           ),
         );

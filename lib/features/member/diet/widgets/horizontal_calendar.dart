@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:iconsax/iconsax.dart';
 
-class HorizontalCalendar extends StatelessWidget {
+class HorizontalCalendar extends StatefulWidget {
   final DateTime selectedDate;
   final Function(DateTime) onDateSelected;
   final bool isDark;
@@ -15,103 +15,102 @@ class HorizontalCalendar extends StatelessWidget {
   }) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    final now = DateTime.now();
-    // Calculate start of the week (Monday)
-    final startDate = now.subtract(Duration(days: now.weekday - 1));
-    final weekDays = List.generate(7, (index) => startDate.add(Duration(days: index)));
-    final days = ["M", "T", "W", "T", "F", "S", "S"];
+  State<HorizontalCalendar> createState() => _HorizontalCalendarState();
+}
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.1),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: List.generate(7, (index) {
-              final date = weekDays[index];
-              final isSelected = _isSameDay(date, selectedDate);
-              final isToday = _isSameDay(date, now);
-              final isPast = date.isBefore(DateTime(now.year, now.month, now.day));
-              
-              return Expanded(
-                child: GestureDetector(
-                  onTap: () => onDateSelected(date),
-                  behavior: HitTestBehavior.opaque,
-                  child: Column(
-                    children: [
-                      Text(
-                        days[index],
-                        style: TextStyle(
-                          fontFamily: 'Outfit',
-                          fontSize: 12,
-                          color: isSelected 
-                              ? const Color(0xFF4CAF50) 
-                              : (isDark ? Colors.grey : Colors.grey[600]),
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: isSelected 
-                              ? const Color(0xFF4CAF50) 
-                              : (isPast 
-                                  ? (isDark ? Colors.white10 : Colors.grey[200]) 
-                                  : Colors.transparent),
-                          border: Border.all(
-                            color: isSelected 
-                                ? const Color(0xFF4CAF50) 
-                                : (isDark ? Colors.white24 : Colors.grey[300]!),
-                          ),
-                        ),
-                        child: Center(
-                          child: isSelected
-                              ? Text(
-                                  "${date.day}",
-                                  style: TextStyle(
-                                    fontFamily: 'Outfit',
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : (isPast 
-                                  ? Icon(Iconsax.tick_circle, size: 14, color: isDark ? Colors.white : Colors.black)
-                                  : Text(
-                                      "${date.day}",
-                                      style: TextStyle(
-                                        fontFamily: 'Outfit',
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                        color: isDark ? Colors.white : Colors.black,
-                                      ),
-                                    )),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }),
-          ),
-        ],
-      ),
-    );
+class _HorizontalCalendarState extends State<HorizontalCalendar> {
+  late DateTime _focusedDate;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusedDate = widget.selectedDate;
+  }
+
+  void _onPreviousWeek() {
+    setState(() {
+      _focusedDate = _focusedDate.subtract(const Duration(days: 7));
+    });
+  }
+
+  void _onNextWeek() {
+    setState(() {
+      _focusedDate = _focusedDate.add(const Duration(days: 7));
+    });
   }
 
   bool _isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Calculate start of the week for the focused date (Sunday based)
+    final startDate = _focusedDate.subtract(Duration(days: _focusedDate.weekday % 7));
+    final weekDays = List.generate(7, (index) => startDate.add(Duration(days: index)));
+    final days = ["S", "M", "T", "W", "T", "F", "S"];
+
+    final textColor = widget.isDark ? Colors.white : Colors.black;
+    final subTextColor = widget.isDark ? Colors.grey[500] : Colors.grey[600];
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: List.generate(7, (index) {
+          final date = weekDays[index];
+          final isSelected = _isSameDay(date, widget.selectedDate);
+          
+          return Expanded(
+            child: GestureDetector(
+              onTap: () {
+                widget.onDateSelected(date);
+                setState(() {
+                  _focusedDate = date;
+                });
+              },
+              behavior: HitTestBehavior.opaque,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                margin: const EdgeInsets.symmetric(horizontal: 2),
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: isSelected 
+                      ? const Color(0xFF00C853) // Primary Green
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      days[index],
+                      style: TextStyle(
+                        fontFamily: 'Outfit',
+                        fontSize: 10,
+                        color: isSelected 
+                            ? Colors.white.withOpacity(0.9) 
+                            : subTextColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      DateFormat('d').format(date),
+                      style: TextStyle(
+                        fontFamily: 'Outfit',
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: isSelected ? Colors.white : textColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }),
+      ),
+    );
   }
 }

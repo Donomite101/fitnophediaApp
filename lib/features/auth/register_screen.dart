@@ -109,6 +109,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setBool('isLoggedIn', true);
           await prefs.setString('userId', user.uid);
+          await prefs.setString('role', 'gym_owner'); // Cache role for auto-login
         } catch (_) {
           // Not fatal — proceed with navigation
         }

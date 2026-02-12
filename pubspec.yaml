@@ -26,6 +26,7 @@ dependencies:
   # Barcode Scanning
   barcode_scan2: ^4.5.2
   mobile_scanner: ^5.2.1
+  google_mlkit_image_labeling: ^0.12.0
 
   # UI & Utilities
   syncfusion_flutter_charts: ^31.2.16

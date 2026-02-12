@@ -11,6 +11,7 @@ import 'preference_form_screen.dart';
 import 'meal_plan_detail_screen.dart';
 import 'meal_plan_view_all_screen.dart';
 import 'ai_meal_plan_create_screen.dart';
+import 'manual_meal_create_screen.dart';
 
 class MealPlanDiscoveryScreen extends StatefulWidget {
   final String gymId;
@@ -90,8 +91,12 @@ class _MealPlanDiscoveryScreenState extends State<MealPlanDiscoveryScreen> {
     // Load plans from JSON instead of hardcoded samples
     final allPlans = await JsonMealPlanLoader.loadMealPlans();
     
-    // If JSON load fails or is empty, fallback to samples (optional, but good for safety)
-    final plansToUse = allPlans.isNotEmpty ? allPlans : SampleMealPlans.getSamplePlans();
+    // If JSON load fails, is empty, or plans lack details, fallback to samples
+    var plansToUse = allPlans;
+    if (plansToUse.isEmpty || !plansToUse.any((p) => p.dailyPlans.isNotEmpty)) {
+      plansToUse = SampleMealPlans.getSamplePlans();
+    }
+
 
     // Load Custom/AI Plans from Firestore
     try {
@@ -128,11 +133,12 @@ class _MealPlanDiscoveryScreenState extends State<MealPlanDiscoveryScreen> {
         }).toList();
       }
       
-      // If no strict matches found (or no diet type), fallback to some default logic or empty
+      // If no strict matches found (or no diet type), fallback to show popular plans
       if (recommended.isEmpty) {
-        // Optional: show some generic healthy plans if nothing matches strictly
-        // recommended = plansToUse.take(3).toList(); 
+        // Show some popular/healthy plans if nothing matches strictly
+        recommended = plansToUse.take(5).toList(); 
       }
+
     } else {
       // No preferences set, maybe show a mix
       recommended = plansToUse.take(5).toList();
@@ -145,17 +151,15 @@ class _MealPlanDiscoveryScreenState extends State<MealPlanDiscoveryScreen> {
   }
 
   List<MealPlan> get _discoverPlans {
-    // Plans for discovery - show a mix of different interesting categories
+    // Plans for discovery - show all standard plans
     // Exclude plans that are already in recommended to avoid duplicates
     final recommendedIds = _recommendedPlans.map((p) => p.id).toSet();
     
     return _mealPlans.where((plan) => 
-      !recommendedIds.contains(plan.id) && // Don't show what's already recommended
-      (plan.tags.contains('quick') || 
-       plan.tags.contains('mediterranean') ||
-       plan.tags.contains('international') ||
-       plan.tags.contains('comfort-food'))
-    ).take(10).toList(); // Limit to 10 for discovery
+      !recommendedIds.contains(plan.id) && 
+      !plan.isCustom && // Exclude custom plans (they belong in "Yours")
+      !plan.tags.contains('ai-generated') // Exclude AI plans (they have their own section)
+    ).take(20).toList(); // Increased limit for better discovery
   }
 
   List<MealPlan> get _aiPlans {
@@ -166,11 +170,9 @@ class _MealPlanDiscoveryScreenState extends State<MealPlanDiscoveryScreen> {
   }
 
   List<MealPlan> get _yourPlans {
-    // User's saved or favorite plans (for now, showing keto/low-carb)
+    // User's custom created plans (Manual creation)
     return _mealPlans.where((plan) => 
-      plan.tags.contains('keto') ||
-      plan.tags.contains('low-carb') ||
-      plan.tags.contains('vegetarian')
+      plan.isCustom
     ).toList();
   }
 
@@ -611,14 +613,21 @@ class _MealPlanDiscoveryScreenState extends State<MealPlanDiscoveryScreen> {
             _buildOptionTile(
               icon: Iconsax.edit,
               title: 'CREATE MANUALLY',
-              subtitle: 'Build your plan from scratch',
+              subtitle: 'Build your meal from scratch',
               color: Colors.blue,
               isDark: isDark,
               onTap: () {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Manual creation coming soon!')),
-                );
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ManualMealCreateScreen(
+                      gymId: widget.gymId,
+                      memberId: widget.memberId,
+                      selectedDate: widget.date,
+                    ),
+                  ),
+                ).then((_) => _loadMealPlans());
               },
             ),
             const SizedBox(height: 24),

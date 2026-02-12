@@ -33,190 +33,203 @@ class NutritionDashboardCard extends StatelessWidget {
     
     final cardBg = isDark ? const Color(0xFF1C1C1E) : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black;
-    final subTextColor = isDark ? Colors.grey[400] : Colors.grey[600];
+    final subTextColor = (isDark ? Colors.grey[500] : Colors.grey[600]) ?? Colors.grey;
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: cardBg,
-        borderRadius: BorderRadius.circular(8), // Sharp corners
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.1),
+          color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header: Calories Left (Focus on Goal)
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "CALORIES LEFT",
-                    style: TextStyle(
-                      fontFamily: 'Outfit',
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: subTextColor,
-                      letterSpacing: 1.0,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  RichText(
-                    text: TextSpan(
-                      children: [
-                        TextSpan(
-                          text: "${remainingCalories.toInt()}",
-                          style: TextStyle(
-                            fontFamily: 'Outfit',
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                            color: textColor,
-                            height: 1.0,
-                          ),
-                        ),
-                        TextSpan(
-                          text: " kcal",
-                          style: TextStyle(
-                            fontFamily: 'Outfit',
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: subTextColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              // Mini Circular Indicator for quick glance
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.1),
-                    width: 2,
-                  ),
-                ),
-                child: Center(
-                  child: Icon(
-                    Iconsax.flash_1, 
-                    size: 20, 
-                    color: const Color(0xFFFF5722),
-                  ),
-                ),
-              ),
-            ],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.06),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
-          
-          const SizedBox(height: 16),
-          
-          // Main Progress Bar
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearPercentIndicator(
-              lineHeight: 8.0,
-              percent: progress,
-              backgroundColor: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05),
-              progressColor: const Color(0xFF00C853), // Vibrant Green
-              padding: EdgeInsets.zero,
-              barRadius: const Radius.circular(4),
-              animation: true,
+        ],
+      ),
+      child: Row(
+        children: [
+          // Left: Calories Ring
+          _buildCaloriesRing(progress, remainingCalories.toDouble(), textColor, subTextColor),
+          const SizedBox(width: 20),
+          // Middle: Macro Breakdown
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildMacroLine("Protein", proteinEaten, proteinGoal, const Color(0xFF2196F3)),
+                const SizedBox(height: 12),
+                _buildMacroLine("Carbs", carbsEaten, carbsGoal, const Color(0xFFFF9800)),
+                const SizedBox(height: 12),
+                _buildMacroLine("Fats", fatEaten, fatGoal, const Color(0xFF9C27B0)),
+              ],
             ),
           ),
-          
-          const SizedBox(height: 24),
-          
-          // Compact Macros (Horizontal)
-          Row(
-            children: [
-              Expanded(
-                child: _buildCompactMacro(
-                  "PROTEIN", 
-                  proteinEaten, 
-                  proteinGoal, 
-                  Colors.blue,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildCompactMacro(
-                  "CARBS", 
-                  carbsEaten, 
-                  carbsGoal, 
-                  Colors.orange,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildCompactMacro(
-                  "FATS", 
-                  fatEaten, 
-                  fatGoal, 
-                  Colors.purple,
-                ),
-              ),
-            ],
-          ),
+          const SizedBox(width: 20),
+          // Right: Eaten Totals
+          _buildEatenStats(caloriesEaten, caloriesGoal, isDark, textColor, subTextColor),
         ],
       ),
     );
   }
 
-  Widget _buildCompactMacro(
-    String label,
-    double eaten,
-    double goal,
-    Color color,
-  ) {
-    final remaining = (goal - eaten).clamp(0, goal);
+  Widget _buildCaloriesRing(double progress, double remaining, Color textColor, Color subTextColor) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        SizedBox(
+          width: 70,
+          height: 70,
+          child: CircularProgressIndicator(
+            value: progress,
+            strokeWidth: 6,
+            backgroundColor: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100],
+            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF00C853)),
+          ),
+        ),
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              "${remaining.toInt()}",
+              style: TextStyle(
+                fontFamily: 'Outfit',
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: textColor,
+              ),
+            ),
+            Text(
+              "LEFT",
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 8,
+                fontWeight: FontWeight.w700,
+                color: subTextColor,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMacroLine(String label, double eaten, double goal, Color color) {
     final percent = (eaten / goal).clamp(0.0, 1.0);
-    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Flexible(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontFamily: 'Outfit',
-                  fontSize: 12,
-                  color: isDark ? Colors.grey[400] : Colors.grey[600],
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.0,
-                ),
-                overflow: TextOverflow.ellipsis,
+            Text(
+              label,
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.grey[400] : Colors.grey[700],
               ),
             ),
-            const SizedBox(width: 4),
             Text(
-              "${remaining.toInt()}g left",
+              "${eaten.toInt()}g / ${goal.toInt()}g",
               style: TextStyle(
                 fontFamily: 'Outfit',
-                fontSize: 10,
+                fontSize: 9,
                 color: isDark ? Colors.grey[500] : Colors.grey[500],
               ),
             ),
           ],
         ),
-        const SizedBox(height: 6),
-        LinearPercentIndicator(
-          lineHeight: 4.0,
-          percent: percent,
-          backgroundColor: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05),
-          progressColor: color,
-          padding: EdgeInsets.zero,
-          barRadius: const Radius.circular(2),
-          animation: true,
+        const SizedBox(height: 4),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(2),
+          child: LinearProgressIndicator(
+            value: percent,
+            minHeight: 3,
+            backgroundColor: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100],
+            valueColor: AlwaysStoppedAnimation<Color>(color),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEatenStats(double eaten, double goal, bool isDark, Color textColor, Color subTextColor) {
+    String statusText = "ON TRACK";
+    Color statusColor = const Color(0xFF00C853);
+    
+    if (eaten > goal) {
+      statusText = "OVER LIMIT";
+      statusColor = Colors.redAccent;
+    } else if (eaten > goal * 0.9) {
+      statusText = "NEAR LIMIT";
+      statusColor = Colors.orange;
+    } else if (eaten == 0) {
+      statusText = "STARTING";
+      statusColor = isDark ? Colors.grey[600]! : Colors.grey[400]!;
+    }
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          "EATEN",
+          style: TextStyle(
+            fontFamily: 'Poppins',
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: subTextColor,
+            letterSpacing: 0.8,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Text(
+              "${eaten.toInt()}",
+              style: TextStyle(
+                fontFamily: 'Outfit',
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: textColor,
+              ),
+            ),
+            const SizedBox(width: 2),
+            Text(
+              "kcal",
+              style: TextStyle(
+                fontFamily: 'Outfit',
+                fontSize: 10,
+                color: subTextColor,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: statusColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Text(
+            statusText,
+            style: TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 8,
+              fontWeight: FontWeight.bold,
+              color: statusColor,
+            ),
+          ),
         ),
       ],
     );

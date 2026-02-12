@@ -62,15 +62,10 @@ class MealPlanViewAllScreen extends StatelessWidget {
                 ],
               ),
             )
-          : GridView.builder(
+          : ListView.separated(
               padding: const EdgeInsets.all(20),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 0.53, // Adjusted to fit card content (approx 310px height)
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-              ),
               itemCount: plans.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 16),
               itemBuilder: (context, index) {
                 return MealPlanCard(
                   mealPlan: plans[index],

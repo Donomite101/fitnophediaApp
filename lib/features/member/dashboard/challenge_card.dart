@@ -95,8 +95,8 @@ class ChallengeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final double progress = targetValue > 0 ? (currentValue / targetValue).clamp(0, 1) : 0.0;
-    final statusChipColor = _statusColor(status);
+    final double progress = targetValue > 0 ? (currentValue / targetValue).clamp(0.0, 1.0) : 0.0;
+    final int percentage = (progress * 100).round();
     final typeColor = _typeColor;
 
     return Semantics(
@@ -104,19 +104,19 @@ class ChallengeCard extends StatelessWidget {
       label: 'Challenge card: $title, status $status, $participants participants',
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        splashColor: typeColor.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(12),
+        splashColor: typeColor.withOpacity(0.05),
         child: Container(
-          width: 420,
-          height: 340, // Increased from 300 to 340 (+40px)
-          margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
-            color: _cardBackground,
-            borderRadius: BorderRadius.circular(18),
+            color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isDarkMode ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.05),
+            ),
             boxShadow: [
               BoxShadow(
-                color: isDarkMode ? Colors.black.withOpacity(0.6) : Colors.grey.withOpacity(0.12),
-                blurRadius: 12,
+                color: Colors.black.withOpacity(isDarkMode ? 0.3 : 0.04),
+                blurRadius: 16,
                 offset: const Offset(0, 4),
               ),
             ],
@@ -124,85 +124,48 @@ class ChallengeCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // TOP SECTION: Header (70px) - Increased
-              Container(
-                width: double.infinity,
-                height: 70, // Increased from 60 to 70
-                padding: const EdgeInsets.all(14), // Increased padding
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [typeColor.withOpacity(0.12), typeColor.withOpacity(0.04)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
-                ),
+              // HEADER: Badge & XP
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                 child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Container(
-                      height: 42, // Increased from 36 to 42
-                      width: 42,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [typeColor.withOpacity(0.18), typeColor.withOpacity(0.06)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(12), // Increased radius
+                        color: typeColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(6),
                       ),
-                      child: Icon(_getTypeIcon(type), size: 20, color: typeColor), // Increased icon size
-                    ),
-                    const SizedBox(width: 12), // Increased spacing
-                    Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            title,
-                            style: TextStyle(
-                              color: _textPrimary,
-                              fontSize: 16, // Increased from 14 to 16
-                              fontWeight: FontWeight.w700,
-                              height: 1.1,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 3), // Increased spacing
-                          Text(
-                            _getTypeLabel(type),
-                            style: TextStyle(
-                              color: _muted,
-                              fontSize: 12, // Increased from 10 to 12
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
+                      child: Text(
+                        _getTypeLabel(type).toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.0,
+                          color: typeColor,
+                          fontFamily: 'Outfit',
+                        ),
                       ),
                     ),
                     if (xpReward > 0)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5), // Increased padding
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: isDarkMode ? Colors.orange.withOpacity(0.1) : Colors.orange.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(10), // Increased radius
-                          border: Border.all(
-                            color: Colors.orange.withOpacity(0.15),
-                            width: 1,
-                          ),
+                          color: const Color(0xFFFFD700).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFFFFD700).withOpacity(0.3), width: 0.5),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.bolt, size: 14, color: Colors.orange), // Increased icon
-                            const SizedBox(width: 5), // Increased spacing
+                            const Icon(Iconsax.flash_1, size: 10, color: Color(0xFFFFD700)),
+                            const SizedBox(width: 4),
                             Text(
-                              '$xpReward XP',
+                              '+$xpReward XP',
                               style: const TextStyle(
-                                fontSize: 12, // Increased from 10 to 12
-                                fontWeight: FontWeight.w700,
-                                color: Colors.orange,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFFFFD700),
+                                fontFamily: 'Outfit',
                               ),
                             ),
                           ],
@@ -211,128 +174,98 @@ class ChallengeCard extends StatelessWidget {
                   ],
                 ),
               ),
-
-              // MIDDLE SECTION: Content (200px) - Increased from 160px
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(14), // Increased padding
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Description - More space
-                      Expanded(
-                        child: Text(
-                          description,
+              
+              const Spacer(),
+              
+              // MAIN CONTENT: Title & Participants
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: 'Outfit',
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: _textPrimary,
+                        letterSpacing: -0.3,
+                        height: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(Iconsax.people, size: 14, color: _muted),
+                        const SizedBox(width: 6),
+                        Text(
+                          '$participants participants',
                           style: TextStyle(
+                            fontFamily: 'Outfit',
+                            fontSize: 12,
                             color: _muted,
-                            fontSize: 13.5, // Increased from 12 to 13.5
-                            height: 1.5, // Increased line height
-                            fontWeight: FontWeight.w400,
                           ),
-                          maxLines: 5, // Increased from 4 to 5 lines
-                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                      const SizedBox(height: 14), // Increased spacing
-
-                      // Progress section - Larger
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      'Progress',
-                                      style: TextStyle(
-                                        color: _muted,
-                                        fontSize: 12.5, // Increased from 11 to 12.5
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    Text(
-                                      targetValue > 0 ? '$currentValue/$targetValue' : '—',
-                                      style: TextStyle(
-                                        color: _textPrimary,
-                                        fontSize: 13.5, // Increased from 12 to 13.5
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 5), // Increased spacing
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(6), // Increased radius
-                                  child: LinearProgressIndicator(
-                                    value: progress,
-                                    minHeight: 8, // Increased from 6 to 8
-                                    backgroundColor: isDarkMode ? Colors.white10 : Colors.grey[200],
-                                    valueColor: AlwaysStoppedAnimation<Color>(typeColor),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 14), // Increased spacing
-
-                          // Right side badges - Larger
-                          Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5), // Increased padding
-                                decoration: BoxDecoration(
-                                  color: Colors.purple.withOpacity(0.08),
-                                  borderRadius: BorderRadius.circular(10), // Increased radius
-                                  border: Border.all(
-                                    color: Colors.purple.withOpacity(0.15),
-                                    width: 1,
-                                  ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(Iconsax.people, size: 10, color: Colors.purple), // Increased icon
-                                    const SizedBox(width: 6), // Increased spacing
-                                    Text(
-                                      '$participants',
-                                      style: TextStyle(
-                                        color: _textPrimary,
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 10.5, // Increased from 11 to 12.5
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 4), // Increased spacing
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5), // Increased padding
-                                decoration: BoxDecoration(
-                                  color: statusChipColor.withOpacity(0.12),
-                                  borderRadius: BorderRadius.circular(10), // Increased radius
-                                  border: Border.all(
-                                    color: statusChipColor.withOpacity(0.18),
-                                    width: 1,
-                                  ),
-                                ),
-                                child: Text(
-                                  status,
-                                  style: TextStyle(
-                                    color: statusChipColor,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 9, // Increased from 10 to 12
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              
+              const Spacer(),
+              
+              // FOOTER: Clean Progress Section
+              Container(
+                margin: const EdgeInsets.only(top: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: isDarkMode ? Colors.black.withOpacity(0.2) : Colors.grey.withOpacity(0.03),
+                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+                  border: Border(
+                    top: BorderSide(
+                      color: isDarkMode ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.05),
+                    ),
                   ),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Progress',
+                          style: TextStyle(
+                            fontFamily: 'Outfit',
+                            fontSize: 11,
+                            color: _muted,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        Text(
+                          '$percentage%',
+                          style: TextStyle(
+                            fontFamily: 'Outfit',
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: _textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(2),
+                      child: LinearProgressIndicator(
+                        value: progress,
+                        minHeight: 4,
+                        backgroundColor: isDarkMode ? Colors.white10 : Colors.grey[300],
+                        valueColor: AlwaysStoppedAnimation<Color>(typeColor),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],

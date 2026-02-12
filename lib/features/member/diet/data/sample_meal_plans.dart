@@ -3,14 +3,105 @@ import '../models/meal_plan_model.dart';
 /// Sample meal plans for demonstration and initial content
 class SampleMealPlans {
   static List<MealPlan> getSamplePlans() {
-    return [
+    List<MealPlan> plans = [
       _muscleBuilderPlan(),
       _ketoKickstartPlan(),
       _vegetarianVitalityPlan(),
       _mediterraneanMagicPlan(),
       _quickAndEasyPlan(),
     ];
+    
+    // Generate specialized plans for each category
+    plans.addAll(_generateCategoryPlans('Vegetarian', ['vegetarian', 'plant-based'], 10));
+    plans.addAll(_generateCategoryPlans('Vegan', ['vegan', 'plant-based', 'dairy-free'], 10));
+    plans.addAll(_generateCategoryPlans('Keto', ['keto', 'low-carb', 'high-fat'], 10));
+    plans.addAll(_generateCategoryPlans('High Protein', ['high-protein', 'muscle-gain'], 10));
+    
+    return plans;
   }
+
+  static List<MealPlan> _generateCategoryPlans(String prefix, List<String> tags, int count) {
+    return List.generate(count, (index) {
+      final variation = index + 1;
+      return MealPlan(
+        id: '${prefix.toLowerCase().replaceAll(" ", "_")}_plan_$variation',
+        name: '$prefix Plan #$variation',
+        description: 'A specialized $prefix diet plan variation $variation tailored for your goals.',
+        durationDays: 7,
+        targetCaloriesMin: 1800 + (index * 50).toDouble(),
+        targetCaloriesMax: 2200 + (index * 50).toDouble(),
+        targetProtein: prefix == 'High Protein' ? 150 + (index * 5) : 100,
+        targetCarbs: prefix == 'Keto' ? 30 : 200,
+        targetFat: prefix == 'Keto' ? 120 : 70,
+        difficulty: index % 3 == 0 ? DifficultyLevel.beginner : (index % 3 == 1 ? DifficultyLevel.intermediate : DifficultyLevel.advanced),
+        tags: [...tags, 'variation-$variation'],
+        imageUrl: null,
+        isCustom: false,
+        creatorId: null,
+        dailyPlans: _generateDailyPlans(prefix),
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+    });
+  }
+
+  static List<DayMealPlan> _generateDailyPlans(String type) {
+    return List.generate(7, (d) {
+      return DayMealPlan(
+        dayNumber: d + 1,
+        meals: _generateMealsForType(type, d + 1),
+      );
+    });
+  }
+
+  static List<MealEntry> _generateMealsForType(String type, int day) {
+    List<MealEntry> meals = [];
+    
+    // Breakfast
+    meals.add(MealEntry(
+      mealType: 'Breakfast',
+      name: '$type Breakfast Day $day',
+      description: 'Nutritious start to your day',
+      calories: 400,
+      protein: 25,
+      carbs: type == 'Keto' ? 5 : 40,
+      fat: type == 'Keto' ? 30 : 15,
+      ingredients: type == 'Vegan' ? ['Oats', 'Almond Milk', 'Berries'] : ['Eggs', 'Spinach', 'Toast'],
+      instructions: 'Prepare and serve fresh.',
+      prepTimeMinutes: 10,
+    ));
+
+    // Lunch
+    meals.add(MealEntry(
+      mealType: 'Lunch',
+      name: '$type Power Lunch Day $day',
+      description: 'Balanced midday meal',
+      calories: 600,
+      protein: 35,
+      carbs: type == 'Keto' ? 8 : 50,
+      fat: 20,
+      ingredients: ['Mixed Salad', 'Protein Source', 'Dressing'],
+      instructions: 'Combine ingredients in a bowl.',
+      prepTimeMinutes: 15,
+    ));
+
+    // Dinner
+    meals.add(MealEntry(
+      mealType: 'Dinner',
+      name: '$type Savory Dinner Day $day',
+      description: 'Satisfying evening meal',
+      calories: 550,
+      protein: 30,
+      carbs: type == 'Keto' ? 6 : 45,
+      fat: 25,
+      ingredients: ['Roasted Vegetables', 'Main Protein', 'Spices'],
+      instructions: 'Cook main protein and serve with veggies.',
+      prepTimeMinutes: 30,
+    ));
+
+    return meals;
+  }
+
 
   static MealPlan _muscleBuilderPlan() {
     return MealPlan(

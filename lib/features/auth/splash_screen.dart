@@ -33,7 +33,7 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   void _startVisualSequence() {
-    Future.delayed(const Duration(seconds: 4), () {
+    Future.delayed(const Duration(seconds: 3), () {
       if (!_splashCompleter.isCompleted) _splashCompleter.complete();
     });
   }
@@ -90,7 +90,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Future<void> _awaitSplashThenNavigate(Function navAction) async {
     try {
-      await _splashCompleter.future.timeout(const Duration(seconds: 4));
+      await _splashCompleter.future.timeout(const Duration(seconds: 3));
     } catch (_) {}
     navAction();
   }

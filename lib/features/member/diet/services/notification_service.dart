@@ -1,7 +1,7 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
 import 'package:timezone/timezone.dart' as tz;
-import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/data/latest_all.dart' as tz;
 
 import 'package:flutter_timezone/flutter_timezone.dart';
 
@@ -19,9 +19,28 @@ class NotificationService {
     if (_isInitialized) return;
 
     tz.initializeTimeZones();
-    final String timeZoneName = await FlutterTimezone.getLocalTimezone().then((info) => info.identifier);
-    tz.setLocalLocation(tz.getLocation(timeZoneName));
-    debugPrint('Timezone initialized: $timeZoneName');
+    try {
+      final String timeZoneNameRaw = await FlutterTimezone.getLocalTimezone().then((info) => info.identifier);
+      String timeZoneName = timeZoneNameRaw;
+      
+      // Handle legacy aliases not found in some timezone databases
+      if (timeZoneName == 'Asia/Calcutta') {
+        timeZoneName = 'Asia/Kolkata';
+      }
+      
+      try {
+        tz.setLocalLocation(tz.getLocation(timeZoneName));
+        debugPrint('Timezone initialized: $timeZoneName');
+      } catch (e) {
+        debugPrint('Could not find location $timeZoneName, falling back to UTC');
+        tz.setLocalLocation(tz.getLocation('UTC'));
+      }
+    } catch (e) {
+      debugPrint('Error getting local timezone: $e. Defaulting to UTC.');
+      try {
+        tz.setLocalLocation(tz.getLocation('UTC'));
+      } catch (_) {}
+    }
 
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -184,8 +203,10 @@ class NotificationService {
     // Convert local DateTime to the timezone aware DateTime
     tz.TZDateTime scheduledDate = tz.TZDateTime.from(scheduledDateLocal, tz.local);
     
-    if (scheduledDate.isBefore(tz.TZDateTime.now(tz.local))) {
-      // If time has passed for today, schedule for tomorrow
+    // Add a 2-minute buffer: if the scheduled time is within 2 mins of now, 
+    // it's likely too close for the system to fire accurately today, so move to tomorrow.
+    final tzNow = tz.TZDateTime.now(tz.local);
+    if (scheduledDate.isBefore(tzNow.add(const Duration(minutes: 2)))) {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
     }
     return scheduledDate;
@@ -199,7 +220,7 @@ class NotificationService {
   }
 
   Future<void> showTestNotification() async {
-    await initialize(); // Ensure initialized
+    await initialize();
     const AndroidNotificationDetails androidNotificationDetails =
         AndroidNotificationDetails(
       'hydration_channel_v2',
@@ -208,15 +229,31 @@ class NotificationService {
       importance: Importance.max,
       priority: Priority.high,
       ticker: 'ticker',
+      playSound: true,
+      enableVibration: true,
     );
     const NotificationDetails notificationDetails =
         NotificationDetails(android: androidNotificationDetails);
+    
+    // Show one immediately
     await flutterLocalNotificationsPlugin.show(
       999,
-      'Test Notification',
-      'This is a test hydration notification 💧',
+      'System Check: Hydration 💧',
+      'Your water reminders are active and working!',
       notificationDetails,
     );
-    debugPrint('Test notification requested');
+    
+    // And schedule one for 10 seconds later to test 'zonedSchedule'
+    await flutterLocalNotificationsPlugin.zonedSchedule(
+      998,
+      'Test Reminder (10s delay) 💧',
+      'This confirms scheduled reminders work!',
+      tz.TZDateTime.now(tz.local).add(const Duration(seconds: 10)),
+      notificationDetails,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+    );
+    debugPrint('Test notifications (instant + 10s) requested');
   }
 }

@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
@@ -347,21 +348,15 @@ class _MemberProfileSetupScreenState extends State<MemberProfileSetupScreen> {
           ),
         ),
         child: ClipOval(
-          child: Image.network(
-            _profileImageUrl!,
+          child: CachedNetworkImage(
+            imageUrl: _profileImageUrl!,
             fit: BoxFit.cover,
-            loadingBuilder: (context, child, loadingProgress) {
-              if (loadingProgress == null) return child;
-              return Center(
-                child: CircularProgressIndicator(
-                  value: loadingProgress.expectedTotalBytes != null
-                      ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                      : null,
-                  color: AppTheme.primaryGreen,
-                ),
-              );
-            },
-            errorBuilder: (context, error, stackTrace) {
+            placeholder: (context, url) => Center(
+              child: CircularProgressIndicator(
+                color: AppTheme.primaryGreen,
+              ),
+            ),
+            errorWidget: (context, url, error) {
               debugPrint('Error loading profile image: $error');
               return _buildDefaultAvatar();
             },

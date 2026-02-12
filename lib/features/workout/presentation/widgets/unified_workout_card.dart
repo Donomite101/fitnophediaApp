@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../data/providers/workout_provider.dart';
+import '../../data/models/exercise_model.dart';
 import '../screens/saved_workout_detail_screen.dart';
 
 class UnifiedWorkoutCard extends StatelessWidget {
@@ -25,10 +26,12 @@ class UnifiedWorkoutCard extends StatelessWidget {
     this.workoutProgress = const {},
     this.onRefresh,
     this.width,
+    this.height,
     this.margin,
   }) : super(key: key);
 
   final double? width;
+  final double? height;
   final EdgeInsetsGeometry? margin;
 
   @override
@@ -67,8 +70,47 @@ class UnifiedWorkoutCard extends StatelessWidget {
         : const Color(0xFFFFAB40); // Softer Purple / Orange
 
     // Determine Image (Strictly from Assets based on Title/Category/Tags/First Exercise)
+    String? workoutImageUrl;
     String assetPath = 'assets/exercise/upper_body.jpeg'; // Default
     
+    // Look for first exercise image
+    try {
+      final provider = Provider.of<WorkoutProvider>(context, listen: false);
+      String? firstExId;
+      String? firstExName;
+
+      if (data['exercises'] != null && (data['exercises'] as List).isNotEmpty) {
+        firstExId = data['exercises'][0]['exerciseId']?.toString() ?? data['exercises'][0]['id']?.toString();
+        firstExName = data['exercises'][0]['name']?.toString();
+      } else if (data['plan'] != null) {
+        if (data['plan']['schedule'] != null && (data['plan']['schedule'] as List).isNotEmpty) {
+           final day = data['plan']['schedule'][0];
+           if (day['exercises'] != null && (day['exercises'] as List).isNotEmpty) {
+              firstExId = day['exercises'][0]['exerciseId']?.toString() ?? day['exercises'][0]['id']?.toString();
+              firstExName = day['exercises'][0]['name']?.toString();
+           }
+        }
+      }
+
+      Exercise? matchedEx;
+      if (firstExId != null) {
+        try {
+          matchedEx = provider.exercises.firstWhere((e) => e.id == firstExId);
+        } catch (_) {}
+      }
+      
+      if (matchedEx == null && firstExName != null) {
+        try {
+          final search = firstExName.toLowerCase();
+          matchedEx = provider.exercises.firstWhere((e) => e.name.toLowerCase() == search);
+        } catch (_) {}
+      }
+
+      if (matchedEx != null && matchedEx.imageUrl.isNotEmpty) {
+        workoutImageUrl = matchedEx.imageUrl;
+      }
+    } catch (_) {}
+
     // Helper to check keywords
     String? getAssetForString(String text) {
       final s = text.toLowerCase();
@@ -85,7 +127,7 @@ class UnifiedWorkoutCard extends StatelessWidget {
       } else if (s.contains('chest') || s.contains('press') || s.contains('bench')) {
         return 'assets/exercise/pushups.jpeg';
       } else if (s.contains('push')) {
-        return 'assets/exercise/triceps.jpeg'; // Use triceps for generic push to distinguish from chest
+        return 'assets/exercise/triceps.jpeg'; // Use triceps for generic_push to distinguish from chest
       } else if (s.contains('hiit') || s.contains('cardio') || s.contains('burn') || s.contains('jump') || s.contains('run')) {
         return 'assets/exercise/rope.jpeg';
       } else if (s.contains('full') || s.contains('body')) {
@@ -138,7 +180,9 @@ class UnifiedWorkoutCard extends StatelessWidget {
       assetPath = match;
     }
 
-    ImageProvider bgImageProvider = AssetImage(assetPath);
+    ImageProvider bgImageProvider = workoutImageUrl != null 
+        ? CachedNetworkImageProvider(workoutImageUrl)
+        : AssetImage(assetPath);
 
     // Robust Difficulty Check
     String difficulty = 'Beginner';
@@ -180,21 +224,25 @@ class UnifiedWorkoutCard extends StatelessWidget {
         if (onRefresh != null) onRefresh!();
       },
       child: Container(
-        width: width ?? 260, // Decreased from 280
-        margin: margin ?? const EdgeInsets.only(right: 12),
+        width: width ?? 260,
+        height: height ?? 240,
+        margin: margin ?? const EdgeInsets.only(right: 16),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16), // More corporate radius
+          borderRadius: BorderRadius.circular(16), 
           color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
           border: Border.all(
             color: isDark
-                ? Colors.white.withOpacity(0.08)
-                : Colors.grey.withOpacity(0.2),
+                ? Colors.white.withOpacity(0.06)
+                : Colors.grey.withOpacity(0.15),
+            width: 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: isDark 
+                  ? Colors.black.withOpacity(0.2)
+                  : Colors.black.withOpacity(0.04),
               blurRadius: 8,
-              offset: const Offset(0, 4),
+              offset: const Offset(0, 2),
             ),
           ],
         ),
@@ -203,14 +251,14 @@ class UnifiedWorkoutCard extends StatelessWidget {
           children: [
             // 1. Image Header (Compact)
             SizedBox(
-              height: 90, // Reduced from 100 to prevent overflow
+              height: height != null ? height! * 0.55 : 105,
               width: double.infinity,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
                   ClipRRect(
                     borderRadius:
-                        const BorderRadius.vertical(top: Radius.circular(16)),
+                        const BorderRadius.vertical(top: Radius.circular(15)),
                     child: bgImageProvider is CachedNetworkImageProvider
                         ? CachedNetworkImage(
                             imageUrl:
@@ -263,6 +311,25 @@ class UnifiedWorkoutCard extends StatelessWidget {
                       ),
                     ),
                   ),
+                  // Progress Bar (if active) - At the border of image and content
+                  if (data['id'] != null &&
+                      workoutProgress.containsKey(data['id'].toString()))
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(0),
+                        child: LinearProgressIndicator(
+                          value: workoutProgress[data['id'].toString()],
+                          backgroundColor: Colors.white.withOpacity(0.2),
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                              Color(0xFF00E676)),
+                          minHeight: 4,
+                        ),
+                      ),
+                    ),
+
                 ],
               ),
             ),
@@ -270,7 +337,7 @@ class UnifiedWorkoutCard extends StatelessWidget {
             // 2. Content Body
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.all(8), // Reduced from 10
+                padding: const EdgeInsets.fromLTRB(12, 2, 6, 2), // Reduced top padding to prevent overflow
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -278,36 +345,17 @@ class UnifiedWorkoutCard extends StatelessWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Progress Bar (if active)
-                        if (data['id'] != null &&
-                            workoutProgress.containsKey(data['id'].toString()))
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 6),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(2),
-                              child: LinearProgressIndicator(
-                                value: workoutProgress[data['id'].toString()],
-                                backgroundColor: isDark
-                                    ? Colors.white.withOpacity(0.05)
-                                    : Colors.grey[100],
-                                valueColor: const AlwaysStoppedAnimation<Color>(
-                                    Color(0xFF00E676)),
-                                minHeight: 3,
-                              ),
-                            ),
-                          ),
                         Text(
                           title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontFamily: 'Outfit',
-                            fontSize: 14, // Reduced from 15
+                            fontSize: 13, // Slightly smaller
                             fontWeight: FontWeight.w600,
                             color: isDark ? Colors.white : Colors.black87,
                           ),
                         ),
-                        const SizedBox(height: 2), // Reduced from 4
                         Row(
                           children: [
                             Icon(Iconsax.activity,
@@ -324,57 +372,32 @@ class UnifiedWorkoutCard extends StatelessWidget {
                             ),
                           ],
                         ),
-                      ],
-                    ),
-
-                    // Footer: Difficulty & Date (No Overlap)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        // Difficulty Badge
+                        const SizedBox(height: 1),
+                        // Difficulty Badge - Below exercise count
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
+                              horizontal: 5, vertical: 1),
                           decoration: BoxDecoration(
-                            color: difficultyColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(4),
+                            color: difficultyColor.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(5),
                             border: Border.all(
-                                color: difficultyColor.withOpacity(0.3)),
+                                color: difficultyColor.withOpacity(0.4), width: 0.5),
                           ),
                           child: Text(
                             difficulty,
                             style: TextStyle(
                               fontFamily: 'Outfit',
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w600,
                               color: difficultyColor,
+                              letterSpacing: 0.3,
                             ),
                           ),
-                        ),
-                        // Date
-                        Row(
-                          children: [
-                            Icon(Iconsax.calendar_1,
-                                size: 10,
-                                color: isDark
-                                    ? Colors.grey[600]
-                                    : Colors.grey[400]),
-                            const SizedBox(width: 3),
-                            Text(
-                              date,
-                              style: TextStyle(
-                                fontFamily: 'Outfit',
-                                fontSize: 10,
-                                color: isDark
-                                    ? Colors.grey[600]
-                                    : Colors.grey[400],
-                              ),
-                            ),
-                          ],
                         ),
                       ],
                     ),
                   ],
+
                 ),
               ),
             ),

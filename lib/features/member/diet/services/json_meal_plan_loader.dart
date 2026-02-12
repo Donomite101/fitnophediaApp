@@ -25,7 +25,9 @@ class JsonMealPlanLoader {
           imageUrl: json['imageUrl'],
           isCustom: json['isCustom'] ?? false,
           creatorId: json['creatorId'],
-          dailyPlans: [], // JSON currently doesn't have detailed daily plans to save space, can be added if needed
+          dailyPlans: (json['dailyPlans'] as List<dynamic>?)
+                  ?.map((d) => DayMealPlan.fromMap(d))
+                  .toList() ?? [],
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
         );

@@ -608,19 +608,56 @@ class _PaymentManagementScreenState extends State<PaymentManagementScreen> {
 
         final docs = snapshot.data!.docs;
         if (docs.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.workspace_premium, color: theme.colorScheme.onSurface.withOpacity(0.5), size: 64),
-                const SizedBox(height: 16),
-                Text('No Subscription Plans Found',
-                    style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7), fontSize: 16)),
-                const SizedBox(height: 8),
-                Text('Add your first plan to get started',
-                    style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.5), fontSize: 14)),
-              ],
-            ),
+          // CHECK LEGACY: If sub-collection is empty, check if gym doc has pricingPlans array
+          return FutureBuilder<DocumentSnapshot>(
+            future: _firestore.collection('gyms').doc(_gymId).get(),
+            builder: (context, gymSnap) {
+              if (gymSnap.connectionState == ConnectionState.waiting) {
+                return Center(child: CircularProgressIndicator(color: AppTheme.primaryGreen));
+              }
+              
+              if (gymSnap.hasData && gymSnap.data!.exists) {
+                final gymData = gymSnap.data!.data() as Map<String, dynamic>?;
+                final List? pricingPlans = gymData?['pricingPlans'];
+                
+                if (pricingPlans != null && pricingPlans.isNotEmpty) {
+                  return ListView.builder(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: pricingPlans.length,
+                    itemBuilder: (context, i) {
+                      final plan = pricingPlans[i] as Map<String, dynamic>;
+                      return _buildLegacyPlanCard(plan, theme);
+                    },
+                  );
+                }
+              }
+
+              return Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.workspace_premium,
+                          color: theme.colorScheme.onSurface.withOpacity(0.5),
+                          size: 64),
+                      const SizedBox(height: 16),
+                      Text('No Subscription Plans Found',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              color: theme.colorScheme.onSurface.withOpacity(0.7),
+                              fontSize: 16)),
+                      const SizedBox(height: 8),
+                      Text('Add your first plan to get started',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              color: theme.colorScheme.onSurface.withOpacity(0.5),
+                              fontSize: 14)),
+                    ],
+                  ),
+                ),
+              );
+            },
           );
         }
 
@@ -690,6 +727,81 @@ class _PaymentManagementScreenState extends State<PaymentManagementScreen> {
     );
   }
 
+  Widget _buildLegacyPlanCard(Map<String, dynamic> plan, ThemeData theme) {
+    String typeLabel = (plan['type'] ?? 'Monthly').toString();
+    if (typeLabel == 'month') typeLabel = 'Monthly';
+    else if (typeLabel == '3 months') typeLabel = '3 Months';
+    else if (typeLabel == '6 months') typeLabel = '6 Months';
+    else if (typeLabel == 'year') typeLabel = 'Yearly';
+
+    final featuresList = plan['features'];
+    String featuresText = '';
+    if (featuresList is List) {
+      featuresText = featuresList.join(', ');
+    } else if (featuresList is String) {
+      featuresText = featuresList;
+    }
+
+    return Card(
+      color: theme.cardColor,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(16),
+        leading: Container(
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(
+            color: AppTheme.primaryGreen.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Icon(Icons.star_outline, color: AppTheme.primaryGreen),
+        ),
+        title: Text('${plan['name'] ?? 'Unnamed'}',
+            style: TextStyle(
+                color: theme.colorScheme.onSurface,
+                fontWeight: FontWeight.bold)),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 4),
+            Text('₹${plan['price']} • $typeLabel',
+                style: TextStyle(
+                    color: theme.colorScheme.onSurface.withOpacity(0.7),
+                    fontSize: 13)),
+            if (featuresText.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  'Features: $featuresText',
+                  style: TextStyle(
+                      color: theme.colorScheme.onSurface.withOpacity(0.5),
+                      fontSize: 11),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+          ],
+        ),
+        trailing: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: AppTheme.fitnessOrange.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: const Text(
+            'Onboarding',
+            style: TextStyle(
+              color: AppTheme.fitnessOrange,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   /// 🔹 PAYMENTS LIST + BUTTONS - FIXED OVERFLOW
   Widget _buildPaymentsList(ThemeData theme) {
     if (_gymId == null) return Center(child: CircularProgressIndicator(color: AppTheme.primaryGreen));
@@ -711,17 +823,27 @@ class _PaymentManagementScreenState extends State<PaymentManagementScreen> {
         final docs = snapshot.data!.docs;
         if (docs.isEmpty) {
           return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.payments, color: theme.colorScheme.onSurface.withOpacity(0.5), size: 64),
-                const SizedBox(height: 16),
-                Text('No ${_selectedTab == 0 ? 'Staff' : 'Trainer'} Payments Found',
-                    style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7), fontSize: 16)),
-                const SizedBox(height: 8),
-                const Text('Add your first payment to get started',
-                    style: TextStyle(color: Colors.white38, fontSize: 14)),
-              ],
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.payments,
+                      color: theme.colorScheme.onSurface.withOpacity(0.5),
+                      size: 64),
+                  const SizedBox(height: 16),
+                  Text(
+                      'No ${_selectedTab == 0 ? 'Staff' : 'Trainer'} Payments Found',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          color: theme.colorScheme.onSurface.withOpacity(0.7),
+                          fontSize: 16)),
+                  const SizedBox(height: 8),
+                  const Text('Add your first payment to get started',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white38, fontSize: 14)),
+                ],
+              ),
             ),
           );
         }

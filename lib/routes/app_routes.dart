@@ -15,6 +15,7 @@ import '../features/super_admin/super_admin_dashboard.dart';
 import '../features/gym_owner/gym_owner_dashboard.dart';
 import '../features/member/dashboard/member_dashboard_screen.dart';
 import '../features/member/Subscriptions/member_renewal_subscription.dart';
+import '../features/member/profile/member_subscription_details_screen.dart';
 import '../features/auth/member_set_password_screen.dart';
 import '../features/member/profile/member_profile_setup_screen.dart';
 import '../features/workout/presentation/screens/exercise_library_screen.dart';
@@ -41,6 +42,7 @@ class AppRoutes {
   static const String workoutPlan = '/workoutPlan';
   static const String dietPlanner = '/dietPlanner';
   static const String memberProfile = '/memberProfile';
+  static const String memberSubscriptionDetails = '/memberSubscriptionDetails';
   static const String termsConditions = '/termsConditions';
   static const String myTeam = '/MyTeamScreen';
   static const exerciseLibrary = "/exerciseLibrary";
@@ -124,7 +126,20 @@ class AppRoutes {
             ),
           );
         }
-
+      case memberSubscriptionDetails: // Add this case
+        {
+          final args = settings.arguments as Map<String, dynamic>?;
+          if (args != null) {
+            return MaterialPageRoute(
+              builder: (_) => MemberSubscriptionDetailsScreen(
+                gymId: args['gymId'],
+                memberId: args['memberId'],
+              ),
+            );
+          } else {
+            return MaterialPageRoute(builder: (_) => const SplashScreen());
+          }
+        }
       case createWorkout:
         return MaterialPageRoute(
           builder: (_) => const CreateWorkoutScreen(),

@@ -165,6 +165,17 @@ class _GymOnboardingScreenState extends State<GymOnboardingScreen> {
     'thursday': 'Thursday', 'friday': 'Friday', 'saturday': 'Saturday', 'sunday': 'Sunday',
   };
 
+  int _mapTypeToMonths(String type) {
+    switch (type) {
+      case 'month': return 1;
+      case '3 months': return 3;
+      case '6 months': return 6;
+      case 'year': return 12;
+      case 'session': return 0;
+      default: return 1;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -810,6 +821,21 @@ class _GymOnboardingScreenState extends State<GymOnboardingScreen> {
           'otherServices': _data['otherServices'],
           'pricingPlans': _data['pricingPlans'],
         });
+
+        // 🔥 ALSO CREATE PLANS IN SUB-COLLECTION FOR MANAGEMENT DASHBOARD integration
+        for (var plan in _pricingPlans) {
+          final planRef = gymDocRef.collection('plans').doc();
+          tx.set(planRef, {
+            'planName': plan['name'] ?? 'Unnamed Plan',
+            'price': (plan['price'] ?? 0).toDouble(),
+            'durationMonths': _mapTypeToMonths(plan['type'] ?? 'month'),
+            'features': plan['features'] is String 
+                ? (plan['features'] as String).split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList()
+                : (plan['features'] as List? ?? []),
+            'isActive': true,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+        }
 
         tx.set(counterRef, {'next': nextNum});
       });

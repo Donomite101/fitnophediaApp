@@ -98,174 +98,182 @@ class ChallengeCard extends StatelessWidget {
     final double progress = targetValue > 0 ? (currentValue / targetValue).clamp(0.0, 1.0) : 0.0;
     final int percentage = (progress * 100).round();
     final typeColor = _typeColor;
+    
+    // Gradient backgrounds for types
+    LinearGradient _getGradient() {
+      switch (type.toLowerCase()) {
+        case 'count_workouts':
+        case 'workout':
+          return const LinearGradient(colors: [Color(0xFF2196F3), Color(0xFF1976D2)], begin: Alignment.topLeft, end: Alignment.bottomRight);
+        case 'diet':
+          return const LinearGradient(colors: [Color(0xFF4CAF50), Color(0xFF388E3C)], begin: Alignment.topLeft, end: Alignment.bottomRight);
+        case 'streak':
+          return const LinearGradient(colors: [Color(0xFFFF9800), Color(0xFFF57C00)], begin: Alignment.topLeft, end: Alignment.bottomRight);
+        default:
+          return const LinearGradient(colors: [Color(0xFF9C27B0), Color(0xFF7B1FA2)], begin: Alignment.topLeft, end: Alignment.bottomRight);
+      }
+    }
 
     return Semantics(
       button: true,
       label: 'Challenge card: $title, status $status, $participants participants',
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        splashColor: typeColor.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(16),
         child: Container(
+          width: 160,
+          margin: const EdgeInsets.only(right: 12),
           decoration: BoxDecoration(
             color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isDarkMode ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.05),
-            ),
+            borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(isDarkMode ? 0.3 : 0.04),
-                blurRadius: 16,
+                color: Colors.black.withOpacity(isDarkMode ? 0.3 : 0.05),
+                blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
             ],
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // HEADER: Badge & XP
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: typeColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        _getTypeLabel(type).toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.0,
-                          color: typeColor,
-                          fontFamily: 'Outfit',
-                        ),
-                      ),
-                    ),
-                    if (xpReward > 0)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFD700).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: const Color(0xFFFFD700).withOpacity(0.3), width: 0.5),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Iconsax.flash_1, size: 10, color: Color(0xFFFFD700)),
-                            const SizedBox(width: 4),
-                            Text(
-                              '+$xpReward XP',
-                              style: const TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFFFFD700),
-                                fontFamily: 'Outfit',
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
+              // HEADER with Gradient
+              Container(
+                height: 80,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  gradient: _getGradient(),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                 ),
-              ),
-              
-              const Spacer(),
-              
-              // MAIN CONTENT: Title & Participants
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontFamily: 'Outfit',
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: _textPrimary,
-                        letterSpacing: -0.3,
-                        height: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(Iconsax.people, size: 14, color: _muted),
-                        const SizedBox(width: 6),
-                        Text(
-                          '$participants participants',
-                          style: TextStyle(
-                            fontFamily: 'Outfit',
-                            fontSize: 12,
-                            color: _muted,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              
-              const Spacer(),
-              
-              // FOOTER: Clean Progress Section
-              Container(
-                margin: const EdgeInsets.only(top: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: isDarkMode ? Colors.black.withOpacity(0.2) : Colors.grey.withOpacity(0.03),
-                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
-                  border: Border(
-                    top: BorderSide(
-                      color: isDarkMode ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.05),
-                    ),
-                  ),
-                ),
-                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          'Progress',
-                          style: TextStyle(
-                            fontFamily: 'Outfit',
-                            fontSize: 11,
-                            color: _muted,
-                            fontWeight: FontWeight.w500,
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            shape: BoxShape.circle,
                           ),
+                          child: Icon(_getTypeIcon(type), size: 16, color: Colors.white),
                         ),
-                        Text(
-                          '$percentage%',
-                          style: TextStyle(
-                            fontFamily: 'Outfit',
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: _textPrimary,
+                        if (xpReward > 0)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.3),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Iconsax.flash_1, size: 10, color: Color(0xFFFFD700)),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '+$xpReward',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(2),
-                      child: LinearProgressIndicator(
-                        value: progress,
-                        minHeight: 4,
-                        backgroundColor: isDarkMode ? Colors.white10 : Colors.grey[300],
-                        valueColor: AlwaysStoppedAnimation<Color>(typeColor),
+                    Text(
+                      _getTypeLabel(type).toUpperCase(),
+                      style: TextStyle(
+                        fontFamily: 'Outfit',
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.0,
+                        color: Colors.white.withOpacity(0.9),
                       ),
                     ),
                   ],
+                ),
+              ),
+              
+              // BODY
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontFamily: 'Outfit',
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: _textPrimary,
+                          height: 1.2,
+                        ),
+                      ),
+                      const Spacer(),
+                      
+                      Row(
+                        children: [
+                          Icon(Iconsax.people, size: 14, color: _muted),
+                          const SizedBox(width: 4),
+                          Text(
+                            '$participants joined',
+                            style: TextStyle(
+                              fontFamily: 'Outfit',
+                              fontSize: 11,
+                              color: _muted,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      
+                      // Progress Bar
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Progress',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: _muted,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              Text(
+                                '$percentage%',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: typeColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(2),
+                            child: LinearProgressIndicator(
+                              value: progress,
+                              minHeight: 4,
+                              backgroundColor: isDarkMode ? Colors.white10 : Colors.grey[200],
+                              valueColor: AlwaysStoppedAnimation<Color>(typeColor),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],

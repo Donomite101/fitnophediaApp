@@ -19,6 +19,8 @@ import '../../../core/theme_notifier.dart';
 import '../../../routes/app_routes.dart';
 import '../Subscriptions/member_renewal_subscription.dart';
 import 'SupportScreen.dart';
+import '../../../core/services/auth_service.dart';
+import '../../auth/login_screen.dart';
 
 enum ThemeModeOption { system, light, dark }
 
@@ -45,35 +47,8 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
   bool _notificationsEnabled = true;
   bool _subscriptionEnabled = true;
 
-  // Controllers for editable form in this screen are used only to prefill new edit screen
-  final TextEditingController _firstNameController = TextEditingController();
-  final TextEditingController _lastNameController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
+  // Controllers removed as they are not used in the dashboard view
 
-  // other controllers are reused when showing details inside "full profile screen"
-  final TextEditingController _heightController = TextEditingController();
-  final TextEditingController _weightController = TextEditingController();
-  final TextEditingController _targetWeightController = TextEditingController();
-  final TextEditingController _goalsController = TextEditingController();
-  final TextEditingController _medicalController = TextEditingController();
-  final TextEditingController _allergiesController = TextEditingController();
-  final TextEditingController _medicationsController = TextEditingController();
-  final TextEditingController _dietaryController = TextEditingController();
-  final TextEditingController _sleepController = TextEditingController();
-  final TextEditingController _waterController = TextEditingController();
-  final TextEditingController _stepsController = TextEditingController();
-  final TextEditingController _previousExperienceController = TextEditingController();
-  final TextEditingController _emergencyContactController = TextEditingController();
-  final TextEditingController _emergencyPhoneController = TextEditingController();
-  final TextEditingController _currentFitnessRoutineController = TextEditingController();
-  final TextEditingController _favoriteExercisesController = TextEditingController();
-  final TextEditingController _injuryHistoryController = TextEditingController();
-  final TextEditingController _mentalHealthController = TextEditingController();
-  final TextEditingController _waistController = TextEditingController();
-  final TextEditingController _hipController = TextEditingController();
-  final TextEditingController _chestController = TextEditingController();
-  final TextEditingController _bodyFatController = TextEditingController();
 
   @override
   void initState() {
@@ -114,7 +89,8 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
       if (doc.exists) {
         setState(() {
           _memberData = doc.data()!;
-          _initializeControllers();
+          // _initializeControllers(); // Removed
+
         });
       } else {
         setState(() {
@@ -128,36 +104,7 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
     }
   }
 
-  void _initializeControllers() {
-    if (_memberData == null) return;
-    _firstNameController.text = _memberData!['firstName'] ?? '';
-    _lastNameController.text = _memberData!['lastName'] ?? '';
-    _phoneController.text = _memberData!['phone'] ?? '';
-    _emailController.text = _memberData!['email'] ?? '';
 
-    _heightController.text = _memberData!['height']?.toString() ?? '';
-    _weightController.text = _memberData!['weight']?.toString() ?? '';
-    _targetWeightController.text = _memberData!['targetWeight']?.toString() ?? '';
-    _goalsController.text = _memberData!['specificGoals'] ?? '';
-    _medicalController.text = _memberData!['medicalConditions'] ?? '';
-    _allergiesController.text = _memberData!['allergies'] ?? '';
-    _medicationsController.text = _memberData!['medications'] ?? '';
-    _dietaryController.text = _memberData!['dietaryRestrictions'] ?? '';
-    _sleepController.text = _memberData!['sleepHours']?.toString() ?? '';
-    _waterController.text = _memberData!['waterIntake']?.toString() ?? '';
-    _stepsController.text = _memberData!['dailySteps']?.toString() ?? '';
-    _previousExperienceController.text = _memberData!['previousExperience'] ?? '';
-    _emergencyContactController.text = _memberData!['emergencyContact'] ?? '';
-    _emergencyPhoneController.text = _memberData!['emergencyPhone'] ?? '';
-    _currentFitnessRoutineController.text = _memberData!['currentFitnessRoutine'] ?? '';
-    _favoriteExercisesController.text = _memberData!['favoriteExercises'] ?? '';
-    _injuryHistoryController.text = _memberData!['injuryHistory'] ?? '';
-    _mentalHealthController.text = _memberData!['mentalHealthNotes'] ?? '';
-    _waistController.text = _memberData!['waistCircumference']?.toString() ?? '';
-    _hipController.text = _memberData!['hipCircumference']?.toString() ?? '';
-    _chestController.text = _memberData!['chestCircumference']?.toString() ?? '';
-    _bodyFatController.text = _memberData!['bodyFatPercentage']?.toString() ?? '';
-  }
 
   Future<void> _confirmLogout() async {
     final confirmed = await showDialog<bool>(
@@ -174,11 +121,23 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
 
     if (confirmed == true) {
       try {
-        await FirebaseAuth.instance.signOut();
+        final authService = Provider.of<AuthService>(context, listen: false);
+        await authService.logout();
+        
+        if (mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const LoginScreen()),
+            (route) => false,
+          );
+        }
       } catch (e) {
         debugPrint('Sign out error: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Logout failed: $e')),
+          );
+        }
       }
-      if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
     }
   }
 
@@ -189,6 +148,8 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
     final firstName = _memberData?['firstName'] ?? '';
     final lastName = _memberData?['lastName'] ?? '';
     final email = _memberData?['email'] ?? '';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
 
     return Container(
       padding: const EdgeInsets.only(top: 28, bottom: 20),
@@ -203,7 +164,7 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
             padding: const EdgeInsets.all(8),
             child: CircleAvatar(
               radius: 36,
-              backgroundColor: Colors.white,
+              backgroundColor: isDark ? Colors.grey[800] : Colors.white,
               child: ClipOval(
                 child: profileImageUrl != null && profileImageUrl.isNotEmpty
                     ? CachedNetworkImage(
@@ -212,21 +173,21 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                         height: 68,
                         fit: BoxFit.cover,
                         placeholder: (context, url) => const CircularProgressIndicator(),
-                        errorWidget: (context, url, error) => const Icon(Iconsax.user, size: 36),
+                        errorWidget: (context, url, error) => Icon(Iconsax.user, size: 36, color: textColor),
                       )
-                    : const Icon(Iconsax.user, size: 36),
+                    : Icon(Iconsax.user, size: 36, color: AppTheme.primaryGreen),
               ),
             ),
           ),
           const SizedBox(height: 12),
           Text(
             ('$firstName $lastName').trim().isEmpty ? 'User Name' : '$firstName $lastName',
-            style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.w600),
+            style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.w600, color: textColor),
           ),
           const SizedBox(height: 6),
           Text(
             email.isEmpty ? 'your.email@domain.com' : email,
-            style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
+            style: GoogleFonts.poppins(fontSize: 12, color: isDark ? Colors.grey[400] : Colors.grey[600]),
           ),
           const SizedBox(height: 14),
 
@@ -247,11 +208,11 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
               await _loadMemberData();
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.black,
+              backgroundColor: isDark ? Colors.white : Colors.black,
               padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
             ),
-            child: Text('Edit profile', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w500)),
+            child: Text('Edit profile', style: GoogleFonts.poppins(color: isDark ? Colors.black : Colors.white, fontWeight: FontWeight.w500)),
           ),
         ],
       ),
@@ -259,12 +220,13 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
   }
 
   Widget _buildCardGroup({required List<Widget> children}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(isDark ? 0.1 : 0.03), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Column(children: children),
     );
@@ -279,6 +241,9 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
     VoidCallback? onTap,
     bool destructive = false,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -293,50 +258,81 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
           const SizedBox(width: 12),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(title, style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600, color: destructive ? Colors.redAccent : null)),
+              Text(title, style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600, color: destructive ? Colors.redAccent : textColor)),
               if (subtitle != null) const SizedBox(height: 4),
-              if (subtitle != null) Text(subtitle, style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600])),
+              if (subtitle != null) Text(subtitle, style: GoogleFonts.poppins(fontSize: 12, color: isDark ? Colors.grey[400] : Colors.grey[600])),
             ]),
           ),
-          if (trailing != null) trailing,
+          if (trailing != null) 
+            IconTheme(
+              data: IconThemeData(color: isDark ? Colors.grey[400] : Colors.grey[600], size: 20),
+              child: trailing,
+            ),
         ]),
       ),
     );
   }
 
-  Widget _personalDetailsGroup() {
-    return _buildCardGroup(children: [
-      _buildRowItem(
-        icon: Iconsax.user,
-        title: 'View profile',
-        subtitle: 'See all personal and fitness details',
-        trailing: const Icon(Iconsax.arrow_right),
-        onTap: () {
-          // Navigate to full profile screen (full screen)
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => MemberFullProfileScreen(memberData: _memberData ?? {}),
-            ),
-          );
-        },
-      ),
-      const Divider(height: 1),
-      _buildRowItem(
-        icon: Iconsax.document,
-        title: 'Subscription',
-        subtitle: 'Manage subscription',
-        trailing: const Icon(Iconsax.arrow_right),
-        onTap: () {
-          Navigator.pushNamed(
-            context,
-            AppRoutes.memberSubscription,
-            arguments: {'gymId': widget.gymId, 'memberId': widget.memberId},
-          );
-        },
-      ),
-    ]);
+// In MemberProfileScreen class, update the _personalDetailsGroup method:
+
+// In MemberProfileScreen class, update the _personalDetailsGroup method:
+
+Widget _personalDetailsGroup() {
+  return _buildCardGroup(children: [
+    _buildRowItem(
+      icon: Iconsax.user,
+      title: 'View profile',
+      subtitle: 'See all personal and fitness details',
+      trailing: const Icon(Iconsax.arrow_right),
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => MemberFullProfileScreen(memberData: _memberData ?? {}),
+          ),
+        );
+      },
+    ),
+    const Divider(height: 1),
+    _buildRowItem(
+      icon: Iconsax.document,
+      title: 'Subscription',
+      subtitle: _getSubscriptionSubtitle(),
+      trailing: const Icon(Iconsax.arrow_right),
+      onTap: () {
+        // Use named route instead of MaterialPageRoute
+        Navigator.pushNamed(
+          context,
+          AppRoutes.memberSubscriptionDetails,
+          arguments: {
+            'gymId': widget.gymId,
+            'memberId': widget.memberId,
+          },
+        );
+      },
+    ),
+  ]);
+}
+// Add this method to _MemberProfileScreenState to get subscription status
+String _getSubscriptionSubtitle() {
+  if (_memberData == null) return 'Manage subscription';
+  
+  final status = _memberData!['subscriptionStatus']?.toString().toLowerCase() ?? '';
+  final endDate = _memberData!['subscriptionEndDate'] as Timestamp?;
+  
+  if (status == 'active' && endDate != null) {
+    final daysLeft = endDate.toDate().difference(DateTime.now()).inDays;
+    if (daysLeft > 0) {
+      return 'Active • $daysLeft days left';
+    } else {
+      return 'Expired • Renew now';
+    }
+  } else if (status == 'pending_approval') {
+    return 'Pending approval';
+  } else {
+    return 'No active subscription';
   }
+}
   Widget _aboutGroup() {
     return _buildCardGroup(children: [
       _buildRowItem(
@@ -445,33 +441,8 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
 
   @override
   void dispose() {
-    _firstNameController.dispose();
-    _lastNameController.dispose();
-    _phoneController.dispose();
-    _emailController.dispose();
-    _heightController.dispose();
-    _weightController.dispose();
-    _targetWeightController.dispose();
-    _goalsController.dispose();
-    _medicalController.dispose();
-    _allergiesController.dispose();
-    _medicationsController.dispose();
-    _dietaryController.dispose();
-    _sleepController.dispose();
-    _waterController.dispose();
-    _stepsController.dispose();
-    _previousExperienceController.dispose();
-    _emergencyContactController.dispose();
-    _emergencyPhoneController.dispose();
-    _currentFitnessRoutineController.dispose();
-    _favoriteExercisesController.dispose();
-    _injuryHistoryController.dispose();
-    _mentalHealthController.dispose();
-    _waistController.dispose();
-    _hipController.dispose();
-    _chestController.dispose();
-    _bodyFatController.dispose();
     super.dispose();
+
   }
 }
 
@@ -502,48 +473,40 @@ class _MemberEditProfileScreenState extends State<MemberEditProfileScreen> {
   bool _isUploadingImage = false;
   double _uploadProgress = 0.0;
 
-  // All controllers for fields present in view screen
+  // Personal
   late final TextEditingController _firstName;
   late final TextEditingController _lastName;
-  late final TextEditingController _email;
   late final TextEditingController _phone;
-  late final TextEditingController _dateOfBirth; // will be filled by date picker (yyyy-MM-dd)
+  // late final TextEditingController _email; // Removed unused controller
+
+  
+  // Body Stats
   late final TextEditingController _height;
   late final TextEditingController _weight;
   late final TextEditingController _targetWeight;
-  late final TextEditingController _bmi;
-  late final TextEditingController _bodyFat;
-  late final TextEditingController _bmr;
-  late final TextEditingController _waist;
-  late final TextEditingController _hip;
-  late final TextEditingController _chest;
-  late final TextEditingController _bodyType;
+  DateTime? _dateOfBirth; 
+  String? _gender;
 
-  // Fitness & goals
-  late final TextEditingController _primaryGoal;
-  late final TextEditingController _specificGoals;
-  late final TextEditingController _fitnessLevel;
-  late final TextEditingController _workoutPreference;
-  late final TextEditingController _activityLevel;
-  late final TextEditingController _focusedAreas; // comma separated input -> List<String>
+  // Fitness
+  String? _fitnessLevel;
+  String? _primaryGoal;
+  List<String> _focusedAreas = [];
 
-  // Health & lifestyle
+  // Health
+  bool _hasMedicalConditions = false;
   late final TextEditingController _medicalConditions;
-  late final TextEditingController _allergies;
-  late final TextEditingController _medications;
+  String? _dietType;
   late final TextEditingController _injuryHistory;
-  late final TextEditingController _mentalHealthNotes;
-  late final TextEditingController _dietaryRestrictions;
-  late final TextEditingController _sleepHours;
-  late final TextEditingController _waterIntake;
-  late final TextEditingController _dailySteps;
 
-  // Emergency + other
-  late final TextEditingController _emergencyContact;
-  late final TextEditingController _emergencyPhone;
-  late final TextEditingController _bloodGroup;
-  late final TextEditingController _occupation;
-  late final TextEditingController _profileImageUrl; // holds current uploaded URL
+  late final TextEditingController _profileImageUrl;
+
+  final List<String> _fitnessLevelOptions = ['Beginner', 'Intermediate', 'Advanced', 'Athlete'];
+  final List<String> _goalOptions = ['Weight Loss', 'Muscle Gain', 'Endurance', 'General Fitness', 'Strength'];
+  final List<String> _dietOptions = ['None', 'Vegetarian', 'Vegan', 'Keto', 'Paleo'];
+  final List<String> _focusAreaOptions = [
+    'Chest', 'Back', 'Shoulders', 'Arms', 'Legs',
+    'Core', 'Glutes', 'Cardio', 'Flexibility', 'Balance'
+  ];
 
   @override
   void initState() {
@@ -552,48 +515,34 @@ class _MemberEditProfileScreenState extends State<MemberEditProfileScreen> {
 
     _firstName = TextEditingController(text: d['firstName'] ?? '');
     _lastName = TextEditingController(text: d['lastName'] ?? '');
-    _email = TextEditingController(text: d['email'] ?? '');
     _phone = TextEditingController(text: d['phone'] ?? '');
 
-    // DOB handling: if Timestamp, format to yyyy-MM-dd
-    if (d['dateOfBirth'] is Timestamp) {
-      _dateOfBirth = TextEditingController(text: DateFormat('yyyy-MM-dd').format((d['dateOfBirth'] as Timestamp).toDate()));
-    } else {
-      _dateOfBirth = TextEditingController(text: d['dateOfBirth']?.toString() ?? '');
-    }
 
+    
     _height = TextEditingController(text: d['height']?.toString() ?? '');
     _weight = TextEditingController(text: d['weight']?.toString() ?? '');
     _targetWeight = TextEditingController(text: d['targetWeight']?.toString() ?? '');
-    _bmi = TextEditingController(text: d['bmi']?.toString() ?? '');
-    _bodyFat = TextEditingController(text: d['bodyFatPercentage']?.toString() ?? '');
-    _bmr = TextEditingController(text: d['bmr']?.toString() ?? '');
-    _waist = TextEditingController(text: d['waistCircumference']?.toString() ?? '');
-    _hip = TextEditingController(text: d['hipCircumference']?.toString() ?? '');
-    _chest = TextEditingController(text: d['chestCircumference']?.toString() ?? '');
-    _bodyType = TextEditingController(text: d['bodyType'] ?? '');
+    
+    if (d['dateOfBirth'] is Timestamp) {
+      _dateOfBirth = (d['dateOfBirth'] as Timestamp).toDate();
+    } else if (d['dateOfBirth'] is String) {
+       _dateOfBirth = DateTime.tryParse(d['dateOfBirth']);
+    }
 
-    _primaryGoal = TextEditingController(text: d['primaryGoal'] ?? '');
-    _specificGoals = TextEditingController(text: d['specificGoals'] ?? '');
-    _fitnessLevel = TextEditingController(text: d['fitnessLevel'] ?? '');
-    _workoutPreference = TextEditingController(text: d['workoutPreference'] ?? '');
-    _activityLevel = TextEditingController(text: d['activityLevel'] ?? '');
-    _focusedAreas = TextEditingController(text: (d['focusedAreas'] is List) ? (d['focusedAreas'] as List).join(', ') : (d['focusedAreas']?.toString() ?? ''));
+    _gender = d['gender'];
+    _fitnessLevel = d['fitnessLevel'];
+    _primaryGoal = d['primaryGoal'];
+    
+    if (d['focusedAreas'] is List) {
+      _focusedAreas = List<String>.from(d['focusedAreas']);
+    }
 
     _medicalConditions = TextEditingController(text: d['medicalConditions'] ?? '');
-    _allergies = TextEditingController(text: d['allergies'] ?? '');
-    _medications = TextEditingController(text: d['medications'] ?? '');
+    _hasMedicalConditions = (d['hasMedicalConditions'] == true) || _medicalConditions.text.isNotEmpty;
+    
+    _dietType = d['dietType'];
     _injuryHistory = TextEditingController(text: d['injuryHistory'] ?? '');
-    _mentalHealthNotes = TextEditingController(text: d['mentalHealthNotes'] ?? '');
-    _dietaryRestrictions = TextEditingController(text: d['dietaryRestrictions'] ?? '');
-    _sleepHours = TextEditingController(text: d['sleepHours']?.toString() ?? '');
-    _waterIntake = TextEditingController(text: d['waterIntake']?.toString() ?? '');
-    _dailySteps = TextEditingController(text: d['dailySteps']?.toString() ?? '');
-
-    _emergencyContact = TextEditingController(text: d['emergencyContact'] ?? '');
-    _emergencyPhone = TextEditingController(text: d['emergencyPhone'] ?? '');
-    _bloodGroup = TextEditingController(text: d['bloodGroup'] ?? '');
-    _occupation = TextEditingController(text: d['occupation'] ?? '');
+    
     _profileImageUrl = TextEditingController(text: d['profileImageUrl'] ?? '');
   }
 
@@ -603,539 +552,694 @@ class _MemberEditProfileScreenState extends State<MemberEditProfileScreen> {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(12))),
-      builder: (ctx) {
-        return SafeArea(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            ListTile(leading: const Icon(Iconsax.gallery), title: const Text('Choose from gallery'), onTap: () {
-              Navigator.of(ctx).pop();
-              _pickImage(ImageSource.gallery);
-            }),
-            ListTile(leading: const Icon(Iconsax.camera), title: const Text('Take a photo'), onTap: () {
-              Navigator.of(ctx).pop();
-              _pickImage(ImageSource.camera);
-            }),
-            ListTile(leading: const Icon(Iconsax.close_square), title: const Text('Cancel'), onTap: () => Navigator.of(ctx).pop()),
-          ]),
-        );
-      },
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ListTile(leading: const Icon(Iconsax.gallery), title: const Text('Gallery'), onTap: () { Navigator.pop(ctx); _pickImage(ImageSource.gallery); }),
+          ListTile(leading: const Icon(Iconsax.camera), title: const Text('Camera'), onTap: () { Navigator.pop(ctx); _pickImage(ImageSource.camera); }),
+        ]),
+      ),
     );
   }
 
   Future<void> _pickImage(ImageSource source) async {
-    final connectivity = await Connectivity().checkConnectivity();
-    if (connectivity.contains(ConnectivityResult.none)) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cannot upload image while offline'), backgroundColor: Colors.orange));
-      return;
-    }
     try {
-      final picker = ImagePicker();
-      final XFile? picked = await picker.pickImage(source: source, imageQuality: 85, maxWidth: 1200);
+      final picked = await ImagePicker().pickImage(source: source, imageQuality: 80, maxWidth: 800);
       if (picked == null) return;
       setState(() => _localPickedImageFile = File(picked.path));
       await _uploadImageToStorage(_localPickedImageFile!);
     } catch (e) {
-      debugPrint('Image pick error: $e');
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Image error: $e')));
+      debugPrint('Pick error: $e');
     }
   }
 
   Future<void> _uploadImageToStorage(File file) async {
-    setState(() {
-      _isUploadingImage = true;
-      _uploadProgress = 0.0;
-    });
-
-    final storage = FirebaseStorage.instance;
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final path = 'members/${widget.memberId}/profile_$timestamp.jpg';
-    final ref = storage.ref().child(path);
-    final uploadTask = ref.putFile(file, SettableMetadata(contentType: 'image/jpeg'));
-
-    uploadTask.snapshotEvents.listen((event) {
-      if (event.totalBytes > 0) {
-        setState(() => _uploadProgress = event.bytesTransferred / event.totalBytes);
-      }
-    });
-
+    setState(() { _isUploadingImage = true; _uploadProgress = 0.0; });
     try {
-      final snapshot = await uploadTask;
-      final downloadUrl = await snapshot.ref.getDownloadURL();
-
-      // Delete old image if present (best-effort)
-      final oldUrl = _profileImageUrl.text;
-      if (oldUrl.isNotEmpty) {
-        try {
-          final oldRef = FirebaseStorage.instance.refFromURL(oldUrl);
-          await oldRef.delete();
-        } catch (e) {
-          debugPrint('Old image delete failed (non-fatal): $e');
-        }
-      }
-
-      // update controller + member doc immediately with new URL
-      _profileImageUrl.text = downloadUrl;
-      await FirebaseFirestore.instance
-          .collection('gyms')
-          .doc(widget.gymId)
-          .collection('members')
-          .doc(widget.memberId)
-          .set({'profileImageUrl': downloadUrl, 'updatedAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
-
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile image updated'), backgroundColor: AppTheme.primaryGreen));
+      final ref = FirebaseStorage.instance.ref().child('members/${widget.memberId}/profile_${DateTime.now().millisecondsSinceEpoch}.jpg');
+      final task = ref.putFile(file);
+      task.snapshotEvents.listen((e) { if(e.totalBytes>0) setState(() => _uploadProgress = e.bytesTransferred / e.totalBytes); });
+      await task;
+      final url = await ref.getDownloadURL();
+      _profileImageUrl.text = url;
+      // update doc for image immediately
+      await FirebaseFirestore.instance.collection('gyms').doc(widget.gymId).collection('members').doc(widget.memberId).update({'profileImageUrl': url});
     } catch (e) {
-      debugPrint('Upload failed: $e');
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Image upload failed: $e')));
+      debugPrint('Upload error: $e');
     } finally {
-      if (mounted) setState(() {
-        _isUploadingImage = false;
-        _uploadProgress = 0.0;
-        _localPickedImageFile = null; // we've uploaded and saved URL
-      });
+      setState(() { _isUploadingImage = false; _localPickedImageFile = null; });
     }
   }
 
-  // ---------------- Date picker ----------------
-
-  Future<void> _pickDateOfBirth() async {
-    DateTime initial = DateTime.now().subtract(const Duration(days: 365 * 25));
-    if ((_dateOfBirth.text).isNotEmpty) {
-      final parsed = DateTime.tryParse(_dateOfBirth.text);
-      if (parsed != null) initial = parsed;
-    }
-
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
-      initialDate: initial,
+      initialDate: _dateOfBirth ?? DateTime(1995),
       firstDate: DateTime(1900),
-      lastDate: DateTime.now(),
+      lastDate: now,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(primary: AppTheme.primaryGreen),
+          ),
+          child: child!,
+        );
+      },
     );
-
-    if (picked != null) {
-      setState(() => _dateOfBirth.text = DateFormat('yyyy-MM-dd').format(picked));
-    }
+    if (picked != null) setState(() => _dateOfBirth = picked);
   }
 
-  // ---------------- Save ----------------
-
   Future<void> _save() async {
-    final connectivity = await Connectivity().checkConnectivity();
-    final isOffline = connectivity.contains(ConnectivityResult.none);
-    
     if (!_formKey.currentState!.validate()) return;
-    if (_isUploadingImage) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please wait for the image upload to finish')));
-      return;
-    }
-    
-    if (isOffline) {
-       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Working offline. Changes will be saved when you are online.'), backgroundColor: Colors.orange));
-    }
-
     setState(() => _isSaving = true);
 
     try {
-      final Map<String, dynamic> updateData = {
-        // Personal
+      // Calculate age
+      int? age;
+      if (_dateOfBirth != null) {
+        final now = DateTime.now();
+        age = now.year - _dateOfBirth!.year;
+        if (now.month < _dateOfBirth!.month || (now.month == _dateOfBirth!.month && now.day < _dateOfBirth!.day)) age--;
+      }
+
+      final data = {
         'firstName': _firstName.text.trim(),
         'lastName': _lastName.text.trim(),
-        'email': _email.text.trim(),
         'phone': _phone.text.trim(),
-        // dateOfBirth parsing (try ISO yyyy-MM-dd)
-        if (_dateOfBirth.text.trim().isNotEmpty) 'dateOfBirth': Timestamp.fromDate(DateTime.parse(_dateOfBirth.text.trim())),
-        'occupation': _occupation.text.trim(),
-        'bloodGroup': _bloodGroup.text.trim(),
-        'profileImageUrl': _profileImageUrl.text.trim(),
-
-        // Body metrics (defensive parsing)
+        'dateOfBirth': _dateOfBirth,
+        'age': age,
+        'gender': _gender,
         'height': double.tryParse(_height.text),
         'weight': double.tryParse(_weight.text),
         'targetWeight': double.tryParse(_targetWeight.text),
-        'bmi': double.tryParse(_bmi.text),
-        'bodyFatPercentage': double.tryParse(_bodyFat.text),
-        'bmr': double.tryParse(_bmr.text),
-        'waistCircumference': double.tryParse(_waist.text),
-        'hipCircumference': double.tryParse(_hip.text),
-        'chestCircumference': double.tryParse(_chest.text),
-        'bodyType': _bodyType.text.trim(),
-
-        // Fitness & goals
-        'primaryGoal': _primaryGoal.text.trim(),
-        'specificGoals': _specificGoals.text.trim(),
-        'fitnessLevel': _fitnessLevel.text.trim(),
-        'workoutPreference': _workoutPreference.text.trim(),
-        'activityLevel': _activityLevel.text.trim(),
-        'focusedAreas': _focusedAreas.text.trim().isEmpty
-            ? []
-            : _focusedAreas.text.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList(),
-
-        // Health & Lifestyle
-        'medicalConditions': _medicalConditions.text.trim(),
-        'allergies': _allergies.text.trim(),
-        'medications': _medications.text.trim(),
+        'fitnessLevel': _fitnessLevel,
+        'primaryGoal': _primaryGoal,
+        'focusedAreas': _focusedAreas,
+        'medicalConditions': _hasMedicalConditions ? _medicalConditions.text.trim() : '',
+        'hasMedicalConditions': _hasMedicalConditions,
+        'dietType': _dietType,
         'injuryHistory': _injuryHistory.text.trim(),
-        'mentalHealthNotes': _mentalHealthNotes.text.trim(),
-        'dietaryRestrictions': _dietaryRestrictions.text.trim(),
-        'sleepHours': double.tryParse(_sleepHours.text),
-        'waterIntake': double.tryParse(_waterIntake.text),
-        'dailySteps': int.tryParse(_dailySteps.text),
-
-        // Emergency
-        'emergencyContact': _emergencyContact.text.trim(),
-        'emergencyPhone': _emergencyPhone.text.trim(),
-
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
-      // remove null / empty string / empty list entries so we don't overwrite with empties
-      updateData.removeWhere((k, v) {
-        if (v == null) return true;
-        if (v is String && v.isEmpty) return true;
-        if (v is List && v.isEmpty) return true;
-        return false;
-      });
-
-      final memberRef = FirebaseFirestore.instance.collection('gyms').doc(widget.gymId).collection('members').doc(widget.memberId);
-      await memberRef.set(updateData, SetOptions(merge: true));
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile saved'), backgroundColor: AppTheme.primaryGreen));
-        Navigator.pop(context);
-      }
-    } catch (e, st) {
-      debugPrint('Save profile error: $e\n$st');
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to save: $e')));
+      await FirebaseFirestore.instance.collection('gyms').doc(widget.gymId).collection('members').doc(widget.memberId).update(data);
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
     } finally {
-      if (mounted) setState(() => _isSaving = false);
+      setState(() => _isSaving = false);
     }
   }
 
-  // ---------------- UI small helpers ----------------
-
-  Widget _avatarPicker() {
-    final url = _profileImageUrl.text;
-    final ImageProvider? displayImageProvider = _localPickedImageFile != null
-        ? FileImage(_localPickedImageFile!)
-        : (url.isNotEmpty ? CachedNetworkImageProvider(url) : null);
-
-    return Column(
-      children: [
-        Stack(
-          alignment: Alignment.bottomRight,
-          children: [
-            InkWell(
-              onTap: _showImageSourceSheet,
-              borderRadius: BorderRadius.circular(80),
-              child: CircleAvatar(
-                radius: 46,
-                backgroundColor: AppTheme.primaryGreen.withOpacity(0.12),
-                child: displayImageProvider != null
-                    ? ClipOval(child: Image(image: displayImageProvider as ImageProvider, width: 92, height: 92, fit: BoxFit.cover))
-                    : const Icon(Iconsax.user, size: 48),
-              ),
-            ),
-            Positioned(
-              right: 0,
-              bottom: 0,
-              child: GestureDetector(
-                onTap: _showImageSourceSheet,
-                child: Container(
-                  decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                  padding: const EdgeInsets.all(6),
-                  child: const Icon(Iconsax.camera, size: 18, color: Colors.black54),
-                ),
-              ),
-            )
-          ],
-        ),
-        if (_isUploadingImage) ...[
-          const SizedBox(height: 8),
-          SizedBox(width: 140, child: LinearProgressIndicator(value: _uploadProgress)),
-        ],
-        const SizedBox(height: 8),
-      ],
-    );
-  }
-
-  Widget _rowField(String label, TextEditingController controller, {TextInputType keyboard = TextInputType.text, int maxLines = 1, String? hint, String? Function(String?)? validator}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: TextFormField(
-        controller: controller,
-        keyboardType: keyboard,
-        maxLines: maxLines,
-        decoration: InputDecoration(
-          labelText: label,
-          hintText: hint,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-          isDense: true,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        ),
-        validator: validator,
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _firstName.dispose();
-    _lastName.dispose();
-    _email.dispose();
-    _phone.dispose();
-    _dateOfBirth.dispose();
-    _height.dispose();
-    _weight.dispose();
-    _targetWeight.dispose();
-    _bmi.dispose();
-    _bodyFat.dispose();
-    _bmr.dispose();
-    _waist.dispose();
-    _hip.dispose();
-    _chest.dispose();
-    _bodyType.dispose();
-
-    _primaryGoal.dispose();
-    _specificGoals.dispose();
-    _fitnessLevel.dispose();
-    _workoutPreference.dispose();
-    _activityLevel.dispose();
-    _focusedAreas.dispose();
-
-    _medicalConditions.dispose();
-    _allergies.dispose();
-    _medications.dispose();
-    _injuryHistory.dispose();
-    _mentalHealthNotes.dispose();
-    _dietaryRestrictions.dispose();
-    _sleepHours.dispose();
-    _waterIntake.dispose();
-    _dailySteps.dispose();
-
-    _emergencyContact.dispose();
-    _emergencyPhone.dispose();
-    _bloodGroup.dispose();
-    _occupation.dispose();
-    _profileImageUrl.dispose();
-
-    super.dispose();
-  }
-
-  // ---------------- Build ----------------
-
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+    final bgColor = Theme.of(context).scaffoldBackgroundColor;
+    final cardColor = Theme.of(context).cardColor;
+
     return Scaffold(
+      backgroundColor: bgColor,
       appBar: AppBar(
-        title: Text('Edit profile', style: GoogleFonts.poppins()),
-        backgroundColor: AppTheme.primaryGreen,
+        title: Text('Edit Profile', style: GoogleFonts.poppins(color: textColor, fontWeight: FontWeight.w600)),
+        backgroundColor: isDark ? Colors.transparent : Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        leading: BackButton(color: textColor),
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 12),
-          child: Form(
-            key: _formKey,
-            child: ListView(
-              children: [
-                Center(child: _avatarPicker()),
-                Row(children: [
-                  Expanded(child: _rowField('First name', _firstName, validator: (v) => (v ?? '').trim().isEmpty ? 'Required' : null)),
-                  const SizedBox(width: 10),
-                  Expanded(child: _rowField('Last name', _lastName)),
-                ]),
-                _rowField('Email', _email, keyboard: TextInputType.emailAddress, validator: (v) {
-                  final s = (v ?? '').trim();
-                  if (s.isEmpty) return 'Required';
-                  if (!s.contains('@')) return 'Invalid email';
-                  return null;
-                }),
-                Row(children: [
-                  Expanded(child: _rowField('Phone', _phone, keyboard: TextInputType.phone)),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: _pickDateOfBirth,
-                      child: AbsorbPointer(child: _rowField('DOB (yyyy-MM-dd)', _dateOfBirth, keyboard: TextInputType.datetime, hint: 'yyyy-MM-dd')),
-                    ),
+
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Avatar
+              Center(child: _buildAvatarSection()),
+              const SizedBox(height: 30),
+
+              _buildSectionTitle('Personal Details'),
+              _buildTextField('First Name', _firstName, Iconsax.user, required: true),
+              _buildTextField('Last Name', _lastName, Iconsax.user),
+              _buildTextField('Phone', _phone, Iconsax.call, type: TextInputType.phone),
+              
+              const SizedBox(height: 20),
+              _buildSectionTitle('Body Statistics'),
+              Row(children: [
+                Expanded(child: _buildGenderSelector()),
+              ]),
+              const SizedBox(height: 16),
+               GestureDetector(
+                onTap: _pickDate,
+                child: AbsorbPointer(
+                  child: _buildTextField(
+                    'Date of Birth', 
+                    TextEditingController(text: _dateOfBirth != null ? DateFormat('MMM dd, yyyy').format(_dateOfBirth!) : ''), 
+                    Iconsax.calendar_1,
+                    hint: 'Select Date'
                   ),
-                ]),
-                const SizedBox(height: 8),
-                Text('Body Metrics', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 8),
-                Row(children: [
-                  Expanded(child: _rowField('Height (cm)', _height, keyboard: TextInputType.number)),
-                  const SizedBox(width: 10),
-                  Expanded(child: _rowField('Weight (kg)', _weight, keyboard: TextInputType.number)),
-                ]),
-                Row(children: [
-                  Expanded(child: _rowField('Target weight (kg)', _targetWeight, keyboard: TextInputType.number)),
-                  const SizedBox(width: 10),
-                  Expanded(child: _rowField('BMI', _bmi, keyboard: TextInputType.number)),
-                ]),
-                Row(children: [
-                  Expanded(child: _rowField('Body fat %', _bodyFat, keyboard: TextInputType.number)),
-                  const SizedBox(width: 10),
-                  Expanded(child: _rowField('BMR', _bmr, keyboard: TextInputType.number)),
-                ]),
-                Row(children: [
-                  Expanded(child: _rowField('Waist (cm)', _waist, keyboard: TextInputType.number)),
-                  const SizedBox(width: 10),
-                  Expanded(child: _rowField('Hip (cm)', _hip, keyboard: TextInputType.number)),
-                ]),
-                Row(children: [
-                  Expanded(child: _rowField('Chest (cm)', _chest, keyboard: TextInputType.number)),
-                  const SizedBox(width: 10),
-                  Expanded(child: _rowField('Body type', _bodyType)),
-                ]),
-                const SizedBox(height: 12),
-                Text('Fitness & Goals', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 8),
-                _rowField('Primary goal', _primaryGoal),
-                _rowField('Specific goals', _specificGoals, maxLines: 3),
-                Row(children: [
-                  Expanded(child: _rowField('Fitness level', _fitnessLevel)),
-                  const SizedBox(width: 10),
-                  Expanded(child: _rowField('Workout preference', _workoutPreference)),
-                ]),
-                Row(children: [
-                  Expanded(child: _rowField('Activity level', _activityLevel)),
-                  const SizedBox(width: 10),
-                  Expanded(child: _rowField('Focused areas (comma separated)', _focusedAreas)),
-                ]),
-                const SizedBox(height: 12),
-                Text('Health & Lifestyle', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 8),
-                _rowField('Medical conditions', _medicalConditions, maxLines: 3),
-                _rowField('Allergies', _allergies),
-                _rowField('Medications', _medications),
-                _rowField('Injury history', _injuryHistory, maxLines: 2),
-                _rowField('Mental health notes', _mentalHealthNotes, maxLines: 2),
-                _rowField('Dietary restrictions', _dietaryRestrictions),
-                Row(children: [
-                  Expanded(child: _rowField('Sleep hours', _sleepHours, keyboard: TextInputType.number)),
-                  const SizedBox(width: 10),
-                  Expanded(child: _rowField('Water intake (L)', _waterIntake, keyboard: TextInputType.number)),
-                ]),
-                _rowField('Daily steps', _dailySteps, keyboard: TextInputType.number),
-                const SizedBox(height: 12),
-                Text('Emergency Contact', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 8),
-                Row(children: [
-                  Expanded(child: _rowField('Contact name', _emergencyContact)),
-                  const SizedBox(width: 10),
-                  Expanded(child: _rowField('Contact phone', _emergencyPhone, keyboard: TextInputType.phone)),
-                ]),
-                const SizedBox(height: 12),
-                Row(children: [
-                  Expanded(child: _rowField('Blood group', _bloodGroup)),
-                  const SizedBox(width: 10),
-                  Expanded(child: _rowField('Occupation', _occupation)),
-                ]),
-                const SizedBox(height: 18),
-                ElevatedButton(
-                  onPressed: (_isSaving || _isUploadingImage) ? null : _save,
-                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryGreen, minimumSize: const Size.fromHeight(48)),
-                  child: _isSaving
-                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : Text('Save', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600)),
                 ),
-                const SizedBox(height: 30),
-              ],
-            ),
+              ),
+              Row(children: [
+                Expanded(child: _buildTextField('Height (cm)', _height, Iconsax.ruler, type: TextInputType.number)),
+                const SizedBox(width: 16),
+                Expanded(child: _buildTextField('Weight (kg)', _weight, Iconsax.monitor, type: TextInputType.number)),
+              ]),
+
+              const SizedBox(height: 20),
+              _buildSectionTitle('Fitness Goals'),
+              _buildDropdown('Fitness Level', _fitnessLevel, _fitnessLevelOptions, (v) => setState(() => _fitnessLevel = v)),
+              const SizedBox(height: 16),
+              _buildDropdown('Primary Goal', _primaryGoal, _goalOptions, (v) => setState(() => _primaryGoal = v)),
+              const SizedBox(height: 16),
+              _buildTextField('Target Weight (kg)', _targetWeight, Iconsax.flag, type: TextInputType.number),
+              const SizedBox(height: 16),
+              _buildMultiSelect('Areas to Focus', _focusedAreas, _focusAreaOptions),
+
+              const SizedBox(height: 20),
+              _buildSectionTitle('Health & Lifestyle'),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                activeColor: AppTheme.primaryGreen,
+                title: Text('Any Medical Conditions?', style: GoogleFonts.poppins(fontWeight: FontWeight.w500, color: textColor)),
+                value: _hasMedicalConditions, 
+                onChanged: (v) => setState(() => _hasMedicalConditions = v)
+              ),
+
+              if (_hasMedicalConditions)
+                _buildTextField('Specify Conditions', _medicalConditions, Iconsax.health, maxLines: 2),
+              
+              const SizedBox(height: 16),
+              _buildDropdown('Diet Preference', _dietType, _dietOptions, (v) => setState(() => _dietType = v), hint: 'None'),
+              const SizedBox(height: 16),
+              _buildTextField('Existing Injuries (Optional)', _injuryHistory, Iconsax.danger, maxLines: 2),
+
+              const SizedBox(height: 30),
+              SizedBox(
+                width: double.infinity,
+                height: 54,
+                child: ElevatedButton(
+                  onPressed: _isSaving || _isUploadingImage ? null : _save,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryGreen,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    elevation: 0,
+                  ),
+                  child: _isSaving 
+                    ? const CircularProgressIndicator(color: Colors.white) 
+                    : Text('Save Changes', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
+                ),
+              ),
+              const SizedBox(height: 40),
+            ],
           ),
         ),
       ),
     );
   }
+
+  Widget _buildAvatarSection() {
+    return Column(
+      children: [
+        Stack(
+          alignment: Alignment.bottomRight,
+          children: [
+             Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppTheme.primaryGreen.withOpacity(0.1),
+                  border: Border.all(color: AppTheme.primaryGreen.withOpacity(0.2), width: 2),
+                ),
+                child: ClipOval(
+                  child: _localPickedImageFile != null
+                    ? Image.file(_localPickedImageFile!, fit: BoxFit.cover)
+                    : (_profileImageUrl.text.isNotEmpty 
+                        ? CachedNetworkImage(imageUrl: _profileImageUrl.text, fit: BoxFit.cover, errorWidget: (_,__,___) => const Icon(Iconsax.user))
+                        : Icon(Iconsax.user, size: 50, color: AppTheme.primaryGreen)),
+                ),
+             ),
+             GestureDetector(
+               onTap: _showImageSourceSheet,
+               child: Container(
+                 padding: const EdgeInsets.all(8),
+                 decoration: BoxDecoration(color: AppTheme.primaryGreen, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)),
+                 child: const Icon(Iconsax.edit, size: 16, color: Colors.white),
+               ),
+             ),
+          ],
+        ),
+        if (_isUploadingImage) 
+          Padding(padding: const EdgeInsets.only(top: 8), child: Text('Uploading...', style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey))),
+      ],
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Text(title, style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w700, color: textColor)),
+    );
+  }
+
+  Widget _buildTextField(String label, TextEditingController ctrl, IconData icon, {bool required = false, TextInputType type = TextInputType.text, int maxLines = 1, String? hint}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = Theme.of(context).cardColor;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: TextFormField(
+        controller: ctrl,
+        keyboardType: type,
+        maxLines: maxLines,
+        style: TextStyle(color: textColor),
+        validator: required ? (v) => (v==null||v.isEmpty) ? 'Required' : null : null,
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600]),
+          hintText: hint,
+          hintStyle: TextStyle(color: isDark ? Colors.grey[600] : Colors.grey[400]),
+          prefixIcon: Icon(icon, color: isDark ? Colors.grey[400] : Colors.grey.shade500, size: 20),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+          filled: true,
+          fillColor: cardColor,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade200)),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppTheme.primaryGreen)),
+        ),
+      ),
+    );
+
+  }
+
+  Widget _buildGenderSelector() {
+    return Row(
+      children: [
+        Expanded(child: _genderOption('Male', Icons.male)),
+        const SizedBox(width: 12),
+        Expanded(child: _genderOption('Female', Icons.female)),
+      ],
+    );
+  }
+
+  Widget _genderOption(String label, IconData icon) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = Theme.of(context).cardColor;
+    final isSelected = _gender == label;
+    final textColor = isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.grey.shade800);
+    
+    return GestureDetector(
+      onTap: () => setState(() => _gender = label),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.primaryGreen : cardColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: isSelected ? AppTheme.primaryGreen : (isDark ? Colors.white12 : Colors.grey.shade200)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: isSelected ? Colors.white : (isDark ? Colors.grey[400] : Colors.grey.shade600), size: 20),
+            const SizedBox(width: 8),
+            Text(label, style: GoogleFonts.poppins(fontWeight: FontWeight.w600, color: textColor)),
+          ],
+        ),
+      ),
+    );
+  }
+
+
+  Widget _buildDropdown(String label, String? value, List<String> items, Function(String?) onChanged, {String? hint}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = Theme.of(context).cardColor;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(12), border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200)),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: items.contains(value) ? value : null,
+          hint: Text(hint ?? 'Select $label', style: GoogleFonts.poppins(color: isDark ? Colors.grey[400] : Colors.grey.shade500)),
+          isExpanded: true,
+          dropdownColor: cardColor,
+          items: items.map((e) => DropdownMenuItem(value: e, child: Text(e, style: GoogleFonts.poppins(color: textColor)))).toList(),
+          onChanged: onChanged,
+        ),
+      ),
+    );
+  }
+
+
+  Widget _buildMultiSelect(String label, List<String> selected, List<String> options) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+    final cardColor = Theme.of(context).cardColor;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: GoogleFonts.poppins(fontWeight: FontWeight.w500, color: textColor)),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: options.map((opt) {
+            final isSel = selected.contains(opt);
+            return FilterChip(
+              label: Text(opt),
+              selected: isSel,
+              onSelected: (v) => setState(() {
+                  if(v) selected.add(opt); else selected.remove(opt);
+              }),
+              backgroundColor: cardColor,
+              selectedColor: AppTheme.primaryGreen.withOpacity(0.15),
+              labelStyle: GoogleFonts.poppins(color: isSel ? AppTheme.primaryGreen : (isDark ? Colors.grey[300] : Colors.grey.shade700), fontWeight: isSel?FontWeight.w600:FontWeight.normal),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: isSel ? AppTheme.primaryGreen : (isDark ? Colors.white12 : Colors.grey.shade200))),
+              checkmarkColor: AppTheme.primaryGreen,
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+
+  @override
+  void dispose() {
+    _firstName.dispose();
+    _lastName.dispose();
+    _phone.dispose();
+    _height.dispose();
+    _weight.dispose();
+    _targetWeight.dispose();
+    _medicalConditions.dispose();
+    _injuryHistory.dispose();
+    _profileImageUrl.dispose();
+    super.dispose();
+  }
 }
+
 // ---------------- MemberFullProfileScreen ----------------
 
 class MemberFullProfileScreen extends StatelessWidget {
   final Map<String, dynamic> memberData;
   const MemberFullProfileScreen({Key? key, required this.memberData}) : super(key: key);
 
-  Widget infoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6.0),
-      child: Row(children: [
-        Expanded(flex: 2, child: Text(label, style: GoogleFonts.poppins(fontWeight: FontWeight.w600))),
-        Expanded(flex: 3, child: Text(value.isEmpty ? 'Not set' : value, style: GoogleFonts.poppins())),
-      ]),
+  @override
+  Widget build(BuildContext context) {
+    final dob = memberData['dateOfBirth'] is Timestamp 
+        ? (memberData['dateOfBirth'] as Timestamp).toDate() 
+        : (memberData['dateOfBirth'] is String ? DateTime.tryParse(memberData['dateOfBirth']) : null);
+    
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = Theme.of(context).scaffoldBackgroundColor;
+    final cardColor = Theme.of(context).cardColor;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+
+    // Calculate BMI
+    double? bmi;
+    try {
+      final h = double.tryParse(memberData['height'].toString()) ?? 0;
+      final w = double.tryParse(memberData['weight'].toString()) ?? 0;
+      if (h > 0 && w > 0) {
+        bmi = w / ((h / 100) * (h / 100));
+      }
+    } catch (_) {}
+
+    return Scaffold(
+      backgroundColor: bgColor,
+      appBar: AppBar(
+        title: Text('My Profile', style: GoogleFonts.poppins(color: textColor, fontWeight: FontWeight.w600)),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        leading: BackButton(color: textColor),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        child: Column(
+          children: [
+            // 1. Profile Summary Card
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: isDark 
+                      ? [const Color(0xFF1E1E1E), const Color(0xFF121212)] 
+                      : [const Color(0xFFFFFFFF), const Color(0xFFF5F5F7)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Stack(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppTheme.primaryGreen.withOpacity(0.5), width: 2),
+                        ),
+                        child: CircleAvatar(
+                          radius: 45,
+                          backgroundColor: AppTheme.primaryGreen.withOpacity(0.1),
+                          backgroundImage: memberData['profileImageUrl'] != null && memberData['profileImageUrl'].isNotEmpty
+                              ? NetworkImage(memberData['profileImageUrl'])
+                              : null,
+                          child: (memberData['profileImageUrl'] == null || memberData['profileImageUrl'].isEmpty) 
+                              ? Icon(Iconsax.user, size: 40, color: AppTheme.primaryGreen) : null,
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryGreen,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: cardColor, width: 2),
+                          ),
+                          child: const Icon(Iconsax.edit, size: 14, color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    '${memberData['firstName'] ?? ''} ${memberData['lastName'] ?? ''}',
+                    style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.w700, color: textColor),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    memberData['email'] ?? memberData['phone'] ?? '',
+                    style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryGreen.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      memberData['fitnessLevel'] ?? 'Member',
+                      style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.primaryGreen),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // 2. Stats Ledger
+            Row(
+              children: [
+                Expanded(child: _buildLedgerItem(context, 'Height', '${memberData['height'] ?? '--'} cm')),
+                const SizedBox(width: 12),
+                Expanded(child: _buildLedgerItem(context, 'Weight', '${memberData['weight'] ?? '--'} kg')),
+                const SizedBox(width: 12),
+                Expanded(child: _buildLedgerItem(context, 'BMI', bmi?.toStringAsFixed(1) ?? '--')),
+              ],
+            ),
+            
+            const SizedBox(height: 24),
+
+            // 3. Goal & Focus Section
+            _buildModernSection(
+              context,
+              title: "Goals & Focus",
+              icon: Iconsax.flag,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                   _buildInfoRow(context, 'Primary Goal', memberData['primaryGoal'], isHighlight: true),
+                   const SizedBox(height: 12),
+                   _buildInfoRow(context, 'Target Weight', '${memberData['targetWeight'] ?? '--'} kg'),
+                   const SizedBox(height: 16),
+                   Text('Focus Areas', style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w500)),
+                   const SizedBox(height: 8),
+                   _buildFocusAreas(context, memberData['focusedAreas']),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // 4. Personal Details
+            _buildModernSection(
+              context,
+              title: "Personal Details", 
+              icon: Iconsax.personalcard,
+              child: Column(
+                children: [
+                  _buildInfoRow(context, 'Gender', memberData['gender']),
+                   const SizedBox(height: 12),
+                  _buildInfoRow(context, 'Birthday', dob != null ? DateFormat('MMM dd, yyyy').format(dob) : '--'),
+                   const SizedBox(height: 12),
+                  _buildInfoRow(context, 'Phone', memberData['phone']),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // 5. Health info
+            _buildModernSection(
+              context,
+              title: "Health & Medical",
+              icon: Iconsax.health,
+              child: Column(
+                children: [
+                  _buildInfoRow(context, 'Medical Conditions', memberData['medicalConditions']?.isEmpty ?? true ? 'None' : memberData['medicalConditions']),
+                  const SizedBox(height: 12),
+                  _buildInfoRow(context, 'Injuries', memberData['injuryHistory']?.isEmpty ?? true ? 'None' : memberData['injuryHistory']),
+                   const SizedBox(height: 12),
+                  _buildInfoRow(context, 'Diet Type', memberData['dietType']),
+                ],
+              ),
+            ),
+            const SizedBox(height: 40),
+          ],
+        ),
+      ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final createdAt = memberData['createdAt'] is Timestamp ? (memberData['createdAt'] as Timestamp).toDate() : null;
-    return Scaffold(
-      appBar: AppBar(title: Text('Profile details', style: GoogleFonts.poppins()), backgroundColor: AppTheme.primaryGreen),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Center(
-            child: CircleAvatar(
-              radius: 40,
-              backgroundColor: AppTheme.primaryGreen.withOpacity(0.12),
-              child: memberData['profileImageUrl'] != null && (memberData['profileImageUrl'] as String).isNotEmpty
-                  ? ClipOval(
-                      child: CachedNetworkImage(
-                        imageUrl: memberData['profileImageUrl'],
-                        width: 72,
-                        height: 72,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => const CircularProgressIndicator(),
-                        errorWidget: (context, url, error) => const Icon(Iconsax.user, size: 40),
-                      ),
-                    )
-                  : const Icon(Iconsax.user, size: 40),
+  Widget _buildLedgerItem(BuildContext context, String label, String value) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade100),
+        boxShadow: [
+           BoxShadow(color: Colors.black.withOpacity(isDark?0.2:0.03), blurRadius: 10, offset: const Offset(0,4))
+        ],
+      ),
+      child: Column(
+        children: [
+          Text(value, style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)),
+          const SizedBox(height: 4),
+          Text(label, style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModernSection(BuildContext context, {required String title, required IconData icon, required Widget child}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade100),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 18, color: AppTheme.primaryGreen),
+              const SizedBox(width: 8),
+              Text(title, style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600, color: Theme.of(context).textTheme.bodyLarge?.color)),
+            ],
+          ),
+          const SizedBox(height: 20),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(BuildContext context, String label, String? value, {bool isHighlight = false}) {
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey)),
+        Expanded(
+          child: Text(
+            value ?? '--',
+            textAlign: TextAlign.end,
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              fontWeight: isHighlight ? FontWeight.w700 : FontWeight.w500,
+              color: isHighlight ? AppTheme.primaryGreen : textColor,
             ),
           ),
-          const SizedBox(height: 12),
-          Center(child: Text('${memberData['firstName'] ?? ''} ${memberData['lastName'] ?? ''}', style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600))),
-          if (createdAt != null) Center(child: Text('Member since ${DateFormat('MMM yyyy').format(createdAt)}', style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[700]))),
-          const SizedBox(height: 18),
+        ),
+      ],
+    );
+  }
 
-          // Personal section
-          Text('Personal Information', style: GoogleFonts.poppins(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 8),
-          infoRow('Email', memberData['email'] ?? ''),
-          infoRow('Phone', memberData['phone'] ?? ''),
-          infoRow('DOB', memberData['dateOfBirth'] is Timestamp ? DateFormat('MMM dd, yyyy').format((memberData['dateOfBirth'] as Timestamp).toDate()) : (memberData['dateOfBirth']?.toString() ?? '')),
-          infoRow('Gender', memberData['gender'] ?? ''),
-          infoRow('Occupation', memberData['occupation'] ?? ''),
-
-          const SizedBox(height: 16),
-          Text('Body Metrics', style: GoogleFonts.poppins(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 8),
-          infoRow('Height (cm)', memberData['height']?.toString() ?? ''),
-          infoRow('Weight (kg)', memberData['weight']?.toString() ?? ''),
-          infoRow('Target weight (kg)', memberData['targetWeight']?.toString() ?? ''),
-          infoRow('BMI', memberData['bmi']?.toString() ?? ''),
-          infoRow('Body fat %', memberData['bodyFatPercentage']?.toString() ?? ''),
-
-          const SizedBox(height: 16),
-          Text('Fitness & Goals', style: GoogleFonts.poppins(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 8),
-          infoRow('Primary goal', memberData['primaryGoal'] ?? ''),
-          infoRow('Specific goals', memberData['specificGoals'] ?? ''),
-          infoRow('Fitness level', memberData['fitnessLevel'] ?? ''),
-
-          const SizedBox(height: 16),
-          Text('Health & Lifestyle', style: GoogleFonts.poppins(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 8),
-          infoRow('Medical conditions', memberData['medicalConditions'] ?? ''),
-          infoRow('Allergies', memberData['allergies'] ?? ''),
-          infoRow('Medications', memberData['medications'] ?? ''),
-          infoRow('Dietary restrictions', memberData['dietaryRestrictions'] ?? ''),
-          infoRow('Sleep hours', memberData['sleepHours']?.toString() ?? ''),
-
-          const SizedBox(height: 16),
-          Text('Emergency Contact', style: GoogleFonts.poppins(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 8),
-          infoRow('Contact name', memberData['emergencyContact'] ?? ''),
-          infoRow('Phone', memberData['emergencyPhone'] ?? ''),
-
-          const SizedBox(height: 40),
-        ]),
-      ),
+  Widget _buildFocusAreas(BuildContext context, dynamic areas) {
+    if (areas == null || areas is! List || areas.isEmpty) {
+      return Text('None selected', style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey));
+    }
+    
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: areas.map<Widget>((area) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+             color: AppTheme.primaryGreen.withOpacity(0.1),
+             borderRadius: BorderRadius.circular(20),
+             border: Border.all(color: AppTheme.primaryGreen.withOpacity(0.3)),
+          ),
+          child: Text(
+            area.toString(),
+            style: GoogleFonts.poppins(
+              fontSize: 12, 
+              fontWeight: FontWeight.w500,
+              color: AppTheme.primaryGreen
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 }

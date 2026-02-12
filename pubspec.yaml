@@ -118,6 +118,7 @@ flutter:
     - assets/Mention-bro.svg
     - assets/exercise/
     - assets/images/meals/
+    - assets/images/
     - assets/json/
     - .env
 

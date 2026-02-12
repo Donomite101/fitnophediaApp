@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'package:iconsax/iconsax.dart';
 
 import '../../../core/app_theme.dart';
 
@@ -866,219 +867,443 @@ class _NoticesScreenState extends State<NoticesScreen> {
     );
   }
 
+  // ---------- Compact & Modern UI Implementation ----------
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF101010) : const Color(0xFFF5F7FA);
 
     return Scaffold(
-      backgroundColor: isDark ? Colors.black : theme.scaffoldBackgroundColor,
+      backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: isDark ? Colors.black : theme.scaffoldBackgroundColor,
-        elevation: 0,
-        title: _selected.isEmpty ? Row(children: [const Icon(Icons.announcement_outlined, color: AppTheme.primaryGreen), const SizedBox(width: 8), const Text('Notices')]) : Text('${_selected.length} selected'),
-        actions: [
-          if (_selected.isNotEmpty) ...[
-            IconButton(icon: const Icon(Icons.archive), onPressed: () async {
-              final ids = _selected.toList();
-              final confirm = await showDialog<bool>(
-                context: context,
-                builder: (_) => AlertDialog(
-                  title: const Text('Archive selected?'),
-                  content: Text('Archive ${ids.length} notices?'),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-                    TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Archive')),
-                  ],
-                ),
-              );
-              if (confirm == true) await _archiveNotices(ids);
-            }),
-            IconButton(icon: const Icon(Icons.clear), onPressed: () => setState(() => _selected.clear())),
-          ] else
-            IconButton(icon: const Icon(Icons.filter_list), onPressed: _showFilterDialog)
-        ],
-      ),
-      body: SafeArea(
-        child: Column(children: [
-          // Search row
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Row(children: [
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  decoration: BoxDecoration(color: theme.cardColor, borderRadius: BorderRadius.circular(10)),
-                  child: Row(children: [
-                    Icon(Icons.search, size: 18, color: Colors.grey[600]),
-                    const SizedBox(width: 8),
-                    Expanded(child: TextField(onChanged: (v) => setState(() => _searchQuery = v), decoration: const InputDecoration.collapsed(hintText: 'Search notices...'))),
-                    if (_searchQuery.isNotEmpty) IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() => _searchQuery = '')),
-                  ]),
-                ),
-              ),
-              const SizedBox(width: 10),
-              GestureDetector(
-                onTap: () => setState(() => _currentFilter = _currentFilter == 'archived' ? 'all' : 'archived'),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(color: theme.cardColor, borderRadius: BorderRadius.circular(10)),
-                  child: Row(children: [Icon(_currentFilter == 'archived' ? Icons.archive : Icons.archive_outlined, color: Colors.grey[700]), const SizedBox(width: 6), const Text('Archive')]),
-                ),
-              )
-            ]),
+        title: Text(
+          _selected.isEmpty ? 'Notices' : '${_selected.length} Selected',
+          style: TextStyle(
+            fontFamily: 'Outfit',
+            fontWeight: FontWeight.w600,
+            color: isDark ? Colors.white : Colors.black87,
+            fontSize: 20
           ),
-
-          const SizedBox(height: 8),
-
-          // Stats grid – smaller cards
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+        ),
+        backgroundColor: bgColor,
+        elevation: 0,
+        centerTitle: false,
+        actions: _buildAppBarActions(context),
+      ),
+      body: Column(
+        children: [
+          // 1. Stats Row (Horizontal Scroll)
+          SizedBox(
+            height: 90,
             child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
               stream: _noticesStream,
               builder: (context, snap) {
                 final docs = snap.data?.docs ?? [];
-                final allNotices = docs.map(_mapDoc).toList();
-                final visibleNotices = allNotices.where((n) => (n['isArchived'] ?? false) == false).toList();
+                final all = docs.map((d) => d.data()).toList();
+                final total = all.length;
+                final active = all.where((n) => (n['isActive'] ?? true) && (n['isArchived'] ?? false) == false).length;
+                final archived = all.where((n) => (n['isArchived'] ?? false) == true).length;
+                final high = all.where((n) => n['priority'] == 'high' && (n['isArchived'] ?? false) == false).length;
 
-                final stats = [
-                  {'label': 'Total', 'value': allNotices.length.toString(), 'icon': Icons.announcement, 'delta': 2.5, 'deltaText': '+2.5%'},
-                  {'label': 'Active', 'value': visibleNotices.where((n) => n['isActive'] == true).length.toString(), 'icon': Icons.check_circle, 'delta': 1.2, 'deltaText': '+1.2%'},
-                  {'label': 'High', 'value': visibleNotices.where((n) => n['priority'] == 'high').length.toString(), 'icon': Icons.priority_high, 'delta': -0.4, 'deltaText': '-0.4%'},
-                  {'label': 'Archived', 'value': allNotices.where((n) => n['isArchived'] == true).length.toString(), 'icon': Icons.archive, 'delta': 0.0, 'deltaText': '0%'},
-                ];
-
-                return LayoutBuilder(builder: (context, constraints) {
-                  final gap = 12.0;
-                  final columns = 2;
-                  final totalGap = gap * (columns - 1);
-                  final cardWidth = ((constraints.maxWidth - totalGap) / columns).clamp(100.0, 160.0); // ← Smaller max size
-                  return GridView.builder(
-                    physics: const NeverScrollableScrollPhysics(),
-                    shrinkWrap: true,
-                    itemCount: stats.length,
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: columns,
-                      mainAxisExtent: cardWidth,
-                      crossAxisSpacing: gap,
-                      mainAxisSpacing: gap,
-                    ),
-                    itemBuilder: (_, idx) {
-                      final s = stats[idx];
-                      return _statCardStyle(
-                        label: s['label'] as String,
-                        value: s['value'] as String,
-                        icon: s['icon'] as IconData,
-                        size: cardWidth,
-                        delta: s['delta'] as double,
-                        deltaText: s['deltaText'] as String,
-                      );
-                    },
-                  );
-                });
+                return ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  children: [
+                    _buildCompactStatCard('Total', '$total', Iconsax.note_text, Colors.blue),
+                    const SizedBox(width: 12),
+                    _buildCompactStatCard('Active', '$active', Iconsax.tick_circle, AppTheme.primaryGreen),
+                    const SizedBox(width: 12),
+                    _buildCompactStatCard('High Priority', '$high', Iconsax.warning_2, AppTheme.alertRed),
+                    const SizedBox(width: 12),
+                    _buildCompactStatCard('Archived', '$archived', Iconsax.archive, Colors.grey),
+                  ],
+                );
               },
             ),
           ),
 
-          const SizedBox(height: 12),
-
-          // Notices list
-          Expanded(
-            child: _noticesStream == null
-                ? const Center(child: CircularProgressIndicator())
-                : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: _noticesStream,
-              builder: (context, snap) {
-                if (snap.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-                if (snap.hasError) return Center(child: Text('Error: ${snap.error}'));
-
-                final docs = snap.data?.docs ?? [];
-                final allNotices = docs.map(_mapDoc).toList();
-                final filtered = _applySearchAndFilter(allNotices);
-
-                if (filtered.isEmpty) {
-                  return Center(child: Column(mainAxisSize: MainAxisSize.min, children: const [
-                    Icon(Icons.announcement, size: 64, color: Colors.grey),
-                    SizedBox(height: 12),
-                    Text('No notices'),
-                    SizedBox(height: 6),
-                    Text('Create your first notice', style: TextStyle(color: Colors.grey))
-                  ]));
-                }
-
-                return ListView.separated(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
-                  itemCount: filtered.length,
-                  itemBuilder: (_, i) {
-                    final notice = filtered[i];
-                    final id = notice['id'] as String;
-
-                    if (_optimisticallyArchived.contains(id)) return const SizedBox.shrink();
-
-                    return Dismissible(
-                      key: Key(id),
-                      direction: DismissDirection.endToStart,
-                      confirmDismiss: (direction) async {
-                        final res = await showDialog<bool>(
-                          context: context,
-                          builder: (_) => AlertDialog(
-                            title: const Text('Archive Notice'),
-                            content: const Text('Move this notice to archive?'),
-                            actions: [
-                              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-                              TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Archive')),
-                            ],
-                          ),
-                        );
-                        if (res == true) {
-                          await _archiveNotices([id]);
-                          return true;
-                        }
-                        return false;
-                      },
-                      background: Container(
-                        alignment: Alignment.centerRight,
-                        padding: const EdgeInsets.only(right: 20),
-                        decoration: BoxDecoration(color: AppTheme.alertRed, borderRadius: BorderRadius.circular(12)),
-                        child: const Icon(Icons.archive, color: Colors.white),
+          // 2. Search & Filter Bar
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1F1F1F) : Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: isDark ? Colors.transparent : Colors.grey.shade200),
+                    ),
+                    child: TextField(
+                      onChanged: (v) => setState(() => _searchQuery = v),
+                      style: TextStyle(fontSize: 14, color: isDark ? Colors.white : Colors.black87),
+                      decoration: InputDecoration(
+                        hintText: 'Search notices...',
+                        hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+                        prefixIcon: Icon(Iconsax.search_normal, size: 18, color: Colors.grey.shade500),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        isDense: true,
                       ),
-                      child: _buildNoticeCard(notice, theme),
-                    );
-                  },
-                );
-              },
-            ),
-          )
-        ]),
-      ),
-      floatingActionButton: _selected.isEmpty
-          ? FloatingActionButton(
-        onPressed: _showAddNoticeDialog,
-        backgroundColor: AppTheme.primaryGreen,
-        child: const Icon(Icons.add),
-      )
-          : FloatingActionButton.extended(
-        onPressed: () async {
-          final ids = _selected.toList();
-          final confirm = await showDialog<bool>(
-            context: context,
-            builder: (_) => AlertDialog(
-              title: Text('Archive ${ids.length} items?'),
-              actions: [
-                TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-                TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Archive')),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                _buildFilterButton(),
               ],
             ),
-          );
-          if (confirm == true) await _archiveNotices(ids);
-        },
-        label: const Text('Archive'),
-        icon: const Icon(Icons.archive),
+          ),
+
+          // 3. Compact List
+          Expanded(
+            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: _noticesStream,
+              builder: (context, snap) {
+                if (snap.connectionState == ConnectionState.waiting) {
+                  return const Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2)));
+                }
+                
+                final docs = snap.data?.docs ?? [];
+                final notices = docs.map(_mapDoc).toList();
+                
+                // Client-side search & filter
+                final filtered = _applySearchAndFilter(notices);
+
+                if (filtered.isEmpty) {
+                  return _buildEmptyState(isDark);
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  itemCount: filtered.length,
+                  itemBuilder: (context, index) {
+                    final notice = filtered[index];
+                    return _buildCompactNoticeCard(notice, isDark);
+                  },
+                );
+              }, 
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showAddNoticeDialog,
         backgroundColor: AppTheme.primaryGreen,
+        child: const Icon(Iconsax.add, color: Colors.white),
+        elevation: 4,
+        shape: const CircleBorder(),
       ),
     );
   }
+
+  // --- New Compact Components ---
+
+  List<Widget> _buildAppBarActions(BuildContext context) {
+    if (_selected.isNotEmpty) {
+      return [
+        IconButton(
+          icon: const Icon(Iconsax.archive_tick, color: Colors.grey),
+          onPressed: () => _confirmArchiveSelected(),
+        ),
+        IconButton(
+          icon: const Icon(Iconsax.close_circle, color: Colors.grey),
+          onPressed: () => setState(() => _selected.clear()),
+        ),
+        const SizedBox(width: 8),
+      ];
+    }
+    return [
+      IconButton(
+        icon: Icon(_currentFilter == 'archived' ? Iconsax.archive_1 : Iconsax.archive_add, size: 22),
+        onPressed: () => setState(() => _currentFilter = _currentFilter == 'archived' ? 'all' : 'archived'),
+        tooltip: 'Toggle Archives',
+      ),
+      const SizedBox(width: 8),
+    ];
+  }
+
+  Widget _buildCompactStatCard(String label, String value, IconData icon, Color color) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      width: 125, // Compact width
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1F1F1F) : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: isDark ? Colors.transparent : Colors.grey.shade100),
+        boxShadow: isDark ? [] : [BoxShadow(color: Colors.grey.shade100, blurRadius: 4, offset: const Offset(0, 2))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 16, color: color),
+              const Spacer(),
+              Text(value, style: TextStyle(
+                fontFamily: 'Outfit',
+                fontSize: 18, 
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : Colors.black87
+              )),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(label, style: TextStyle(
+            fontFamily: 'Outfit',
+            fontSize: 12,
+            color: Colors.grey.shade500,
+            fontWeight: FontWeight.w500
+          )),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterButton() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isActive = _currentFilter != 'all' && _currentFilter != 'archived';
+    
+    return GestureDetector(
+      onTap: _showFilterDialog,
+      child: Container(
+        height: 42,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: isActive ? AppTheme.primaryGreen.withOpacity(0.15) : (isDark ? const Color(0xFF1F1F1F) : Colors.white),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: isActive ? AppTheme.primaryGreen.withOpacity(0.3) : (isDark ? Colors.transparent : Colors.grey.shade200)),
+        ),
+        child: Row(
+          children: [
+            Icon(Iconsax.filter, size: 18, color: isActive ? AppTheme.primaryGreen : Colors.grey.shade600),
+            if (isActive) ...[
+              const SizedBox(width: 8),
+              Text(
+                _currentFilter.capitalize(),
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.primaryGreen),
+              ),
+            ]
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompactNoticeCard(Map<String, dynamic> notice, bool isDark) {
+    final id = notice['id'] as String;
+    final priorityColor = _getPriorityColor(notice['priority']);
+    final isSelected = _selected.contains(id);
+    final isArchived = notice['isArchived'] == true;
+    final isActive = notice['isActive'] ?? true;
+    final date = notice['createdAt'] is Timestamp 
+        ? DateFormat('MMM d').format((notice['createdAt'] as Timestamp).toDate()) 
+        : '';
+        
+    if (_optimisticallyArchived.contains(id)) return const SizedBox.shrink();
+
+    return GestureDetector(
+      onTap: () => _selected.isNotEmpty 
+          ? setState(() => isSelected ? _selected.remove(id) : _selected.add(id))
+          : _showNoticeDetails(notice, Theme.of(context)),
+      onLongPress: () => setState(() => isSelected ? _selected.remove(id) : _selected.add(id)),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(
+          color: isSelected 
+              ? AppTheme.primaryGreen.withOpacity(0.08) 
+              : (isDark ? const Color(0xFF1F1F1F) : Colors.white),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? AppTheme.primaryGreen : (isDark ? Colors.transparent : Colors.grey.shade100)
+          ),
+          boxShadow: isDark || isSelected ? [] : [
+            BoxShadow(color: Colors.grey.shade200.withOpacity(0.5), blurRadius: 8, offset: const Offset(0, 2))
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: IntrinsicHeight(
+            child: Row(
+              children: [
+                // Priority Strip
+                Container(width: 4, color: priorityColor.withOpacity(0.8)),
+                
+                // Content
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                notice['title'],
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontFamily: 'Outfit',
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark ? Colors.white : Colors.black87,
+                                  decoration: isArchived ? TextDecoration.lineThrough : null,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              date,
+                              style: TextStyle(fontSize: 11, color: Colors.grey.shade500, fontFamily: 'Outfit'),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          notice['message'],
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontFamily: 'Outfit',
+                            fontSize: 13,
+                            color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                            height: 1.3
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            _compactBadge(
+                              _getCategoryText(notice['category']),
+                              isDark ? const Color(0xFF2C2C2C) : Colors.grey.shade100, 
+                              isDark ? Colors.grey.shade300 : Colors.grey.shade700
+                            ),
+                            if (notice['isRecurring'] == true) ...[
+                              const SizedBox(width: 6),
+                              Icon(Iconsax.repeat, size: 14, color: Colors.grey.shade500),
+                            ],
+                            const Spacer(),
+                            if (!isActive)
+                              _compactBadge('Inactive', Colors.red.withOpacity(0.1), Colors.red)
+                            else if (notice['views'] != null && notice['views'] > 0)
+                              Row(
+                                children: [
+                                  Icon(Iconsax.eye, size: 14, color: Colors.grey.shade400),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${notice['views']}',
+                                    style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                                  ),
+                                ],
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                
+                // Active/Menu Indicator
+                if (!isSelected)
+                  PopupMenuButton<int>(
+                    icon: Icon(Icons.more_vert, size: 18, color: Colors.grey.shade400),
+                    padding: EdgeInsets.zero,
+                    color: isDark ? const Color(0xFF2C2C2C) : Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    onSelected: (i) async {
+                       if (i == 0) _showEditNoticeDialog(notice, Theme.of(context));
+                        if (i == 1) await _toggleNoticeStatus(id, isActive);
+                        if (i == 2) {
+                          if (isArchived)
+                            await _restoreNotices([id]);
+                          else
+                            await _archiveNotices([id]);
+                        }
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(value: 0, child: Row(children: [Icon(Iconsax.edit, size: 16), SizedBox(width: 8), Text('Edit')])),
+                      PopupMenuItem(value: 1, child: Row(children: [Icon(isActive ? Iconsax.pause : Iconsax.play, size: 16), const SizedBox(width: 8), Text(isActive ? 'Pause' : 'Activate')])),
+                      PopupMenuItem(value: 2, child: Row(children: [Icon(isArchived ? Iconsax.arrow_circle_left : Iconsax.archive, size: 16), const SizedBox(width: 8), Text(isArchived ? 'Restore' : 'Archive')])),
+                    ],
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _compactBadge(String text, Color bg, Color fg) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        text, 
+        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: fg, fontFamily: 'Outfit'),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(bool isDark) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Iconsax.clipboard_text, size: 48, color: Colors.grey.shade300),
+          const SizedBox(height: 16),
+          Text(
+            'No notices found',
+            style: TextStyle(
+              fontFamily: 'Outfit',
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.white70 : Colors.grey.shade800
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _searchQuery.isNotEmpty 
+              ? 'Try adjusting your search' 
+              : 'Create a notice to keep members informed',
+            style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmArchiveSelected() async {
+    final ids = _selected.toList();
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog( 
+        title: Text('Archive ${ids.length} items?'),
+        content: const Text('These notices will be moved to the archive.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Archive')),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      await _archiveNotices(ids);
+      setState(() => _selected.clear());
+    }
+  }
+
+  // --- Helper Icons (Keep usage of Iconsax) ---
+  // Note: Iconsax needs to be imported: import 'package:iconsax/iconsax.dart';
+  // If not available, we should swap to Material icons, but assuming it is based on code base context.
 }
 
 extension StringCasing on String {

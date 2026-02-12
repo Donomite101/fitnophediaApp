@@ -165,11 +165,40 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Future<void> _cacheMemberData(
       Map<String, dynamic> data, SharedPreferences prefs) async {
+    debugPrint('🚀 Caching Member Data: $data');
+
     await prefs.setString('memberId', data['_memberId']);
     await prefs.setString('gymId', data['_gymId']);
     await prefs.setBool('profileCompleted', data['profileCompleted'] == true);
-    await prefs.setBool(
-        'hasOngoingSubscription', data['hasOngoingSubscription'] == true);
+    
+    // Improved logic for hasOngoingSubscription
+    // First, check the flag
+    bool hasSub = data['hasOngoingSubscription'] == true;
+    
+    // If not flagged, check if status is active and date is valid
+    if (!hasSub) {
+      final status = data['subscriptionStatus']?.toString().toLowerCase();
+      final endDate = data['subscriptionEndDate'];
+      
+      if (status == 'active') {
+        if (endDate != null) {
+          DateTime? parsedDate;
+          if (endDate is Timestamp) parsedDate = endDate.toDate();
+          else if (endDate is String) parsedDate = DateTime.tryParse(endDate);
+          
+          if (parsedDate != null && parsedDate.isAfter(DateTime.now())) {
+            hasSub = true;
+            debugPrint('🚀 Caching: Forcing hasOngoingSubscription=true due to active status + valid date ($parsedDate)');
+          }
+        } else {
+           // Active status but no end date -> assume active
+           hasSub = true;
+           debugPrint('🚀 Caching: Forcing hasOngoingSubscription=true due to active status (no end date)');
+        }
+      }
+    }
+
+    await prefs.setBool('hasOngoingSubscription', hasSub);
     await prefs.setInt('lastMemberVerify', DateTime.now().millisecondsSinceEpoch);
 
     if (data['email'] != null) await prefs.setString('userEmail', data['email']);
@@ -209,12 +238,17 @@ class _SplashScreenState extends State<SplashScreen> {
             ? prefs.getBool('hasOngoingSubscription')!
             : true;
 
+        debugPrint('🚀 Splash Redirect (Member): hasProfile=$hasProfile, hasSub=$hasSub');
+
         final memberId = prefs.getString('memberId') ?? '';
         final gymId = prefs.getString('gymId') ?? '';
         final email = prefs.getString('userEmail') ?? '';
         final name = prefs.getString('userName') ?? '';
+        
+        debugPrint('🚀 Splash Redirect: Member details - ID: $memberId, Gym: $gymId, Email: $email');
 
         if (!hasProfile) {
+          debugPrint('🚀 Splash Redirect: Going to Profile Setup');
           Navigator.pushReplacementNamed(
             context,
             AppRoutes.memberProfileSetup,
@@ -226,6 +260,7 @@ class _SplashScreenState extends State<SplashScreen> {
             },
           );
         } else if (!hasSub) {
+          debugPrint('🚀 Splash Redirect: Going to Subscription/Renewal (No active sub)');
           Navigator.pushReplacementNamed(
             context,
             AppRoutes.memberSubscription,
@@ -237,6 +272,7 @@ class _SplashScreenState extends State<SplashScreen> {
             },
           );
         } else {
+          debugPrint('🚀 Splash Redirect: Going to Member Dashboard');
           Navigator.pushReplacementNamed(
             context,
             AppRoutes.memberDashboard,

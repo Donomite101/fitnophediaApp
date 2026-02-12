@@ -138,12 +138,21 @@ class HydrationAlarmService {
     
     debugPrint('scheduleHydrationReminders (Pure Alarm) called: Start=${startTime.toString()}, End=${endTime.toString()}, Interval=$intervalMinutes');
     
+    // Save settings to SharedPreferences for persistence
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('hydration_start_hour', startTime.hour);
+    await prefs.setInt('hydration_start_minute', startTime.minute);
+    await prefs.setInt('hydration_end_hour', endTime.hour);
+    await prefs.setInt('hydration_end_minute', endTime.minute);
+    await prefs.setInt('hydration_interval', intervalMinutes);
+    await prefs.setBool('hydration_enabled', true);
+    
     // Clear all existing alarms/notifications first
     await cancelReminders();
 
     final now = DateTime.now();
     
-    // Start scheduling from the start time
+    // Calculate all reminder times for today
     var currentSchedule = DateTime(
       now.year,
       now.month,
@@ -152,7 +161,7 @@ class HydrationAlarmService {
       startTime.minute,
     );
 
-    // End boundary
+    // End boundary for today
     var boundaryEnd = DateTime(
       now.year,
       now.month,
@@ -167,12 +176,21 @@ class HydrationAlarmService {
     }
 
     int id = 0;
+    final List<Map<String, dynamic>> scheduledAlarms = [];
+    
     while (currentSchedule.isBefore(boundaryEnd) ||
         currentSchedule.isAtSameMomentAs(boundaryEnd)) {
       
-      // Only schedule if the time is in the future
-      // If it's today but already passed, move this specific hit to tomorrow
-      DateTime targetTime = currentSchedule;
+      // Schedule for today and let it repeat daily
+      DateTime targetTime = DateTime(
+        now.year,
+        now.month,
+        now.day,
+        currentSchedule.hour,
+        currentSchedule.minute,
+      );
+      
+      // If this time has already passed today, schedule for tomorrow
       if (targetTime.isBefore(now)) {
         targetTime = targetTime.add(const Duration(days: 1));
       }
@@ -180,19 +198,109 @@ class HydrationAlarmService {
       // Use time-based message for variety
       final message = _getTimeBasedMessage(targetTime.hour);
 
-      await _scheduleAlarm(
+      await _scheduleRepeatingAlarm(
         id: 100 + id,
-        dateTime: targetTime,
+        hour: currentSchedule.hour,
+        minute: currentSchedule.minute,
         title: message['title']!,
         body: message['body']!,
       );
+      
+      scheduledAlarms.add({
+        'id': 100 + id,
+        'hour': currentSchedule.hour,
+        'minute': currentSchedule.minute,
+      });
 
       currentSchedule = currentSchedule.add(Duration(minutes: intervalMinutes));
       id++;
       
-      // Safety break to prevent infinite loops if interval is 0
+      // Safety break to prevent infinite loops
       if (id > 48) break; 
     }
+    
+    // Save scheduled alarm info for recovery
+    await prefs.setString('scheduled_alarms', scheduledAlarms.map((a) => '${a['id']},${a['hour']},${a['minute']}').join(';'));
+    
+    debugPrint('Scheduled $id daily repeating hydration alarms');
+  }
+
+  /// Schedule a repeating alarm that fires daily at the same time
+  Future<void> _scheduleRepeatingAlarm({
+    required int id,
+    required int hour,
+    required int minute,
+    required String title,
+    required String body,
+  }) async {
+    final now = DateTime.now();
+    DateTime targetTime = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      hour,
+      minute,
+    );
+
+    // If time has passed today, schedule for tomorrow
+    if (targetTime.isBefore(now)) {
+      targetTime = targetTime.add(const Duration(days: 1));
+    }
+
+    debugPrint('Scheduling DAILY Repeating Alarm: ID=$id at $hour:$minute (next: $targetTime)');
+
+    final alarmSettings = AlarmSettings(
+      id: id,
+      dateTime: targetTime,
+      assetAudioPath: 'assets/sound/beep.mp3',
+      loopAudio: false,
+      vibrate: true,
+      volumeSettings: const VolumeSettings.fixed(),
+      notificationSettings: NotificationSettings(
+        title: title,
+        body: body,
+        icon: 'ic_launcher',
+      ),
+      warningNotificationOnKill: true,
+      androidFullScreenIntent: false,
+    );
+
+    try {
+      await Alarm.set(alarmSettings: alarmSettings);
+      debugPrint('Successfully scheduled daily repeating Alarm for ID=$id');
+    } catch (e) {
+      debugPrint('Error scheduling Alarm: $e');
+    }
+  }
+
+  /// Restore alarms from saved settings (call on app start)
+  Future<void> restoreAlarmsFromSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    final enabled = prefs.getBool('hydration_enabled') ?? false;
+    
+    if (!enabled) {
+      debugPrint('Hydration reminders not enabled, skipping restore');
+      return;
+    }
+
+    final startHour = prefs.getInt('hydration_start_hour');
+    final startMinute = prefs.getInt('hydration_start_minute');
+    final endHour = prefs.getInt('hydration_end_hour');
+    final endMinute = prefs.getInt('hydration_end_minute');
+    final interval = prefs.getInt('hydration_interval');
+
+    if (startHour == null || startMinute == null || endHour == null || endMinute == null || interval == null) {
+      debugPrint('Incomplete hydration settings, cannot restore');
+      return;
+    }
+
+    debugPrint('Restoring hydration alarms from saved settings');
+    
+    await scheduleHydrationReminders(
+      startTime: TimeOfDay(hour: startHour, minute: startMinute),
+      endTime: TimeOfDay(hour: endHour, minute: endMinute),
+      intervalMinutes: interval,
+    );
   }
 
   Future<void> _scheduleAlarm({
@@ -234,6 +342,11 @@ class HydrationAlarmService {
 
   Future<void> cancelReminders() async {
     await initialize();
+    
+    // Save disabled state
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('hydration_enabled', false);
+    
     // Cancel alarms in our ID range
     for (int i = 0; i < 50; i++) {
       try {

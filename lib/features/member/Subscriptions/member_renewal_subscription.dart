@@ -230,8 +230,14 @@ class _MemberSubscriptionScreenState extends State<MemberSubscriptionScreen> {
     };
 
     final batch = _firestore.batch();
-    batch.set(userRef, subscriptionPayload, SetOptions(merge: true));
-    batch.set(memberRef, subscriptionPayload, SetOptions(merge: true));
+    
+    // Only activate subscription immediately for Online payments
+    if (isOnline) {
+      batch.set(userRef, subscriptionPayload, SetOptions(merge: true));
+      batch.set(memberRef, subscriptionPayload, SetOptions(merge: true));
+    }
+    
+    // Always record the transaction attempt
     batch.set(userPaymentsRef, paymentDocData);
 
     try {
@@ -243,6 +249,7 @@ class _MemberSubscriptionScreenState extends State<MemberSubscriptionScreen> {
           'memberEmail': _memberEmail,
           'planName': plan['name'] ?? plan['planName'],
           'amount': price,
+          'durationDays': durationDays,
           'method': 'Cash',
           'status': 'Pending',
           'isRenewal': _hasActiveSubscription,

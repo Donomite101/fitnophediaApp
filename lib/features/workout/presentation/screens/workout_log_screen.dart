@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:provider/provider.dart';
@@ -25,6 +26,7 @@ class WorkoutLogScreen extends StatefulWidget {
   final String memberId;
   final Map<String, dynamic> workoutData;
   final String? initialDayName;
+  final String? linkedChallengeId;
 
   const WorkoutLogScreen({
     Key? key,
@@ -32,6 +34,7 @@ class WorkoutLogScreen extends StatefulWidget {
     required this.memberId,
     required this.workoutData,
     this.initialDayName,
+    this.linkedChallengeId,
   }) : super(key: key);
 
   @override
@@ -189,7 +192,11 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
     
     // 2. Generate Warmups
     List<Map<String, dynamic>> warmups = [];
-    if (widget.workoutData['customWarmup'] != null && (widget.workoutData['customWarmup'] as List).isNotEmpty) {
+    
+    // Skip warmups for challenges
+    if (widget.linkedChallengeId != null) {
+      warmups = [];
+    } else if (widget.workoutData['customWarmup'] != null && (widget.workoutData['customWarmup'] as List).isNotEmpty) {
       warmups = List<Map<String, dynamic>>.from(widget.workoutData['customWarmup']);
     } else {
       warmups = WarmupService.instance.generateWarmup(mainExercises);
@@ -631,6 +638,28 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
         );
       } catch (e) {
         debugPrint('Recovery score update error: $e');
+      }
+
+      // 2.5) Update Linked Challenge if applicable
+      if (widget.linkedChallengeId != null) {
+        try {
+          await FirebaseFirestore.instance
+              .collection('gyms')
+              .doc(widget.gymId)
+              .collection('members')
+              .doc(widget.memberId)
+              .collection('achievements')
+              .doc('challenges')
+              .collection('items')
+              .doc(widget.linkedChallengeId)
+              .set({
+            'status': 'completed',
+            'progressValue': 1, // Assuming binary completion for single workout challenges
+            'completedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        } catch (e) {
+          debugPrint("Error updating linked challenge: $e");
+        }
       }
 
       // 3) Show completion overlay

@@ -332,130 +332,156 @@ class _DailyDietPlanScreenState extends State<DailyDietPlanScreen> {
             right: 24,
             top: 24,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildSheetHeader(context, textColor),
-              const SizedBox(height: 28),
-              if (isLoading)
-                const Center(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24),
-                    child: CircularProgressIndicator(color: Color(0xFF2E7D32)),
-                  ),
-                )
-              else
-                _buildACTIONButtonFull(
-                  icon: Iconsax.scan_barcode,
-                  label: "SCAN FOOD BARCODE",
-                  subLabel: "Instant data from Edamam Database",
-                  color: const Color(0xFF34495E),
-                  onTap: () async {
-                    Navigator.push(
-                      context, 
-                      MaterialPageRoute(
-                        builder: (context) => FoodScannerWidget(
-                          onScan: (barcode) async {
-                            setModalState(() => isLoading = true);
-                            try {
-                              final result = await _api.searchByBarcode(barcode);
-                              if (result != null) {
-                                setModalState(() {
-                                  currentResult = result;
-                                  nameController.text = result.name ?? "Product ($barcode)";
-                                  calorieController.text = result.calories.toStringAsFixed(0);
-                                  proController.text = result.protein.toStringAsFixed(1);
-                                  carbController.text = result.carbs.toStringAsFixed(1);
-                                  fatController.text = result.fat.toStringAsFixed(1);
-                                });
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSheetHeader(context, textColor),
+                const SizedBox(height: 28),
+                if (isLoading)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24),
+                      child: CircularProgressIndicator(color: Color(0xFF2E7D32)),
+                    ),
+                  )
+                else
+                  _buildACTIONButtonFull(
+                    icon: Iconsax.scan_barcode,
+                    label: "SCAN FOOD BARCODE",
+                    subLabel: "Instant data from Edamam Database",
+                    color: const Color(0xFF34495E),
+                    onTap: () async {
+                      Navigator.push(
+                        context, 
+                        MaterialPageRoute(
+                          builder: (context) => FoodScannerWidget(
+                            onScan: (barcode) async {
+                              setModalState(() => isLoading = true);
+                              try {
+                                final result = await _api.searchByBarcode(barcode);
+                                if (result != null) {
+                                  setModalState(() {
+                                    currentResult = result;
+                                    nameController.text = result.name ?? "Product ($barcode)";
+                                    calorieController.text = result.calories.toStringAsFixed(0);
+                                    proController.text = result.protein.toStringAsFixed(1);
+                                    carbController.text = result.carbs.toStringAsFixed(1);
+                                    fatController.text = result.fat.toStringAsFixed(1);
+                                  });
+                                }
+                              } finally {
+                                setModalState(() => isLoading = false);
                               }
-                            } finally {
-                              setModalState(() => isLoading = false);
-                            }
-                          },
+                            },
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                const SizedBox(height: 28),
+                Row(
+                  children: [
+                    Expanded(child: Divider(color: textColor.withOpacity(0.1))),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        "QUICK LOG",
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 2.0,
+                          color: textColor.withOpacity(0.4),
                         ),
                       ),
-                    );
-                  },
-                ),
-              const SizedBox(height: 28),
-              Row(
-                children: [
-                  Expanded(child: Divider(color: textColor.withOpacity(0.1))),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(
-                      "QUICK LOG",
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 9,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 2.0,
-                        color: textColor.withOpacity(0.3),
-                      ),
                     ),
-                  ),
-                  Expanded(child: Divider(color: textColor.withOpacity(0.1))),
-                ],
-              ),
-              const SizedBox(height: 20),
-              TextField(
-                controller: nameController,
-                style: TextStyle(color: textColor, fontFamily: 'Outfit', fontWeight: FontWeight.w500),
-                decoration: _inputDecoration("Item Name (e.g. Chicken Salad)", isDarkMode),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                   Expanded(
-                     child: TextField(
-                       controller: calorieController,
-                       keyboardType: TextInputType.number,
-                       style: TextStyle(color: textColor, fontFamily: 'Outfit'),
-                       decoration: _inputDecoration("Kcal", isDarkMode),
-                     ),
-                   ),
-                   const SizedBox(width: 12),
-                   Expanded(
-                     child: TextField(
-                       controller: proController,
-                       keyboardType: TextInputType.number,
-                       style: TextStyle(color: textColor, fontFamily: 'Outfit'),
-                       decoration: _inputDecoration("Protein (g)", isDarkMode),
-                     ),
-                   ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                   Expanded(
-                     child: TextField(
-                       controller: carbController,
-                       keyboardType: TextInputType.number,
-                       style: TextStyle(color: textColor, fontFamily: 'Outfit'),
-                       decoration: _inputDecoration("Carbs (g)", isDarkMode),
-                     ),
-                   ),
-                   const SizedBox(width: 12),
-                   Expanded(
-                     child: TextField(
-                       controller: fatController,
-                       keyboardType: TextInputType.number,
-                       style: TextStyle(color: textColor, fontFamily: 'Outfit'),
-                       decoration: _inputDecoration("Fat (g)", isDarkMode),
-                     ),
-                   ),
-                ],
-              ),
-              if (currentResult != null) ...[
+                    Expanded(child: Divider(color: textColor.withOpacity(0.1))),
+                  ],
+                ),
                 const SizedBox(height: 20),
-                _buildMacroPreviewExtended(currentResult!, isDarkMode),
+                TextField(
+                  controller: nameController,
+                  style: TextStyle(
+                    color: textColor,
+                    fontFamily: 'Outfit',
+                    fontWeight: FontWeight.w500,
+                    fontSize: 15,
+                  ),
+                  decoration: _inputDecoration("Item Name (e.g. Chicken Salad)", isDarkMode),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                     Expanded(
+                       child: TextField(
+                         controller: calorieController,
+                         keyboardType: TextInputType.number,
+                         style: TextStyle(
+                           color: textColor,
+                           fontFamily: 'Outfit',
+                           fontSize: 15,
+                           fontWeight: FontWeight.w500,
+                         ),
+                         decoration: _inputDecoration("Kcal", isDarkMode),
+                       ),
+                     ),
+                     const SizedBox(width: 12),
+                     Expanded(
+                       child: TextField(
+                         controller: proController,
+                         keyboardType: TextInputType.number,
+                         style: TextStyle(
+                           color: textColor,
+                           fontFamily: 'Outfit',
+                           fontSize: 15,
+                           fontWeight: FontWeight.w500,
+                         ),
+                         decoration: _inputDecoration("Protein (g)", isDarkMode),
+                       ),
+                     ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                     Expanded(
+                       child: TextField(
+                         controller: carbController,
+                         keyboardType: TextInputType.number,
+                         style: TextStyle(
+                           color: textColor,
+                           fontFamily: 'Outfit',
+                           fontSize: 15,
+                           fontWeight: FontWeight.w500,
+                         ),
+                         decoration: _inputDecoration("Carbs (g)", isDarkMode),
+                       ),
+                     ),
+                     const SizedBox(width: 12),
+                     Expanded(
+                       child: TextField(
+                         controller: fatController,
+                         keyboardType: TextInputType.number,
+                         style: TextStyle(
+                           color: textColor,
+                           fontFamily: 'Outfit',
+                           fontSize: 15,
+                           fontWeight: FontWeight.w500,
+                         ),
+                         decoration: _inputDecoration("Fat (g)", isDarkMode),
+                       ),
+                     ),
+                  ],
+                ),
+                if (currentResult != null) ...[ const SizedBox(height: 20),
+                  _buildMacroPreviewExtended(currentResult!, isDarkMode),
+                ],
+                const SizedBox(height: 32),
+                _buildSubmitButton(nameController, calorieController, proController, carbController, fatController, currentResult),
               ],
-              const SizedBox(height: 32),
-              _buildSubmitButton(nameController, calorieController, proController, carbController, fatController, currentResult),
-            ],
+            ),
           ),
         ),
       ),

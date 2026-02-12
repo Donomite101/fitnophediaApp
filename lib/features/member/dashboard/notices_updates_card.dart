@@ -9,6 +9,8 @@ class NoticesUpdatesCard extends StatelessWidget {
   final Color textPrimary;
   final Color greyText;
   final Function(String) showSnackbar;
+  final int unreadCount;
+  final DateTime? lastUpdate;
 
   const NoticesUpdatesCard({
     Key? key,
@@ -18,6 +20,8 @@ class NoticesUpdatesCard extends StatelessWidget {
     required this.textPrimary,
     required this.greyText,
     required this.showSnackbar,
+    this.unreadCount = 0,
+    this.lastUpdate,
   }) : super(key: key);
 
   @override
@@ -104,21 +108,31 @@ class NoticesUpdatesCard extends StatelessWidget {
                         ],
                       ),
                     ),
-                    // unread badge placeholder (keeps UI even when zero)
+                    // unread badge
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                       decoration: BoxDecoration(
-                        color: isDark ? Colors.redAccent.withOpacity(0.12) : Colors.red.withOpacity(0.08),
+                        color: unreadCount > 0
+                            ? (isDark ? Colors.redAccent.withOpacity(0.12) : Colors.red.withOpacity(0.08))
+                            : (isDark ? Colors.grey.withOpacity(0.12) : Colors.grey.withOpacity(0.08)),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Row(
                         children: [
-                          Icon(Iconsax.notification, size: 12, color: isDark ? Colors.redAccent : Colors.red),
+                          Icon(
+                            Iconsax.notification,
+                            size: 12,
+                            color: unreadCount > 0
+                                ? (isDark ? Colors.redAccent : Colors.red)
+                                : Colors.grey,
+                          ),
                           const SizedBox(width: 6),
                           Text(
-                            '0', // keep as placeholder; replace when you pass counts
+                            unreadCount > 9 ? '9+' : unreadCount.toString(),
                             style: TextStyle(
-                              color: isDark ? Colors.redAccent : Colors.red,
+                              color: unreadCount > 0
+                                  ? (isDark ? Colors.redAccent : Colors.red)
+                                  : Colors.grey,
                               fontWeight: FontWeight.w800,
                               fontSize: 12,
                             ),
@@ -154,7 +168,9 @@ class NoticesUpdatesCard extends StatelessWidget {
                               Icon(Iconsax.calendar, size: 14, color: subtitleColor),
                               const SizedBox(width: 8),
                               Text(
-                                'Last updated: today',
+                                lastUpdate != null
+                                    ? 'Last updated: ${_formatDate(lastUpdate!)}'
+                                    : 'No updates yet',
                                 style: TextStyle(color: subtitleColor, fontSize: 12),
                               ),
                             ],
@@ -178,5 +194,25 @@ class NoticesUpdatesCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final dateOnly = DateTime(date.year, date.month, date.day);
+
+    if (dateOnly == today) {
+      return 'today';
+    } else if (dateOnly == yesterday) {
+      return 'yesterday';
+    } else {
+      final difference = today.difference(dateOnly).inDays;
+      if (difference < 7) {
+        return '$difference days ago';
+      } else {
+        return '${date.day}/${date.month}/${date.year}';
+      }
+    }
   }
 }

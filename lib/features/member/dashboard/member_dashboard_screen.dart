@@ -25,10 +25,12 @@ import '../../workout/presentation/screens/workout_list_screen.dart';
 import '../challenges/member_challenges_screen.dart';
 import '../chat/ChatScreen.dart';
 import '../diet/screens/daily_diet_plan_screen.dart';
+import '../notices/notice_notification_service.dart';
 import 'workout_section_card.dart';
 import 'diet_plans_card.dart';
 import 'notices_updates_card.dart';
 import 'challenge_card.dart';
+import 'next_meal_card.dart';
 
 class MemberDashboardScreen extends StatefulWidget {
   const MemberDashboardScreen({Key? key}) : super(key: key);
@@ -62,7 +64,7 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
 
   // Notifications & Data
   int _notificationCount = 0;
-  List<Map<String, dynamic>> _notices = [];
+
   List<Map<String, dynamic>> _challenges = [];
   bool _isLoadingChallenges = true;
   Map<String, double> _workoutProgress = {};
@@ -73,6 +75,7 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
   late AnimationController _lottiePulseController;
   StreamSubscription? _notificationSubscription;
   StreamSubscription<int>? _streakSubscription;
+
   Stream<QuerySnapshot>? _yourWorkoutsStream;
 
   // Cache
@@ -131,6 +134,7 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
     _lottiePulseController.dispose();
     _notificationSubscription?.cancel();
     _streakSubscription?.cancel();
+
     _refreshController.dispose();
     super.dispose();
   }
@@ -248,14 +252,14 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
 
   void _initWorkoutsStream() {
     if (_gymId.isNotEmpty && _memberId.isNotEmpty && _yourWorkoutsStream == null) {
+      // Match workout home screen implementation - no orderBy for faster loading
       _yourWorkoutsStream = FirebaseFirestore.instance
           .collection('gyms')
           .doc(_gymId)
           .collection('members')
           .doc(_memberId)
           .collection('workout_plans')
-          .orderBy('createdAt', descending: true)
-          .limit(10)
+          .limit(5)
           .snapshots();
     }
   }
@@ -351,6 +355,7 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
         if (mounted) {
           _setupNotificationListener(gymId, memberId);
           _setupStreakListener(gymId, memberId);
+
         }
       });
 
@@ -476,7 +481,7 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
         _loadStreakData(gymId, memberId),
         _loadStats(gymId, memberId),
         _loadActiveDays(gymId, memberId),
-        _loadNotices(gymId),
+
         _loadChallenges(),
         _loadNotificationCount(gymId, memberId),
       ]);
@@ -677,35 +682,7 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
     return activeDays;
   }
 
-  Future<void> _loadNotices(String gymId) async {
-    try {
-      final noticesSnapshot = await FirebaseFirestore.instance
-          .collection('gyms')
-          .doc(gymId)
-          .collection('notices')
-          .where('expiryDate', isGreaterThanOrEqualTo: Timestamp.now())
-          .orderBy('expiryDate', descending: true)
-          .limit(3)
-          .get();
 
-      final notices = noticesSnapshot.docs.map((doc) {
-        final data = doc.data();
-        return {
-          'id': doc.id,
-          'title': data['title']?.toString() ?? '',
-          'message': data['message']?.toString() ?? '',
-          'date': (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-          'isImportant': data['isImportant'] == true,
-        };
-      }).toList();
-
-      if (mounted) {
-        setState(() => _notices = notices);
-      }
-    } catch (e) {
-      debugPrint('Notices loading error: $e');
-    }
-  }
 
   Future<void> _loadChallenges() async {
     try {
@@ -795,6 +772,8 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
       debugPrint('Notification listener error: $error');
     });
   }
+
+
 
   // ========== REFRESH HANDLER ==========
   Future<void> _onRefresh() async {
@@ -949,9 +928,10 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
   }
 
   Future<void> _navigateToNotifications() async {
-    await _navigateWithThrottle(() async {
-      await Navigator.pushNamed(context, AppRoutes.memberNotifications);
-    });
+    // Direct navigation without throttling for instant response
+    await Navigator.pushNamed(context, AppRoutes.memberNotifications);
+    
+
   }
 
   // ========== UI HELPERS ==========
@@ -1093,6 +1073,11 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
               SliverToBoxAdapter(child: _buildBannerAd(context)),
               SliverToBoxAdapter(child: const SizedBox(height: 16)),
               SliverToBoxAdapter(child: _buildStatsCard(context, isDarkMode)),
+              SliverToBoxAdapter(child: const SizedBox(height: 12)),
+              SliverToBoxAdapter(
+                child: NextMealCard(gymId: _gymId, memberId: _memberId),
+              ),
+
             SliverToBoxAdapter(child: const SizedBox(height: 24)),
             SliverToBoxAdapter(child: _buildYourWorkouts(context)),
               if (_challenges.isNotEmpty) ...[
@@ -1236,90 +1221,27 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
 
 
   Widget _buildBannerAd(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      height: 70, // Compact banner height
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E), // Dark premium background
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
-        image: DecorationImage(
-          image: const AssetImage('assets/images/banner_bg_pattern.png'), // Optional pattern if available
-          fit: BoxFit.cover,
-          opacity: 0.1,
-          onError: (_, __) {}, // Fallback gracefully
+    return GestureDetector(
+      onTap: () {
+        Navigator.pushNamed(context, AppRoutes.memberSubscription);
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 20),
+        height: 100, // Keep the same height
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFD4AF37).withOpacity(0.15), // Golden glow
+              blurRadius: 15,
+              offset: const Offset(0, 8),
+            ),
+          ],
+          image: const DecorationImage(
+            image: AssetImage('assets/ads/ad2.jpg'),
+            fit: BoxFit.cover,
+          ),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF00E676).withOpacity(0.15),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(Iconsax.flash_1, color: Color(0xFF00E676), size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text(
-                  'Fitnophedia Premium',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    fontFamily: 'Outfit',
-                  ),
-                ),
-                Text(
-                  'Unlock advanced analytics',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.6),
-                    fontSize: 11,
-                    fontFamily: 'Outfit',
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF00E676), Color(0xFF00C853)],
-              ),
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF00E676).withOpacity(0.3),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: const Text(
-              'PRO',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 10,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -1577,91 +1499,82 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
   }
 
   // ========== FEATURED WORKOUTS ==========
+  // ========== FEATURED WORKOUTS ==========
   Widget _buildYourWorkouts(BuildContext context) {
     final isDark = _isDarkMode(context);
     final textColor = _textPrimary(context);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                "Your Workouts",
-                style: TextStyle(
-                  fontFamily: 'Outfit',
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: textColor,
-                ),
-              ),
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => WorkoutListScreen(
-                        title: "Your Workouts",
-                        workoutStream: FirebaseFirestore.instance
-                            .collection('gyms')
-                            .doc(_gymId)
-                            .collection('members')
-                            .doc(_memberId)
-                            .collection('workout_plans')
-                            .orderBy('createdAt', descending: true)
-                            .snapshots(),
-                        gymId: _gymId,
-                        memberId: _memberId,
+    return StreamBuilder<QuerySnapshot>(
+      stream: _yourWorkoutsStream ?? FirebaseFirestore.instance
+          .collection('gyms')
+          .doc(_gymId)
+          .collection('members')
+          .doc(_memberId)
+          .collection('workout_plans')
+          .limit(5)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          // Hide section if no workouts
+          return const SizedBox.shrink();
+        }
+
+        final docs = snapshot.data!.docs;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "Your Workouts",
+                    style: TextStyle(
+                      fontFamily: 'Outfit',
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: textColor,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => WorkoutListScreen(
+                            title: "Your Workouts",
+                            workoutStream: FirebaseFirestore.instance
+                                .collection('gyms')
+                                .doc(_gymId)
+                                .collection('members')
+                                .doc(_memberId)
+                                .collection('workout_plans')
+                                .orderBy('createdAt', descending: true)
+                                .snapshots(),
+                            gymId: _gymId,
+                            memberId: _memberId,
+                          ),
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      "See All",
+                      style: TextStyle(
+                        fontFamily: 'Outfit',
+                        color: Color(0xFF00E676),
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                  );
-                },
-                child: const Text(
-                  "See All",
-                  style: TextStyle(
-                    fontFamily: 'Outfit',
-                    color: Color(0xFF00E676),
-                    fontWeight: FontWeight.bold,
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        SizedBox(
-          height: 180, // Matched with Explore Templates
-          child: StreamBuilder<QuerySnapshot>(
-            stream: _yourWorkoutsStream ?? FirebaseFirestore.instance
-                .collection('gyms')
-                .doc(_gymId)
-                .collection('members')
-                .doc(_memberId)
-                .collection('workout_plans')
-                .orderBy('createdAt', descending: true)
-                .limit(10)
-                .snapshots(),
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return Center(child: Text("Error loading plans", style: TextStyle(color: textColor)));
-              }
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator(color: Color(0xFF00E676)));
-              }
-
-              final docs = snapshot.data?.docs ?? [];
-
-              if (docs.isEmpty) {
-                return Padding(
-                  padding: const EdgeInsets.only(left: 20),
-                  child: _buildEmptyWorkoutCard(isDark),
-                );
-              }
-
-              return ListView.builder(
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 180,
+              child: ListView.builder(
                 padding: const EdgeInsets.only(left: 20),
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
@@ -1682,11 +1595,11 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
                     ),
                   );
                 },
-              );
-            },
-          ),
-        ),
-      ],
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 

@@ -13,6 +13,8 @@ import 'staff_management/staff_screen.dart';
 import 'payment_management/payment_management_screen.dart';
 import 'profile/profile_settings_screen.dart';
 import 'notices/notices_screen.dart';
+import 'package:provider/provider.dart';
+import '../../core/services/auth_service.dart';
 import 'classes/classes_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/app_theme.dart';
@@ -818,12 +820,27 @@ class _GymOwnerDashboardState extends State<GymOwnerDashboard> {
 
   /// Logout
   Future<void> _logout() async {
-    await FirebaseAuth.instance.signOut();
-    if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      await authService.logout();
+      
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
           (route) => false,
-    );
+        );
+      }
+    } catch (e) {
+      debugPrint('Logout error: $e');
+      // Fallback
+      await FirebaseAuth.instance.signOut();
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (route) => false,
+        );
+      }
+    }
   }
 
   @override

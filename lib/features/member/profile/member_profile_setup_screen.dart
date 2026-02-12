@@ -136,24 +136,18 @@ class _MemberProfileSetupScreenState extends State<MemberProfileSetupScreen> {
   ];
 
   // Step titles for the complete flow
+  // Revised Step titles (Reduced to 4)
   final List<String> _stepTitles = [
-    'Personal Details',
-    'Birth Date',
-    'Your Gender',
-    'Your Height',
-    'Your Weight',
-    'Body Metrics',
+    'Profile Setup',
+    'Body Stats',
     'Fitness Goals',
-    'Health Info',
-    'Lifestyle'
+    'Health Details'
   ];
 
   @override
   void initState() {
     super.initState();
-    _dayController = FixedExtentScrollController(initialItem: selectedDay - 1);
-    _monthController = FixedExtentScrollController(initialItem: months.indexOf(selectedMonth));
-    _yearController = FixedExtentScrollController(initialItem: currentYear - selectedYear);
+
     _prefillExistingData();
   }
 
@@ -429,8 +423,8 @@ class _MemberProfileSetupScreenState extends State<MemberProfileSetupScreen> {
           .doc(memberId);
 
       // Calculate BMI and other metrics
-      double height = _currentHeight;
-      double weight = _currentWeight;
+      double height = double.tryParse(_heightController.text) ?? 0;
+      double weight = double.tryParse(_weightController.text) ?? 0;
       double bmi = height > 0 ? weight / ((height / 100) * (height / 100)) : 0;
 
       // Calculate BMR (Basal Metabolic Rate)
@@ -519,6 +513,30 @@ class _MemberProfileSetupScreenState extends State<MemberProfileSetupScreen> {
         'aiTrainingDataReady': true,
       };
 
+      // Fetch current data to preserve existing subscription info or set defaults
+      final currentDoc = await memberRef.get();
+      final currentData = currentDoc.data() ?? {};
+
+      // Ensure subscription fields exist
+      if (!profileData.containsKey('subscriptionStatus') && !currentData.containsKey('subscriptionStatus')) {
+        profileData['subscriptionStatus'] = 'inactive';
+      }
+      if (!profileData.containsKey('hasOngoingSubscription') && !currentData.containsKey('hasOngoingSubscription')) {
+        profileData['hasOngoingSubscription'] = false;
+      }
+      if (!profileData.containsKey('subscriptionPlan') && !currentData.containsKey('subscriptionPlan')) {
+        profileData['subscriptionPlan'] = null;
+      }
+      if (!profileData.containsKey('subscriptionPrice') && !currentData.containsKey('subscriptionPrice')) {
+        profileData['subscriptionPrice'] = 0.0;
+      }
+      if (!profileData.containsKey('paymentType') && !currentData.containsKey('paymentType')) {
+        profileData['paymentType'] = null;
+      }
+      if (!profileData.containsKey('subscriptionEndDate') && !currentData.containsKey('subscriptionEndDate')) {
+        profileData['subscriptionEndDate'] = null;
+      }
+      
       await memberRef.update(profileData);
 
       // Navigate based on subscription status
@@ -599,21 +617,11 @@ class _MemberProfileSetupScreenState extends State<MemberProfileSetupScreen> {
       case 0:
         return _buildPersonalDetailsStep();
       case 1:
-        return _buildBirthDateStep();
+        return _buildStatsStep();
       case 2:
-        return _buildGenderStep();
+        return _buildGoalsStep();
       case 3:
-        return _buildHeightStep();
-      case 4:
-        return _buildWeightStep();
-      case 5:
-        return _buildBodyMetricsStep();
-      case 6:
-        return _buildFitnessGoalsStep();
-      case 7:
-        return _buildHealthInfoStep();
-      case 8:
-        return _buildLifestyleStep();
+        return _buildHealthLifestyleStep();
       default:
         return _buildPersonalDetailsStep();
     }
@@ -738,244 +746,103 @@ class _MemberProfileSetupScreenState extends State<MemberProfileSetupScreen> {
     );
   }
 
-  Widget _buildBirthDateStep() {
+  // --- Consolidated Steps ---
+
+  // Step 2: Body Stats (Combined DOB, Gender, Height, Weight)
+  Widget _buildStatsStep() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 40),
-
-          const Text(
-            "What's your Birthday?",
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+          _buildSectionHeader(
+            'Body Statistics',
+            'We need these to calculate your BMI and metabolic rate.'
           ),
-
-          const SizedBox(height: 12),
-
-          Text(
-            'Your birthday helps us customize your experience based on your age',
-            style: TextStyle(fontSize: 16, color: Colors.black.withOpacity(0.6)),
+          
+          // Gender
+          Text('Gender', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(child: _buildCompactGenderSelect('Male', Icons.male)),
+              const SizedBox(width: 12),
+              Expanded(child: _buildCompactGenderSelect('Female', Icons.female)),
+            ],
           ),
+          const SizedBox(height: 20),
 
-          const SizedBox(height: 50),
-
-          // Beautiful 3-wheel date picker with center highlight and fade effects
-          Center(
-            child: SizedBox(
-              height: 220,
-              child: Stack(
+          // Date of Birth
+          Text('Date of Birth', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+          const SizedBox(height: 8),
+          InkWell(
+            onTap: () async {
+              final DateTime? picked = await showDatePicker(
+                context: context,
+                initialDate: _dateOfBirth ?? DateTime(1995),
+                firstDate: DateTime(1950),
+                lastDate: DateTime.now(),
+                builder: (context, child) {
+                  return Theme(
+                    data: Theme.of(context).copyWith(
+                      colorScheme: ColorScheme.light(primary: AppTheme.primaryGreen),
+                    ),
+                    child: child!,
+                  );
+                },
+              );
+              if (picked != null) setState(() => _dateOfBirth = picked);
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(12),
+                color: Colors.white,
+              ),
+              child: Row(
                 children: [
-                  // Background container
-                  Container(
-                    height: 220,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                  ),
-
-                  // Top fade effect
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: 80,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(20),
-                          topRight: Radius.circular(20),
-                        ),
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.white.withOpacity(0.95),
-                            Colors.white.withOpacity(0.1),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // Bottom fade effect
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    height: 80,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: const BorderRadius.only(
-                          bottomLeft: Radius.circular(20),
-                          bottomRight: Radius.circular(20),
-                        ),
-                        gradient: LinearGradient(
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
-                          colors: [
-                            Colors.white.withOpacity(0.95),
-                            Colors.white.withOpacity(0.1),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // Center highlight bar (rounded capsule)
-                  Center(
-                    child: Container(
-                      height: 60,
-                      margin: const EdgeInsets.symmetric(horizontal: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                  ),
-
-                  // Date wheels
-                  Row(
-                    children: [
-                      // Day wheel
-                      _buildDateWheel(
-                        items: List.generate(31, (i) => (i + 1).toString().padLeft(2, '0')),
-                        controller: _dayController,
-                        selectedValue: selectedDay.toString().padLeft(2, '0'),
-                        onChanged: (index) => setState(() => selectedDay = index + 1),
-                      ),
-
-                      _verticalDivider(),
-
-                      // Month wheel
-                      _buildDateWheel(
-                        items: months,
-                        controller: _monthController,
-                        selectedValue: selectedMonth,
-                        onChanged: (index) => setState(() => selectedMonth = months[index]),
-                      ),
-
-                      _verticalDivider(),
-
-                      // Year wheel
-                      _buildDateWheel(
-                        items: List.generate(100, (i) => (currentYear - i).toString()),
-                        controller: _yearController,
-                        selectedValue: selectedYear.toString(),
-                        onChanged: (index) => setState(() => selectedYear = currentYear - index),
-                      ),
-                    ],
+                  Icon(Icons.calendar_today, color: AppTheme.primaryGreen, size: 20),
+                  const SizedBox(width: 12),
+                  Text(
+                    _dateOfBirth == null 
+                      ? 'Select Date of Birth' 
+                      : DateFormat('MMMM d, yyyy').format(_dateOfBirth!),
+                    style: TextStyle(fontSize: 16, color: Colors.black87),
                   ),
                 ],
               ),
             ),
           ),
-          const SizedBox(height: 60), // Extra bottom space
-        ],
-      ),
-    );
-  }
+          const SizedBox(height: 20),
 
-// Helper widgets
-  Widget _buildDateWheel({
-    required List<String> items,
-    required FixedExtentScrollController controller,
-    required String selectedValue,
-    required ValueChanged<int> onChanged,
-  }) {
-    return Expanded(
-      child: ListWheelScrollView.useDelegate(
-        controller: controller,
-        itemExtent: 60,
-        physics: const FixedExtentScrollPhysics(),
-        onSelectedItemChanged: onChanged,
-        perspective: 0.005,
-        childDelegate: ListWheelChildBuilderDelegate(
-          childCount: items.length,
-          builder: (context, index) {
-            final value = items[index];
-            final bool isSelected = value == selectedValue;
-
-            return Center(
-              child: AnimatedOpacity(
-                duration: const Duration(milliseconds: 150),
-                opacity: isSelected ? 1.0 : 0.4,
-                child: AnimatedDefaultTextStyle(
-                  duration: const Duration(milliseconds: 150),
-                  style: TextStyle(
-                    fontSize: isSelected ? 26 : 20,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                    color: isSelected ? Colors.green : Colors.green.withOpacity(0.7),
-                  ),
-                  child: Text(value),
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _verticalDivider() => Container(
-    width: 1,
-    color: Colors.grey.withOpacity(0.2),
-    margin: const EdgeInsets.symmetric(vertical: 20),
-  );
-
-// Add these in your State class
-  late FixedExtentScrollController _dayController;
-  late FixedExtentScrollController _monthController;
-  late FixedExtentScrollController _yearController;
-
-  final List<String> months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  final int currentYear = DateTime.now().year;
-
-  int selectedDay = 20;
-  String selectedMonth = 'Mar';
-  int selectedYear = 1994;
-
-
-  // Step 2: Gender
-  Widget _buildGenderStep() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 40),
-
-          Text(
-            "Select Gender",
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
-            ),
-          ),
-
-          const SizedBox(height: 8),
-
-          Text(
-            'To show you accurate Cyms list',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.black54,
-            ),
-          ),
-
-          const SizedBox(height: 50),
-
-          // Gender options - only Male and Female
+          // Height & Weight Row
           Row(
             children: [
               Expanded(
-                child: _buildGenderCard('Male', Icons.male),
+                child: _buildFormField(
+                  controller: _heightController,
+                  label: 'Height (cm)',
+                  hint: 'cm',
+                  icon: Icons.height,
+                  keyboardType: TextInputType.number,
+                  onChanged: (v) {
+                    if (v.isNotEmpty) setState(() => _currentHeight = double.tryParse(v) ?? 0);
+                  }
+                ),
               ),
-              const SizedBox(width: 20),
+              const SizedBox(width: 16),
               Expanded(
-                child: _buildGenderCard('Female', Icons.female),
+                child: _buildFormField(
+                  controller: _weightController,
+                  label: 'Weight (kg)',
+                  hint: 'kg',
+                  icon: Icons.monitor_weight_outlined,
+                  keyboardType: TextInputType.number,
+                  onChanged: (v) {
+                    if (v.isNotEmpty) setState(() => _currentWeight = double.tryParse(v) ?? 0);
+                  }
+                ),
               ),
             ],
           ),
@@ -984,44 +851,27 @@ class _MemberProfileSetupScreenState extends State<MemberProfileSetupScreen> {
     );
   }
 
-  Widget _buildGenderCard(String gender, IconData icon) {
-    final isSelected = _gender == gender;
-
+  Widget _buildCompactGenderSelect(String label, IconData icon) {
+    final isSelected = _gender == label;
     return GestureDetector(
-      onTap: () => setState(() => _gender = gender),
+      onTap: () => setState(() => _gender = label),
       child: Container(
-        height: 140, // Fixed height for square-like appearance
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
           color: isSelected ? AppTheme.primaryGreen : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected ? AppTheme.primaryGreen : Colors.grey.shade300,
-            width: 2,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: isSelected ? AppTheme.primaryGreen : Colors.grey.shade300),
         ),
-        child: Column(
+        child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              color: isSelected ? Colors.white : AppTheme.primaryGreen,
-              size: 48,
-            ),
-            const SizedBox(height: 12),
+            Icon(icon, color: isSelected ? Colors.white : Colors.grey, size: 20),
+            const SizedBox(width: 8),
             Text(
-              gender,
+              label,
               style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
                 color: isSelected ? Colors.white : Colors.black87,
+                fontWeight: FontWeight.w600
               ),
             ),
           ],
@@ -1029,723 +879,88 @@ class _MemberProfileSetupScreenState extends State<MemberProfileSetupScreen> {
       ),
     );
   }
-  // Step 3: Height
-  Widget _buildHeightStep() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 40),
-          Text(
-            'Your Height',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'We use your height to personalize your fitness and nutrition plan',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.black54,
-            ),
-          ),
-          const SizedBox(height: 40),
 
-          // Height display - matching reference exactly
-          Center(
-            child: Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                color: AppTheme.primaryGreen.withOpacity(0.1),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: AppTheme.primaryGreen.withOpacity(0.3),
-                  width: 2,
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  '${_currentHeight.toStringAsFixed(0)}\ncm',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryGreen,
-                    height: 1.2,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 40),
-
-          // Height value display
-          Center(
-            child: Text(
-              '${_currentHeight.toStringAsFixed(0)} cm',
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.primaryGreen,
-              ),
-            ),
-          ),
-          const SizedBox(height: 40),
-
-          // Height slider with exact markers from reference
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(
-              children: [
-                Slider(
-                  value: _currentHeight,
-                  min: 140,
-                  max: 220,
-                  divisions: 80,
-                  onChanged: (value) => setState(() => _currentHeight = value),
-                  activeColor: AppTheme.primaryGreen,
-                  inactiveColor: Colors.grey.shade300,
-                ),
-                const SizedBox(height: 8),
-                // Height markers - exact values from reference
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    for (int i = 180; i <= 186; i++)
-                      Container(
-                        width: 40,
-                        alignment: Alignment.center,
-                        child: Text(
-                          '$i',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: i == _currentHeight.round() ? AppTheme.primaryGreen : Colors.grey,
-                            fontWeight: i == _currentHeight.round() ? FontWeight.bold : FontWeight.normal,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Step 4: Weight
-  Widget _buildWeightStep() {
-    final bmi = _currentHeight > 0 ? _currentWeight / ((_currentHeight / 100) * (_currentHeight / 100)) : 0.0;
-    final bmiCategory = _getBMICategory(bmi);
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 40),
-          Text(
-            'Your Current Weight',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'We use your weight to tailor your fitness and nutrition plan',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.black54,
-            ),
-          ),
-          const SizedBox(height: 30),
-
-          // BMI Scale - matching reference exactly
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade200),
-            ),
-            child: Column(
-              children: [
-                // BMI Categories
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildBMICategory('Underweight', '15'),
-                    _buildBMICategory('Normal', '20'),
-                    _buildBMICategory('Overweight', '25'),
-                    _buildBMICategory('Obese', '30'),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // BMI Progress Bar
-                Container(
-                  height: 8,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.blue.shade400,
-                        Colors.green.shade400,
-                        Colors.orange.shade400,
-                        Colors.red.shade400,
-                      ],
-                      stops: const [0.15, 0.4, 0.65, 1.0],
-                    ),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // BMI Status
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Your BMI shows that you are $bmiCategory',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: AppTheme.primaryGreen,
-                      ),
-                    ),
-                    Text(
-                      'BMI: ${bmi.toStringAsFixed(1)}',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 40),
-
-          // Weight display
-          Center(
-            child: Text(
-              '${_currentWeight.toStringAsFixed(1)} kg',
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.primaryGreen,
-              ),
-            ),
-          ),
-          const SizedBox(height: 40),
-
-          // Weight slider with exact markers from reference
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(
-              children: [
-                Slider(
-                  value: _currentWeight,
-                  min: 40,
-                  max: 150,
-                  divisions: 110,
-                  onChanged: (value) => setState(() => _currentWeight = value),
-                  activeColor: AppTheme.primaryGreen,
-                  inactiveColor: Colors.grey.shade300,
-                ),
-                const SizedBox(height: 8),
-                // Weight markers - exact values from reference
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    for (int i = 64; i <= 68; i++)
-                      Container(
-                        width: 40,
-                        alignment: Alignment.center,
-                        child: Text(
-                          '$i',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: i == _currentWeight.round() ? AppTheme.primaryGreen : Colors.grey,
-                            fontWeight: i == _currentWeight.round() ? FontWeight.bold : FontWeight.normal,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBMICategory(String label, String value) {
-    return Column(
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 10,
-            color: Colors.grey.shade600,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
-        ),
-      ],
-    );
-  }
-
-  // Step 5: Body Metrics
-  Widget _buildBodyMetricsStep() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildSectionHeader(
-              'Body Metrics',
-              'Additional body measurements for precise fitness planning'
-          ),
-          _buildFormField(
-            controller: _targetWeightController,
-            label: 'Target Weight (kg)',
-            hint: 'Your goal weight',
-            icon: Icons.flag,
-            keyboardType: TextInputType.number,
-          ),
-          _buildDropdownField(
-            label: 'Body Type',
-            value: _bodyType,
-            items: ['Ectomorph', 'Mesomorph', 'Endomorph'],
-            onChanged: (value) => setState(() => _bodyType = value),
-            hint: 'Select your body type',
-          ),
-          _buildFormField(
-            controller: _waistController,
-            label: 'Waist Circumference (cm)',
-            hint: 'Enter waist measurement',
-            icon: Icons.straighten,
-            keyboardType: TextInputType.number,
-            onChanged: (value) => _waistCircumference = double.tryParse(value),
-          ),
-          _buildFormField(
-            controller: _hipController,
-            label: 'Hip Circumference (cm)',
-            hint: 'Enter hip measurement',
-            icon: Icons.straighten,
-            keyboardType: TextInputType.number,
-            onChanged: (value) => _hipCircumference = double.tryParse(value),
-          ),
-          _buildFormField(
-            controller: _chestController,
-            label: 'Chest Circumference (cm)',
-            hint: 'Enter chest measurement',
-            icon: Icons.straighten,
-            keyboardType: TextInputType.number,
-            onChanged: (value) => _chestCircumference = double.tryParse(value),
-          ),
-          _buildFormField(
-            controller: _bodyFatController,
-            label: 'Body Fat Percentage',
-            hint: 'Enter body fat percentage',
-            icon: Icons.pie_chart,
-            keyboardType: TextInputType.number,
-            onChanged: (value) => _bodyFatPercentage = double.tryParse(value),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Step 6: Fitness Goals
-  Widget _buildFitnessGoalsStep() {
+  // Step 3: Goals
+  Widget _buildGoalsStep() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         children: [
-          _buildSectionHeader(
-              'Fitness Goals & Experience',
-              'Help us understand your fitness journey and aspirations'
-          ),
-
-          // Fitness Level & Primary Goal (Required)
+          _buildSectionHeader('Fitness Goals', 'Tell us what you want to achieve.'),
+          
           _buildDropdownField(
             label: 'Fitness Level',
             value: _fitnessLevel,
             items: ['Beginner', 'Intermediate', 'Advanced', 'Athlete'],
-            onChanged: (value) => setState(() => _fitnessLevel = value),
+            onChanged: (v) => setState(() => _fitnessLevel = v),
             required: true,
           ),
-
+          
           _buildDropdownField(
-            label: 'Primary Goal',
-            value: _primaryGoal,
-            items: [
-              'Weight Loss',
-              'Muscle Gain',
-              'Endurance',
-              'Strength',
-              'Toning',
-              'General Fitness',
-              'Sports Performance',
-              'Rehabilitation'
-            ],
-            onChanged: (value) => setState(() => _primaryGoal = value),
-            required: true,
+             label: 'Primary Goal',
+             value: _primaryGoal,
+             items: ['Weight Loss', 'Muscle Gain', 'Endurance', 'General Fitness', 'Strength'],
+             onChanged: (v) => setState(() => _primaryGoal = v),
+             required: true,
           ),
 
-          // Specific Goals
           _buildFormField(
-            controller: _goalsController,
-            label: 'Specific Goals',
-            hint: 'Describe your specific fitness goals...',
-            icon: Icons.flag,
-            maxLines: 3,
+            controller: _targetWeightController,
+            label: 'Target Weight (kg)',
+            hint: 'Goal weight',
+            icon: Icons.flag, 
+            keyboardType: TextInputType.number,
           ),
 
-          // Focus Areas
-          _buildMultiSelectChips(
-            label: 'Focus Areas',
+           _buildMultiSelectChips(
+            label: 'Areas to Focus On',
             selectedItems: _focusedAreas,
             options: _focusAreaOptions,
             onSelectionChanged: (items) => setState(() => _focusedAreas = items),
           ),
-
-          // Areas to Avoid
-          _buildMultiSelectChips(
-            label: 'Areas to Avoid',
-            selectedItems: _avoidAreas,
-            options: _avoidAreaOptions,
-            onSelectionChanged: (items) => setState(() => _avoidAreas = items),
-          ),
-
-          // Experience
-          _buildFormField(
-            controller: _previousExperienceController,
-            label: 'Previous Experience',
-            hint: 'Describe your previous fitness experience...',
-            icon: Icons.history,
-            maxLines: 3,
-          ),
-
-          _buildFormField(
-            controller: _currentFitnessRoutineController,
-            label: 'Current Fitness Routine',
-            hint: 'Describe your current workout routine...',
-            icon: Icons.fitness_center,
-            maxLines: 3,
-          ),
-
-          _buildFormField(
-            controller: _favoriteExercisesController,
-            label: 'Favorite Exercises',
-            hint: 'Exercises you enjoy doing...',
-            icon: Icons.favorite,
-            maxLines: 2,
-          ),
-
-          const SizedBox(height: 20),
         ],
       ),
     );
   }
 
-  // Step 7: Health Information
-  Widget _buildHealthInfoStep() {
+  // Step 4: Health & Lifestyle
+  Widget _buildHealthLifestyleStep() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         children: [
-          _buildSectionHeader(
-              'Health Information',
-              'Important health details for safe and effective training'
-          ),
+          _buildSectionHeader('Health & Lifestyle', 'Last step! Any important details?'),
 
-          // Medical Conditions
-          _buildToggleField(
-            label: 'Existing Medical Conditions',
+           _buildToggleField(
+            label: 'Do you have any medical conditions?',
             value: _hasMedicalConditions,
-            onChanged: (value) => setState(() => _hasMedicalConditions = value),
-            description: 'Do you have any medical conditions we should know about?',
+            onChanged: (v) => setState(() => _hasMedicalConditions = v),
           ),
-
-          if (_hasMedicalConditions) ...{
+          
+          if (_hasMedicalConditions)
             _buildFormField(
               controller: _medicalController,
-              label: 'Medical Conditions',
-              hint: 'Describe your medical conditions...',
-              icon: Icons.medical_services,
-              maxLines: 3,
+              label: 'Please specify',
+              hint: 'e.g., Asthma, Back pain...',
+              icon: Icons.medical_services_outlined,
+              maxLines: 2,
             ),
-          },
-
-          // Allergies & Medications
-          _buildFormField(
-            controller: _allergiesController,
-            label: 'Allergies',
-            hint: 'List any allergies...',
-            icon: Icons.warning,
-            maxLines: 2,
+            
+          _buildDropdownField(
+             label: 'Diet Preference',
+             value: _dietType,
+             items: ['None', 'Vegetarian', 'Vegan', 'Keto', 'Paleo'],
+             onChanged: (v) => setState(() => _dietType = v),
+             hint: 'e.g. Vegetarian',
           ),
 
-          _buildFormField(
-            controller: _medicationsController,
-            label: 'Current Medications',
-            hint: 'List current medications...',
-            icon: Icons.medication,
-            maxLines: 2,
-          ),
-
-          // Injury History
           _buildFormField(
             controller: _injuryHistoryController,
-            label: 'Injury History',
-            hint: 'Previous injuries or surgeries...',
+            label: 'Existing Injuries (Optional)',
+            hint: 'Any past injuries?',
             icon: Icons.healing,
-            maxLines: 3,
-          ),
-
-          // Mental Health
-          _buildFormField(
-            controller: _mentalHealthController,
-            label: 'Mental Health Notes',
-            hint: 'Any mental health considerations...',
-            icon: Icons.psychology,
             maxLines: 2,
           ),
-
-          // Medical History Toggles
-          _buildToggleField(
-            label: 'Previous Surgery',
-            value: _previousSurgery,
-            onChanged: (value) => setState(() => _previousSurgery = value),
-          ),
-
-          _buildToggleField(
-            label: 'Family History - Heart Disease',
-            value: _familyHeartDisease,
-            onChanged: (value) => setState(() => _familyHeartDisease = value),
-          ),
-
-          _buildToggleField(
-            label: 'Family History - Diabetes',
-            value: _familyDiabetes,
-            onChanged: (value) => setState(() => _familyDiabetes = value),
-          ),
-
-          // Female-specific
-          if (_gender == 'Female') ...{
-            _buildToggleField(
-              label: 'Pregnant',
-              value: _pregnant,
-              onChanged: (value) => setState(() => _pregnant = value),
-            ),
-          },
-
-          const SizedBox(height: 20),
-        ],
-      ),
-    );
-  }
-
-  // Step 8: Lifestyle
-  Widget _buildLifestyleStep() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        children: [
-          _buildSectionHeader(
-              'Lifestyle & Habits',
-              'Daily habits that impact your fitness journey'
-          ),
-
-          // Diet Information
-          _buildDropdownField(
-            label: 'Diet Type',
-            value: _dietType,
-            items: [
-              'Omnivore',
-              'Vegetarian',
-              'Vegan',
-              'Pescatarian',
-              'Keto',
-              'Paleo',
-              'Mediterranean',
-              'Flexitarian'
-            ],
-            onChanged: (value) => setState(() => _dietType = value),
-            hint: 'Select your diet type',
-          ),
-
-          _buildFormField(
-            controller: _dietaryController,
-            label: 'Dietary Restrictions',
-            hint: 'Food allergies, intolerances, or restrictions...',
-            icon: Icons.food_bank,
-            maxLines: 2,
-          ),
-
-          // Sleep Information
-          Row(
-            children: [
-              Expanded(
-                child: _buildFormField(
-                  controller: _sleepController,
-                  label: 'Sleep (hours)',
-                  hint: 'Average per night',
-                  icon: Icons.bedtime,
-                  keyboardType: TextInputType.number,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildDropdownField(
-                  label: 'Sleep Quality',
-                  value: _sleepQuality,
-                  items: ['Poor', 'Fair', 'Good', 'Excellent'],
-                  onChanged: (value) => setState(() => _sleepQuality = value),
-                  hint: 'Select quality',
-                ),
-              ),
-            ],
-          ),
-
-          // Water Information
-          Row(
-            children: [
-              Expanded(
-                child: _buildFormField(
-                  controller: _waterController,
-                  label: 'Water (liters)',
-                  hint: 'Daily intake',
-                  icon: Icons.water_drop,
-                  keyboardType: TextInputType.number,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildDropdownField(
-                  label: 'Water Intake Goal',
-                  value: _waterIntakeGoal,
-                  items: ['2L', '3L', '4L', '5L+'],
-                  onChanged: (value) => setState(() => _waterIntakeGoal = value),
-                  hint: 'Select goal',
-                ),
-              ),
-            ],
-          ),
-
-          // Daily Activity
-          _buildFormField(
-            controller: _stepsController,
-            label: 'Daily Steps',
-            hint: 'Average steps per day',
-            icon: Icons.directions_walk,
-            keyboardType: TextInputType.number,
-          ),
-
-          // Mental Wellbeing
-          Row(
-            children: [
-              Expanded(
-                child: _buildDropdownField(
-                  label: 'Stress Level',
-                  value: _stressLevel,
-                  items: ['Low', 'Moderate', 'High', 'Very High'],
-                  onChanged: (value) => setState(() => _stressLevel = value),
-                  hint: 'Select level',
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildDropdownField(
-                  label: 'Energy Level',
-                  value: _energyLevel,
-                  items: ['Very Low', 'Low', 'Moderate', 'High', 'Very High'],
-                  onChanged: (value) => setState(() => _energyLevel = value),
-                  hint: 'Select level',
-                ),
-              ),
-            ],
-          ),
-
-          // Habits
-          _buildToggleField(
-            label: 'Smoker',
-            value: _smoker,
-            onChanged: (value) => setState(() => _smoker = value),
-          ),
-
-          if (_smoker) ...{
-            _buildDropdownField(
-              label: 'Smoking Frequency',
-              value: _smokingFrequency,
-              items: ['Occasionally', 'Daily', 'Several times daily'],
-              onChanged: (value) => setState(() => _smokingFrequency = value),
-              hint: 'Select frequency',
-            ),
-          },
-
-          _buildToggleField(
-            label: 'Alcohol Consumer',
-            value: _alcohol,
-            onChanged: (value) => setState(() => _alcohol = value),
-          ),
-
-          if (_alcohol) ...{
-            _buildDropdownField(
-              label: 'Alcohol Frequency',
-              value: _alcoholFrequency,
-              items: ['Occasionally', 'Weekly', 'Daily'],
-              onChanged: (value) => setState(() => _alcoholFrequency = value),
-              hint: 'Select frequency',
-            ),
-          },
-
-          // Additional Lifestyle
-          _buildDropdownField(
-            label: 'Caffeine Intake',
-            value: _caffeineIntake,
-            items: ['None', '1 cup/day', '2-3 cups/day', '4+ cups/day'],
-            onChanged: (value) => setState(() => _caffeineIntake = value),
-            hint: 'Select intake',
-          ),
-
-          _buildDropdownField(
-            label: 'Supplements',
-            value: _supplements,
-            items: ['None', 'Protein', 'Vitamins', 'Pre-workout', 'Multiple'],
-            onChanged: (value) => setState(() => _supplements = value),
-            hint: 'Select supplements',
-          ),
-
-          _buildDropdownField(
-            label: 'Fitness Tracking',
-            value: _fitnessTracking,
-            items: ['None', 'Smartwatch', 'Fitness App', 'Manual Log'],
-            onChanged: (value) => setState(() => _fitnessTracking = value),
-            hint: 'Select tracking method',
-          ),
-
-          const SizedBox(height: 20),
         ],
       ),
     );
@@ -2206,9 +1421,7 @@ class _MemberProfileSetupScreenState extends State<MemberProfileSetupScreen> {
     _workoutFrequencyController.dispose();
     _workoutDurationController.dispose();
     _motivationLevelController.dispose();
-    _dayController.dispose();
-    _monthController.dispose();
-    _yearController.dispose();
+
     super.dispose();
   }
 }

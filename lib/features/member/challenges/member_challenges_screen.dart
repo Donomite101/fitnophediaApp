@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import '../../workout/presentation/screens/workout_log_screen.dart';
 
 
 class MemberChallengesScreen extends StatefulWidget {
@@ -235,21 +236,18 @@ class _MemberChallengesScreenState extends State<MemberChallengesScreen> {
       ],
     };
 
-    // if (!mounted) return;
-    // Navigator.push(
-    //   context,
-    //   MaterialPageRoute(
-    //     builder: (_) => WorkoutPlayerScreen(
-    //       gymId: widget.gymId,
-    //       memberId: widget.memberId,
-    //       workoutData: workoutData,
-    //       workoutId: workoutKey,
-    //       linkedChallengeId: challengeId,
-    //       linkedChallengeScope: 'global',
-    //       linkedChallengeXp: null,
-    //     ),
-    //   ),
-    // );
+    if (!mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => WorkoutLogScreen(
+          gymId: widget.gymId,
+          memberId: widget.memberId,
+          workoutData: workoutData,
+          linkedChallengeId: challengeId,
+        ),
+      ),
+    );
   }
 
   // ---------- DETAILS SHEET ----------

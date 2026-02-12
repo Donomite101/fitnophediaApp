@@ -198,7 +198,7 @@ class _ManualMealCreateScreenState extends State<ManualMealCreateScreen> {
         ),
         title: Text(
           'Manually Create Plan',
-          style: TextStyle(family: 'Outfit', fontWeight: FontWeight.bold, color: textColor),
+          style: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold, color: textColor),
         ),
         centerTitle: true,
       ),
@@ -280,7 +280,7 @@ class _ManualMealCreateScreenState extends State<ManualMealCreateScreen> {
                         children: const [
                           Icon(Iconsax.tick_circle, size: 24),
                           SizedBox(width: 12),
-                          Text('Save Plan', style: TextStyle(family: 'Outfit', fontSize: 18, fontWeight: FontWeight.bold)),
+                          Text('Save Plan', style: TextStyle(fontFamily: 'Outfit', fontSize: 18, fontWeight: FontWeight.bold)),
                         ],
                       ),
               ),
@@ -372,13 +372,13 @@ class _ManualMealCreateScreenState extends State<ManualMealCreateScreen> {
           value: draft.type,
           isExpanded: true,
           icon: const Icon(Iconsax.arrow_down_1, size: 14),
-          items: _mealTypes.map((type) => DropdownMenuItem(
-            value: type['value'],
+          items: _mealTypes.map((type) => DropdownMenuItem<String>(
+            value: type['value'] as String,
             child: Row(
               children: [
-                Icon(type['icon'], size: 14, color: type['color']),
+                Icon(type['icon'] as IconData, size: 14, color: type['color'] as Color),
                 const SizedBox(width: 8),
-                Text(type['label'], style: TextStyle(fontSize: 13, color: textColor)),
+                Text(type['label'] as String, style: TextStyle(fontSize: 13, color: textColor)),
               ],
             ),
           )).toList(),
@@ -465,7 +465,7 @@ class _ManualMealCreateScreenState extends State<ManualMealCreateScreen> {
   Widget _buildSectionLabel(String text) {
     return Text(
       text,
-      style: const TextStyle(family: 'Outfit', fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.2, color: Colors.grey),
+      style: const TextStyle(fontFamily: 'Outfit', fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.2, color: Colors.grey),
     );
   }
 
@@ -484,7 +484,7 @@ class _ManualMealCreateScreenState extends State<ManualMealCreateScreen> {
       child: TextField(
         controller: controller,
         onChanged: onChanged,
-        style: TextStyle(family: 'Outfit', fontSize: 15, color: isDark ? Colors.white : Colors.black),
+        style: TextStyle(fontFamily: 'Outfit', fontSize: 15, color: isDark ? Colors.white : Colors.black),
         decoration: InputDecoration(
           hintText: hint,
           hintStyle: TextStyle(color: Colors.grey.withOpacity(0.5)),

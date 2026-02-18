@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:fitnophedia/core/utils/class_image_helper.dart';
 
 import '../../../core/app_theme.dart';
 
@@ -27,6 +29,7 @@ class _ClassesScreenState extends State<ClassesScreen> with SingleTickerProvider
   String _selectedLevel = 'all';
   String _selectedDay = 'all';
   String _selectedStatus = 'all';
+  String _selectedTrainerId = 'all';
 
   // Calendar
   CalendarFormat _calendarFormat = CalendarFormat.week;
@@ -231,6 +234,7 @@ class _ClassesScreenState extends State<ClassesScreen> with SingleTickerProvider
     }).where((c) {
       final name = (c['className'] ?? '').toString().toLowerCase();
       final trainer = (c['trainer'] ?? '').toString().toLowerCase();
+      final trainerId = (c['trainerId'] ?? '').toString();
       final query = _searchQuery.toLowerCase();
 
       final matchesSearch = query.isEmpty || name.contains(query) || trainer.contains(query);
@@ -238,8 +242,9 @@ class _ClassesScreenState extends State<ClassesScreen> with SingleTickerProvider
       final matchesLevel = _selectedLevel == 'all' || c['level'] == _selectedLevel;
       final matchesDay = _selectedDay == 'all' || (c['days'] as List<dynamic>?)?.contains(_selectedDay) == true;
       final matchesStatus = _selectedStatus == 'all' || _getClassStatus(c) == _selectedStatus;
+      final matchesTrainer = _selectedTrainerId == 'all' || trainerId == _selectedTrainerId;
 
-      return matchesSearch && matchesCategory && matchesLevel && matchesDay && matchesStatus;
+      return matchesSearch && matchesCategory && matchesLevel && matchesDay && matchesStatus && matchesTrainer;
     }).toList();
   }
 
@@ -404,7 +409,7 @@ class _ClassesScreenState extends State<ClassesScreen> with SingleTickerProvider
             childAspectRatio: 1.1,
             children: [
               _buildAnalyticsCard('Total Classes', '${analytics['totalClasses']}', Icons.class_, AppTheme.primaryGreen),
-              _buildAnalyticsCard('Total Revenue', '\$${analytics['totalRevenue'].toStringAsFixed(2)}', Icons.attach_money, Colors.amber),
+              _buildAnalyticsCard('Total Revenue', '₹${analytics['totalRevenue'].toStringAsFixed(2)}', Icons.currency_rupee, Colors.amber),
               _buildAnalyticsCard('Avg Occupancy', '${analytics['avgOccupancy'].toStringAsFixed(1)}%', Icons.trending_up, Colors.cyan),
               _buildAnalyticsCard('Participants', '${analytics['totalParticipants']}', Icons.people, Colors.blue),
             ],
@@ -599,7 +604,7 @@ class _ClassesScreenState extends State<ClassesScreen> with SingleTickerProvider
             ),
             const SizedBox(width: 8),
             Text(
-              '\$${revenue.toStringAsFixed(0)}',
+              '₹${revenue.toStringAsFixed(0)}',
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
             ),
           ],
@@ -618,124 +623,124 @@ class _ClassesScreenState extends State<ClassesScreen> with SingleTickerProvider
     final status = _getClassStatus(c);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12, left: 16, right: 16),
+      margin: const EdgeInsets.only(bottom: 16, left: 16, right: 16),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.14)),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(color: color.withOpacity(0.2)),
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
-        leading: Container(
-          width: 50,
-          height: 50,
-          decoration: BoxDecoration(color: color.withOpacity(0.12), shape: BoxShape.circle),
-          child: Icon(Icons.fitness_center, color: color),
-        ),
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                c['className'] ?? '',
-                style: TextStyle(
-                    color: Theme.of(context).textTheme.bodyLarge?.color,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(width: 8),
-            _buildStatusBadge(status),
-          ],
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 4),
-            Text(
-              '${c['time']} • ${c['trainer']}',
-              style: TextStyle(color: Colors.grey[400], fontSize: 13),
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(color: color.withOpacity(0.08), borderRadius: BorderRadius.circular(8)),
-                  child: Text(
-                    _getLevelDisplayName(c['level']),
-                    style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600),
+      child: InkWell(
+        onTap: () => _showClassDetails(c),
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 54,
+                    height: 54,
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Icon(Icons.sports_rounded, color: color, size: 28),
                   ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(color: Colors.grey[800], borderRadius: BorderRadius.circular(8)),
-                  child: Text(
-                    _getCategoryDisplayName(c['category']),
-                    style: const TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: Wrap(
-                    spacing: 4,
-                    children: (c['days'] as List? ?? []).map<Widget>((d) =>
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(color: color.withOpacity(0.08), borderRadius: BorderRadius.circular(4)),
-                          child: Text(
-                            d,
-                            style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          c['className'] ?? '',
+                          style: GoogleFonts.montserrat(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
-                        )
-                    ).toList(),
-                  ),
-                ),
-                Text(
-                  isFull ? 'FULL' : '$participants/$capacity',
-                  style: TextStyle(
-                      color: isFull ? AppTheme.primaryGreen : Theme.of(context).textTheme.bodyLarge?.color,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600
-                  ),
-                ),
-                if (waitlist > 0)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 4),
-                    child: Text(
-                      '+$waitlist',
-                      style: const TextStyle(color: Colors.orange, fontSize: 10),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${c['time']} • ${c['trainer']}',
+                          style: GoogleFonts.inter(
+                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Container(
-              height: 6,
-              decoration: BoxDecoration(color: Colors.grey[800], borderRadius: BorderRadius.circular(3)),
-              child: FractionallySizedBox(
-                alignment: Alignment.centerLeft,
-                widthFactor: progress,
-                child: Container(
-                  decoration: BoxDecoration(
-                      color: isFull ? Colors.orange : color,
-                      borderRadius: BorderRadius.circular(3)
+                  _buildStatusBadge(status),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  _buildMiniInfo(Icons.calendar_today_rounded, (c['days'] as List? ?? []).join(', '), color),
+                  const SizedBox(width: 16),
+                  _buildMiniInfo(Icons.location_on_rounded, c['room'] ?? 'Studio A', color),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    isFull ? 'FULLY BOOKED' : '$participants / $capacity booked',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: isFull ? Colors.orange : AppTheme.primaryGreen,
+                    ),
                   ),
+                  if (waitlist > 0)
+                    Text(
+                      '$waitlist in waitlist',
+                      style: GoogleFonts.inter(fontSize: 12, color: Colors.orange),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(5),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  backgroundColor: color.withOpacity(0.1),
+                  valueColor: AlwaysStoppedAnimation<Color>(isFull ? Colors.orange : color),
+                  minHeight: 8,
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-        onTap: () => _showClassDetails(c),
       ),
+    );
+  }
+
+  Widget _buildMiniInfo(IconData icon, String text, Color color) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 6),
+        Text(
+          text,
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
     );
   }
 
@@ -842,6 +847,50 @@ class _ClassesScreenState extends State<ClassesScreen> with SingleTickerProvider
                   ),
                 ),
                 const SizedBox(height: 18),
+
+                // Preview Image (with correct helper usage)
+                Container(
+                  height: 140,
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 24),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    image: DecorationImage(
+                      image: ClassImageHelper.isAsset(ClassImageHelper.getCategoryImage(selectedCategory))
+                          ? AssetImage(ClassImageHelper.getCategoryImage(selectedCategory)) as ImageProvider
+                          : NetworkImage(ClassImageHelper.getCategoryImage(selectedCategory)),
+                      fit: BoxFit.cover,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
+                      ),
+                    ),
+                    padding: const EdgeInsets.all(16),
+                    alignment: Alignment.bottomLeft,
+                    child: Text(
+                      'Thumbnail Preview: ${_getCategoryDisplayName(selectedCategory)}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        shadows: [Shadow(color: Colors.black, blurRadius: 4)],
+                      ),
+                    ),
+                  ),
+                ),
 
                 // Class Name
                 _buildFormField(controller: nameCtrl, label: 'Class Name', hint: 'Morning Yoga'),
@@ -981,6 +1030,7 @@ class _ClassesScreenState extends State<ClassesScreen> with SingleTickerProvider
                             'color': '#${selectedColor.value.toRadixString(16).substring(2).toUpperCase()}',
                             'description': descCtrl.text.trim(),
                             'category': selectedCategory,
+                            'imageUrl': ClassImageHelper.getCategoryImage(selectedCategory),
                             'level': selectedLevel,
                             'duration': int.tryParse(durationCtrl.text) ?? 60,
                             'price': double.tryParse(priceCtrl.text) ?? 0.0,
@@ -1053,25 +1103,26 @@ class _ClassesScreenState extends State<ClassesScreen> with SingleTickerProvider
             items: _rooms.map<DropdownMenuItem<String>>((room) {
               return DropdownMenuItem<String>(
                 value: room['id'] as String,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      room['name'] as String,
-                      style: TextStyle(
-                        color: Theme.of(context).textTheme.bodyLarge?.color,
-                        fontWeight: FontWeight.w500,
-                      ),
+                child: RichText(
+                  text: TextSpan(
+                    text: room['name'] as String,
+                    style: TextStyle(
+                      color: Theme.of(context).textTheme.bodyLarge?.color,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 16,
                     ),
-                    Text(
-                      'Capacity: ${room['capacity']} • ${room['equipment']}',
-                      style: TextStyle(
-                        color: Colors.grey[400],
-                        fontSize: 12,
+                    children: [
+                      TextSpan(
+                        text: '  (${room['capacity']} • ${room['equipment']})',
+                        style: TextStyle(
+                          color: Colors.grey[400],
+                          fontSize: 12,
+                          fontWeight: FontWeight.normal,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               );
             }).toList(),
@@ -1391,7 +1442,7 @@ class _ClassesScreenState extends State<ClassesScreen> with SingleTickerProvider
                       children: [
                         Expanded(child: _buildInfoCard('Duration', '${classData['duration'] ?? 60} min', Icons.timer, color)),
                         const SizedBox(width: 12),
-                        Expanded(child: _buildInfoCard('Price', '\$${classData['price']?.toStringAsFixed(2) ?? '0.00'}', Icons.attach_money, AppTheme.primaryGreen)),
+                        Expanded(child: _buildInfoCard('Price', '₹${classData['price']?.toStringAsFixed(2) ?? '0.00'}', Icons.currency_rupee, AppTheme.primaryGreen)),
                       ],
                     ),
                     const SizedBox(height: 30),
@@ -1984,6 +2035,25 @@ class _ClassesScreenState extends State<ClassesScreen> with SingleTickerProvider
     );
   }
 
+  Widget _buildEmptyState(String msg, IconData icon) {
+    return Center(
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 64, color: Colors.grey),
+            const SizedBox(height: 16),
+            Text(
+              msg,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.grey, fontSize: 16),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   List<Map<String, dynamic>> _getClassesForDate(List<Map<String, dynamic>> classes, DateTime date) {
     final dayName = DateFormat('EEE').format(date);
     return classes.where((classData) {
@@ -1992,192 +2062,245 @@ class _ClassesScreenState extends State<ClassesScreen> with SingleTickerProvider
     }).toList();
   }
 
-  // Helper function for table_calendar
-  bool isSameDay(DateTime? a, DateTime? b) {
-    if (a == null || b == null) return false;
-    return a.year == b.year && a.month == b.month && a.day == b.day;
-  }
-
-  // =========================== TEMPLATES VIEW ===========================
-  Widget _buildTemplatesView() {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Text(
-            'Class Templates',
-            style: TextStyle(
-                color: Theme.of(context).textTheme.bodyLarge?.color,
-                fontSize: 18,
-                fontWeight: FontWeight.bold
-            ),
-          ),
-        ),
-        Expanded(
-          child: _classTemplates.isEmpty
-              ? _buildEmptyState('No templates yet\nCreate a class and save it as template', Icons.library_books)
-              : ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: _classTemplates.length,
-            itemBuilder: (context, index) {
-              final template = _classTemplates[index];
-              final color = _getColorFromHex(template['color'] ?? '#FFFF6B35');
-
-              return Card(
-                color: Theme.of(context).cardColor,
-                child: ListTile(
-                  leading: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(color: color.withOpacity(0.2), shape: BoxShape.circle),
-                    child: Icon(Icons.library_books, color: color),
-                  ),
-                  title: Text(
-                    template['name'],
-                    style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
-                  ),
-                  subtitle: Text('${_getCategoryDisplayName(template['category'])} • ${template['duration']} min'),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: Icon(Icons.play_arrow, color: AppTheme.primaryGreen),
-                        onPressed: () => _createFromTemplate(template),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.delete, color: Colors.red),
-                        onPressed: () => _deleteTemplate(template),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  void _createFromTemplate(Map<String, dynamic> template) {
-    // Pre-fill the add class dialog with template data
-    _showAddClassDialog(); // This would need modification to accept template data
-  }
-
-  void _deleteTemplate(Map<String, dynamic> template) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text('Delete "${template['name']}"?'),
-        content: const Text('This template will be permanently deleted.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () async {
-              await _firestore.collection('gyms/$_gymId/class_templates').doc(template['id']).delete();
-              if (mounted) {
-                Navigator.pop(context);
-                _loadClassTemplates();
-              }
-            },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // =========================== MAIN VIEWS ===========================
-  Widget _buildListView(List<Map<String, dynamic>> classes) {
-    return Column(
-      children: [
-        _buildSearchAndFilters(),
-        Expanded(
-          child: classes.isEmpty
-              ? _buildEmptyState('No matching classes', Icons.search_off)
-              : ListView.builder(
-            itemCount: classes.length,
-            itemBuilder: (_, i) => _buildClassCard(classes[i]),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildEmptyState(String msg, IconData icon) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 64, color: Colors.grey),
-          const SizedBox(height: 16),
-          Text(
-            msg,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.grey, fontSize: 16),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? Colors.black : theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        title: const Text('Fitness Classes', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        backgroundColor: isDark ? Colors.black : theme.appBarTheme.backgroundColor,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: AppTheme.primaryGreen,
-          labelColor: AppTheme.primaryGreen,
-          unselectedLabelColor: Colors.grey,
-          tabs: const [
-            Tab(text: 'LIST', icon: Icon(Icons.list)),
-            Tab(text: 'CALENDAR', icon: Icon(Icons.calendar_today)),
-            Tab(text: 'ANALYTICS', icon: Icon(Icons.analytics)),
-            Tab(text: 'TEMPLATES', icon: Icon(Icons.library_books)),
-          ],
-        ),
-      ),
-      body: _gymId == null
-          ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryGreen))
-          : StreamBuilder<QuerySnapshot>(
-        stream: _classesStream(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: AppTheme.primaryGreen));
-          }
-
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return _buildEmptyState('No classes yet\nTap + to create your first class', Icons.fitness_center);
-          }
-
-          final docs = snapshot.data!.docs;
-          final filtered = _filterClasses(docs);
-          final allClasses = docs.map((d) => {...d.data() as Map<String, dynamic>, 'id': d.id}).toList();
-
-          return TabBarView(
-            controller: _tabController,
-            children: [
-              _buildListView(filtered),
-              _buildCalendarView(allClasses),
-              _buildAnalyticsView(allClasses),
-              _buildTemplatesView(),
+      backgroundColor: theme.scaffoldBackgroundColor,
+      body: CustomScrollView(
+        slivers: [
+          // PREMIUM HEADER
+          SliverAppBar(
+            expandedHeight: 180.0,
+            floating: false,
+            pinned: true,
+            backgroundColor: theme.scaffoldBackgroundColor,
+            elevation: 0,
+            automaticallyImplyLeading: false,
+            leading: IconButton(
+              icon: Icon(Icons.arrow_back_ios_new_rounded, color: theme.colorScheme.onSurface),
+              onPressed: () => Navigator.pop(context),
+            ),
+            actions: [
+              IconButton(
+                icon: Icon(Icons.calendar_month_rounded, color: theme.colorScheme.onSurface),
+                onPressed: () => _tabController.animateTo(1),
+              ),
+              IconButton(
+                icon: Icon(Icons.analytics_rounded, color: theme.colorScheme.onSurface),
+                onPressed: () => _tabController.animateTo(2),
+              ),
+              const SizedBox(width: 8),
             ],
-          );
+            flexibleSpace: FlexibleSpaceBar(
+              background: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppTheme.primaryGreen.withOpacity(0.1),
+                      theme.scaffoldBackgroundColor,
+                    ],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Row(
+                        children: [
+                          Text(
+                            'Class Management',
+                            style: GoogleFonts.montserrat(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    _buildTopSearchBar(),
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // TRAINER SELECTION
+          SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: Text(
+                    'Our Instructors',
+                    style: GoogleFonts.montserrat(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _buildTrainersSelectionRow(),
+                const SizedBox(height: 24),
+              ],
+            ),
+          ),
+
+          // CLASS LIST DATA
+          _gymId == null
+              ? const SliverFillRemaining(child: Center(child: CircularProgressIndicator(color: AppTheme.primaryGreen)))
+              : StreamBuilder<QuerySnapshot>(
+            stream: _classesStream(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const SliverFillRemaining(child: Center(child: CircularProgressIndicator(color: AppTheme.primaryGreen)));
+              }
+
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return SliverFillRemaining(child: _buildEmptyState('No classes found.\nAdd your first class today!', Icons.fitness_center_rounded));
+              }
+
+              final filtered = _filterClasses(snapshot.data!.docs);
+
+              if (filtered.isEmpty) {
+                return SliverFillRemaining(child: _buildEmptyState('No classes match your filters.', Icons.search_off_rounded));
+              }
+
+              return SliverList(
+                delegate: SliverChildBuilderDelegate(
+                      (context, index) => _buildClassCard(filtered[index]),
+                  childCount: filtered.length,
+                ),
+              );
+            },
+          ),
+          const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showAddClassDialog,
+        backgroundColor: AppTheme.primaryGreen,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.add_rounded, size: 24),
+        label: Text('Schedule Class', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+        elevation: 6,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+    );
+  }
+
+  Widget _buildTopSearchBar() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: TextField(
+        onChanged: (v) => setState(() => _searchQuery = v),
+        decoration: InputDecoration(
+          hintText: 'Search for classes or trainers...',
+          hintStyle: GoogleFonts.inter(color: Colors.grey, fontSize: 14),
+          prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.primaryGreen),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 16),
+        ),
+        style: GoogleFonts.inter(fontSize: 15),
+      ),
+    );
+  }
+
+  Widget _buildTrainersSelectionRow() {
+    return SizedBox(
+      height: 110,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: _trainers.length + 1,
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return _buildTrainerAvatar('all', 'All', null);
+          }
+          final trainer = _trainers[index - 1];
+          return _buildTrainerAvatar(trainer['id'], trainer['name'], trainer['image']);
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppTheme.primaryGreen,
-        onPressed: _showAddClassDialog,
-        child: const Icon(Icons.add, color: Colors.white),
+    );
+  }
+
+  Widget _buildTrainerAvatar(String id, String name, String? imageUrl) {
+    final isSelected = _selectedTrainerId == id;
+    final firstName = name.split(' ').first;
+
+    return GestureDetector(
+      onTap: () => setState(() => _selectedTrainerId = id),
+      child: Container(
+        width: 80,
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        child: Column(
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected ? AppTheme.primaryGreen : Colors.transparent,
+                  width: 3,
+                ),
+                boxShadow: isSelected
+                    ? [BoxShadow(color: AppTheme.primaryGreen.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))]
+                    : [],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(2),
+                child: CircleAvatar(
+                  backgroundColor: isSelected ? AppTheme.primaryGreen : Colors.grey[300],
+                  backgroundImage: (imageUrl != null && imageUrl.isNotEmpty) ? NetworkImage(imageUrl) : null,
+                  child: (imageUrl == null || imageUrl.isEmpty)
+                      ? Text(
+                    name[0].toUpperCase(),
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : Colors.black54,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  )
+                      : null,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              firstName,
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? AppTheme.primaryGreen : Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+              ),
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -137,7 +137,12 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> with Si
               children: [
                 const CircularProgressIndicator(color: Colors.white),
                 const SizedBox(width: 16),
-                Text("Adding $name and sending welcome email..."),
+                Expanded(
+                  child: Text(
+                    "Adding $name and sending welcome email...",
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ],
             ),
             backgroundColor: AppTheme.primaryGreen,
@@ -746,7 +751,7 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> with Si
       icon = Icons.payment;
     } else if (paymentType == 'cash') {
       color = Colors.orange;
-      icon = Icons.money;
+      icon = Icons.currency_rupee;
     } else {
       color = Colors.grey;
       icon = Icons.help_outline;
@@ -950,7 +955,7 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> with Si
               // Subscription Information Section
               _buildSectionHeader('Subscription Details'),
               _buildDetailItem('Subscription Plan', subscriptionPlan, Icons.assignment, theme),
-              _buildDetailItem('Subscription Price', '\$${subscriptionPrice.toStringAsFixed(2)}', Icons.attach_money, theme),
+              _buildDetailItem('Subscription Price', '₹${subscriptionPrice.toStringAsFixed(2)}', Icons.currency_rupee, theme),
               _buildDetailItem('Payment Type', paymentType, Icons.payment, theme),
 
               if (hasSub) ...[
@@ -1103,7 +1108,7 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> with Si
                     const SizedBox(height: 16),
                     _buildFormField(controller: planCtrl, label: 'Plan', icon: Icons.fitness_center, hint: 'e.g. Premium', theme: theme),
                     const SizedBox(height: 16),
-                    _buildFormField(controller: priceCtrl, label: 'Price', icon: Icons.attach_money, hint: '0.00', keyboardType: TextInputType.numberWithOptions(decimal: true), theme: theme),
+                    _buildFormField(controller: priceCtrl, label: 'Price', icon: Icons.currency_rupee, hint: '0.00', keyboardType: TextInputType.numberWithOptions(decimal: true), theme: theme),
                     const SizedBox(height: 16),
 
                     _buildDropdownField(

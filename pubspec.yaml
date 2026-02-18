@@ -86,6 +86,9 @@ dependencies:
   flutter_markdown: ^0.7.7+1
   on_audio_query: ^2.9.0
   alarm: ^5.1.5
+  showcaseview: ^5.0.1
+  photo_manager: ^3.8.3
+  photo_manager_image_provider: ^2.2.0
 
 flutter:
 
@@ -118,6 +121,7 @@ flutter:
     - assets/Mention-bro.svg
     - assets/exercise/
     - assets/images/meals/
+    - assets/images/categories/
     - assets/images/
     - assets/json/
     - .env

@@ -2034,7 +2034,7 @@ class _GymOnboardingScreenState extends State<GymOnboardingScreen> {
           ),
           child: Column(
             children: [
-              Icon(Icons.attach_money, size: 48, color: Theme.of(context).colorScheme.onSurfaceVariant),
+              Icon(Icons.currency_rupee, size: 48, color: Theme.of(context).colorScheme.onSurfaceVariant),
               const SizedBox(height: 16),
               Text(
                 'No pricing plans added yet',
@@ -2082,7 +2082,7 @@ class _GymOnboardingScreenState extends State<GymOnboardingScreen> {
                     color: _getPlanColor(index),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(Icons.attach_money, color: Colors.white),
+                  child: Icon(Icons.currency_rupee, color: Colors.white),
                 ),
                 title: Text(
                   p['name'],

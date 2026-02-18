@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../../data/providers/workout_provider.dart';
 import '../../data/models/exercise_model.dart';
 import '../screens/saved_workout_detail_screen.dart';
+import '../screens/workout_log_screen.dart';
 
 class UnifiedWorkoutCard extends StatelessWidget {
   final Map<String, dynamic> data;
@@ -44,19 +45,37 @@ class UnifiedWorkoutCard extends StatelessWidget {
         ? DateFormat('MMM d').format((timestamp as Timestamp).toDate())
         : "Unknown";
 
-    // Handle exercises list location
+    // Handle exercises list location (Flattened or Nested)
     int exerciseCount = 0;
-    if (data['exercises'] != null) {
-      exerciseCount = (data['exercises'] as List).length;
+    List? schedule;
+    List? exercises;
+
+    if (data['schedule'] != null) {
+      schedule = data['schedule'] as List;
+    } else if (data['days'] != null) {
+      schedule = data['days'] as List;
     } else if (data['plan'] != null) {
-      if (data['plan']['schedule'] != null) {
-        for (var day in (data['plan']['schedule'] as List)) {
-          if (day['exercises'] != null) {
-            exerciseCount += (day['exercises'] as List).length;
-          }
+      final plan = data['plan'] as Map<String, dynamic>;
+      if (plan['schedule'] != null) schedule = plan['schedule'] as List;
+      else if (plan['days'] != null) schedule = plan['days'] as List;
+    }
+
+    if (schedule != null) {
+      for (var day in schedule) {
+        if (day is Map && day['exercises'] != null) {
+          exerciseCount += (day['exercises'] as List).length;
         }
-      } else if (data['plan']['exercises'] != null) {
-        exerciseCount = (data['plan']['exercises'] as List).length;
+      }
+    } else {
+      if (data['exercises'] != null) {
+        exercises = data['exercises'] as List;
+      } else if (data['plan'] != null && data['plan'] is Map) {
+        final plan = data['plan'] as Map<String, dynamic>;
+        if (plan['exercises'] != null) exercises = plan['exercises'] as List;
+      }
+      
+      if (exercises != null) {
+        exerciseCount = exercises.length;
       }
     }
 
@@ -351,7 +370,7 @@ class UnifiedWorkoutCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontFamily: 'Outfit',
-                            fontSize: 13, // Slightly smaller
+                            fontSize: 20,
                             fontWeight: FontWeight.w600,
                             color: isDark ? Colors.white : Colors.black87,
                           ),
@@ -359,14 +378,14 @@ class UnifiedWorkoutCard extends StatelessWidget {
                         Row(
                           children: [
                             Icon(Iconsax.activity,
-                                size: 10, // Reduced from 12
+                                size: 10,
                                 color: isDark ? Colors.grey : Colors.grey[600]),
                             const SizedBox(width: 4),
                             Text(
                               "$exerciseCount Exercises",
                               style: TextStyle(
                                 fontFamily: 'Outfit',
-                                fontSize: 10, // Reduced from 11
+                                fontSize: 10,
                                 color: isDark ? Colors.grey : Colors.grey[600],
                               ),
                             ),
@@ -397,12 +416,9 @@ class UnifiedWorkoutCard extends StatelessWidget {
                       ],
                     ),
                   ],
-
                 ),
               ),
             ),
-
-
           ],
         ),
       ),

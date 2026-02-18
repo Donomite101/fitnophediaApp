@@ -64,8 +64,11 @@ class _CashApprovalScreenState extends State<CashApprovalScreen> {
   }
 
   // Try to resolve memberId: prefer memberId, fallback to email lookup.
+  // Try to resolve memberId: prefer memberId, fallback to email lookup.
   Future<String?> _resolveMemberId(Map<String, dynamic> data) async {
     final rawMemberId = (data['memberId'] as String?)?.trim();
+    
+    // 1. Try direct ID lookup
     if (rawMemberId != null && rawMemberId.isNotEmpty) {
       final doc = await _firestore
           .collection('gyms')
@@ -73,9 +76,29 @@ class _CashApprovalScreenState extends State<CashApprovalScreen> {
           .collection('members')
           .doc(rawMemberId)
           .get();
-      if (doc.exists) return rawMemberId;
+      if (doc.exists) {
+        debugPrint('✅ Resolved Member ID direct: $rawMemberId');
+        return rawMemberId;
+      }
     }
 
+    // 2. Try lookup by Auth UID (if the raw ID was actually an Auth ID)
+    if (rawMemberId != null && rawMemberId.isNotEmpty) {
+       final authQuery = await _firestore
+          .collection('gyms')
+          .doc(gymId)
+          .collection('members')
+          .where('authUid', isEqualTo: rawMemberId)
+          .limit(1)
+          .get();
+      if (authQuery.docs.isNotEmpty) {
+        final resolvedId = authQuery.docs.first.id;
+        debugPrint('✅ Resolved Member ID via Auth UID: $resolvedId');
+        return resolvedId;
+      }
+    }
+
+    // 3. Try lookup by Email
     final email = (data['memberEmail'] as String?)?.trim();
     if (email != null && email.isNotEmpty) {
       final q = await _firestore
@@ -85,7 +108,11 @@ class _CashApprovalScreenState extends State<CashApprovalScreen> {
           .where('email', isEqualTo: email)
           .limit(1)
           .get();
-      if (q.docs.isNotEmpty) return q.docs.first.id;
+      if (q.docs.isNotEmpty) {
+        final resolvedId = q.docs.first.id;
+        debugPrint('✅ Resolved Member ID via Email: $resolvedId');
+        return resolvedId;
+      }
     }
 
     return null;

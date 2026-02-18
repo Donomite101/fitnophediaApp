@@ -134,6 +134,44 @@ class _NoticesScreenState extends State<NoticesScreen> {
     }
   }
 
+  Future<void> _deleteNotices(List<String> ids) async {
+    if (_gymId == null || ids.isEmpty) return;
+    
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Notice?'),
+        content: const Text('This action cannot be undone. Are you sure you want to permanently delete this notice?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() {
+      _optimisticallyArchived.addAll(ids);
+      _selected.removeAll(ids);
+    });
+
+    try {
+      await Future.wait(ids.map((id) => 
+        _firestore.collection('gyms').doc(_gymId).collection('notices').doc(id).delete()
+      ));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Notice deleted'), backgroundColor: AppTheme.primaryGreen));
+    } catch (e) {
+      setState(() {
+        _optimisticallyArchived.removeAll(ids);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: AppTheme.alertRed));
+    }
+  }
+
   Future<void> _restoreNotices(List<String> ids) async {
     if (_gymId == null || ids.isEmpty) return;
     try {
@@ -770,7 +808,23 @@ class _NoticesScreenState extends State<NoticesScreen> {
             const SizedBox(height: 12),
             Expanded(child: SingleChildScrollView(child: Text(notice['message'], style: TextStyle(fontSize: 16, color: Theme.of(context).textTheme.bodyLarge?.color)))),
             Row(children: [
-              Expanded(child: OutlinedButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () {
+                    Navigator.pop(context); // Close sheet first
+                    _deleteNotices([notice['id']]);
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    side: const BorderSide(color: Colors.red),
+                  ),
+                  child: const Text('Delete'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: ElevatedButton(
@@ -1217,19 +1271,21 @@ class _NoticesScreenState extends State<NoticesScreen> {
                     color: isDark ? const Color(0xFF2C2C2C) : Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     onSelected: (i) async {
-                       if (i == 0) _showEditNoticeDialog(notice, Theme.of(context));
-                        if (i == 1) await _toggleNoticeStatus(id, isActive);
-                        if (i == 2) {
-                          if (isArchived)
-                            await _restoreNotices([id]);
-                          else
-                            await _archiveNotices([id]);
-                        }
+                      if (i == 0) _showEditNoticeDialog(notice, Theme.of(context));
+                      if (i == 1) await _toggleNoticeStatus(id, isActive);
+                      if (i == 2) {
+                        if (isArchived)
+                          await _restoreNotices([id]);
+                        else
+                          await _archiveNotices([id]);
+                      }
+                      if (i == 3) await _deleteNotices([id]);
                     },
                     itemBuilder: (context) => [
                       const PopupMenuItem(value: 0, child: Row(children: [Icon(Iconsax.edit, size: 16), SizedBox(width: 8), Text('Edit')])),
                       PopupMenuItem(value: 1, child: Row(children: [Icon(isActive ? Iconsax.pause : Iconsax.play, size: 16), const SizedBox(width: 8), Text(isActive ? 'Pause' : 'Activate')])),
                       PopupMenuItem(value: 2, child: Row(children: [Icon(isArchived ? Iconsax.arrow_circle_left : Iconsax.archive, size: 16), const SizedBox(width: 8), Text(isArchived ? 'Restore' : 'Archive')])),
+                      const PopupMenuItem(value: 3, child: Row(children: [Icon(Iconsax.trash, size: 16, color: Colors.red), SizedBox(width: 8), Text('Delete', style: TextStyle(color: Colors.red))])),
                     ],
                   ),
               ],

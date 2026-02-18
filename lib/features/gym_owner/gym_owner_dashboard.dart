@@ -18,6 +18,8 @@ import '../../core/services/auth_service.dart';
 import 'classes/classes_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/app_theme.dart';
+import 'package:fitnophedia/features/community/presentation/screens/manage_ads_screen.dart';
+import 'package:fitnophedia/features/community/presentation/screens/community_screen.dart';
 
 class GymOwnerDashboard extends StatefulWidget {
   const GymOwnerDashboard({Key? key}) : super(key: key);
@@ -695,18 +697,19 @@ class _GymOwnerDashboardState extends State<GymOwnerDashboard> {
           .collection('gyms')
           .doc(gymId)
           .collection('classes')
-          .where('date', isGreaterThan: Timestamp.now())
-          .orderBy('date')
-          .limit(5)
+          .limit(20)
           .get();
 
       List<Map<String, dynamic>> upcomingClasses = [];
       for (final doc in classesSnapshot.docs) {
         final data = doc.data();
+        final days = (data['days'] as List?)?.join(', ') ?? '';
+        final timeStr = data['time'] ?? '';
+        
         upcomingClasses.add({
           'name': data['className'] ?? data['name'] ?? 'Fitness Class',
-          'time': _formatTime(data['date'] ?? data['time']),
-          'trainer': data['trainerName'] ?? data['instructor'] ?? 'Trainer',
+          'time': timeStr.isNotEmpty ? '$timeStr ($days)' : 'Not set',
+          'trainer': data['trainer'] ?? data['trainerName'] ?? data['instructor'] ?? 'Trainer',
           'capacity': data['capacity'] ?? data['maxParticipants'] ?? 0,
         });
       }
@@ -1095,6 +1098,7 @@ class _GymOwnerDashboardState extends State<GymOwnerDashboard> {
                 _buildNavItem(Icons.payment, 'Payments', 3, theme),
                 _buildNavItem(Icons.calendar_today, 'Classes', 4, theme),
                 _buildNavItem(Icons.announcement, 'Notices', 5, theme),
+                _buildNavItem(Icons.campaign, 'Community & Ads', 7, theme),
                 _buildNavItem(Icons.settings, 'Profile & Settings', 6, theme),
                 const SizedBox(height: 20),
                 Padding(
@@ -1153,7 +1157,7 @@ class _GymOwnerDashboardState extends State<GymOwnerDashboard> {
           _buildStatItem('Active Members', _memberCount.toString(),
               Icons.people, theme),
           _buildStatItem('Revenue', formattedRevenue,
-              Icons.attach_money, theme),
+              Icons.currency_rupee, theme),
           _buildStatItem('Trainers', _activeTrainers.toString(),
               Icons.fitness_center, theme),
         ],
@@ -1247,6 +1251,8 @@ class _GymOwnerDashboardState extends State<GymOwnerDashboard> {
         return const NoticesScreen();
       case 6:
         return const ProfileSettingsScreen();
+      case 7:
+        return ManageAdsScreen(gymId: _gymId, gymName: _gymName);
       default:
         return _buildDashboardScreen(theme);
     }

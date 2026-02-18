@@ -202,7 +202,7 @@ class _DashboardOverviewTabState extends State<DashboardOverviewTab> {
       {'title': 'Total Gyms', 'value': '$totalGyms', 'icon': Icons.fitness_center, 'color': Colors.blue},
       {'title': 'Active Members', 'value': '$totalMembers', 'icon': Icons.people, 'color': Colors.green},
       {'title': 'Pending Approvals', 'value': '$pendingApprovals', 'icon': Icons.verified_user, 'color': Colors.orange},
-      {'title': 'Total Revenue', 'value': '₹${totalRevenue.toStringAsFixed(0)}', 'icon': Icons.attach_money, 'color': Colors.purple},
+      {'title': 'Total Revenue', 'value': '₹${totalRevenue.toStringAsFixed(0)}', 'icon': Icons.currency_rupee, 'color': Colors.purple},
     ];
 
     return Wrap(

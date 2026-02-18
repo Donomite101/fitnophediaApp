@@ -9,8 +9,10 @@ import 'package:intl/intl.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:showcaseview/showcaseview.dart';
 import '../../../../routes/app_routes.dart';
 import '../../data/providers/workout_provider.dart';
+import 'workout_log_screen.dart';
 import 'saved_workout_detail_screen.dart';
 import '../../../member/streak/service/streak_service.dart';
 import '../../../member/chat/ai_service.dart';
@@ -23,10 +25,13 @@ class WorkoutHomeScreen extends StatefulWidget {
   final String gymId;
   final String memberId;
 
+  final bool forceGuide;
+
   const WorkoutHomeScreen({
     Key? key,
     required this.gymId,
     required this.memberId,
+    this.forceGuide = false,
   }) : super(key: key);
 
   @override
@@ -36,12 +41,21 @@ class WorkoutHomeScreen extends StatefulWidget {
 class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
   String _userName = "Athlete";
   int _streakDays = 0; // Default to 0
-  int _recoveryScore = 85; // Mocked
+  int _recoveryScore = 0;
   Map<String, double> _workoutProgress = {};
   bool _isInitialized = false;
-  String _lastActiveWorkoutName = "Upper Body Power";
-  String _lastActiveWorkoutDifficulty = "Intermediate";
+  String _lastActiveWorkoutName = "";
+  String _lastActiveWorkoutDifficulty = "";
   String? _lastActiveWorkoutId;
+  
+  final ScrollController _scrollController = ScrollController();
+  
+  // Showcase Keys
+  final GlobalKey _todayHeroKey = GlobalKey();
+  final GlobalKey _quickActionsKey = GlobalKey();
+  final GlobalKey _templatesKey = GlobalKey();
+  final GlobalKey _backKey = GlobalKey();
+  BuildContext? _showCaseContext;
 
   @override
   void didChangeDependencies() {
@@ -68,8 +82,30 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
         .collection('members')
         .doc(widget.memberId)
         .collection('workout_plans')
+        .orderBy('createdAt', descending: true)
         .limit(10)
         .snapshots();
+        
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkAndStartShowcase());
+  }
+
+  void _checkAndStartShowcase() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeen = prefs.getBool('has_seen_workout_home_guide_v1') ?? false;
+
+    if (!hasSeen || widget.forceGuide) {
+       // Wait a bit for data to load so UI is stable
+       await Future.delayed(const Duration(milliseconds: 1000));
+       if (mounted && _showCaseContext != null) {
+         ShowCaseWidget.of(_showCaseContext!).startShowCase([
+           _todayHeroKey,
+           _quickActionsKey,
+           _templatesKey,
+           _backKey,
+         ]);
+         if (!hasSeen) prefs.setBool('has_seen_workout_home_guide_v1', true);
+       }
+    }
   }
 
   Future<void> _loadAllWorkoutProgress() async {
@@ -232,46 +268,86 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
     final bgColor = isDark ? const Color(0xFF0A0A0A) : const Color(0xFFF8F9FA);
     final textColor = isDark ? Colors.white : Colors.black;
 
-    return Scaffold(
-      backgroundColor: bgColor,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 1. Header & Consistency Signals
-              _buildHeader(isDark, textColor),
-              const SizedBox(height: 24),
-
-              // 2. The "Today" Card (Hero) - Compact
-              _buildTodayHeroCard(isDark),
-              const SizedBox(height: 16),
-
-              // 3. Quick Actions (Library & Custom)
-              _buildQuickActions(isDark),
-              const SizedBox(height: 24),
-
-              // 4. Program Roadmap
-              _buildProgramRoadmap(isDark, textColor),
-              const SizedBox(height: 24),
-
-              // 5. Coach Insight
-              _buildCoachInsight(isDark),
-              const SizedBox(height: 24),
-
-              // 6. Your Workouts
-              _buildYourWorkouts(isDark, textColor),
-              const SizedBox(height: 24),
-
-              // 7. Explore Templates
-              _buildTemplateSection(isDark, textColor),
-              const SizedBox(height: 24),
-            ],
+    return ShowCaseWidget(
+      builder: (context) {
+        _showCaseContext = context;
+        return Scaffold(
+          backgroundColor: bgColor,
+          appBar: AppBar(
+            backgroundColor: bgColor,
+            elevation: 0,
+            leading: Showcase(
+              key: _backKey,
+              description: 'All set! Tap back to continue your journey.',
+              child: IconButton(
+                icon: Icon(Icons.arrow_back_ios, color: textColor, size: 20),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+            title: Text(
+              "WORKOUTS",
+              style: TextStyle(
+                fontFamily: 'Outfit',
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: textColor,
+              ),
+            ),
+            centerTitle: true,
           ),
-        ),
-      ),
+          body: SafeArea(
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 1. Header & Consistency Signals
+                  _buildHeader(isDark, textColor),
+                  const SizedBox(height: 24),
+
+                  // 2. The "Today" Card (Hero) - Compact
+                  Showcase(
+                    key: _todayHeroKey,
+                    description: 'Start or Resume your latest workout here.',
+                    child: _buildTodayHeroCard(isDark),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // 3. Quick Actions (Library & Custom)
+                  Showcase(
+                    key: _quickActionsKey,
+                    description: 'Browse exercises or create a custom plan.',
+                    child: _buildQuickActions(isDark),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // 4. Program Roadmap
+                  _buildProgramRoadmap(isDark, textColor),
+                  const SizedBox(height: 24),
+
+                  // 5. Coach Insight
+                  _buildCoachInsight(isDark),
+                  const SizedBox(height: 24),
+
+                  // 6. Your Workouts
+                  _buildYourWorkouts(isDark, textColor),
+                  const SizedBox(height: 24),
+
+                  // 7. Explore Templates
+                  Showcase(
+                    key: _templatesKey,
+                    description: 'Try these pre-made workout templates curated by experts.',
+                    child: _buildTemplateSection(isDark, textColor),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -364,6 +440,87 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
   // --- 2. Today Hero Card (Compact) ---
   Widget _buildTodayHeroCard(bool isDark) {
     String? imageUrl;
+    final hasActive = _lastActiveWorkoutId != null || _lastActiveWorkoutName.isNotEmpty;
+    
+    if (!hasActive) {
+      // Return a welcome card or a section explaining how to start
+      return GestureDetector(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => WorkoutListScreen(
+                title: "START YOUR JOURNEY",
+                gymId: widget.gymId,
+                memberId: widget.memberId,
+                workoutStream: FirebaseFirestore.instance
+                    .collection('gyms')
+                    .doc(widget.gymId)
+                    .collection('members')
+                    .doc(widget.memberId)
+                    .collection('workout_plans')
+                    .snapshots(),
+              ),
+            ),
+          );
+        },
+        child: Container(
+          width: double.infinity,
+          height: 140,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: LinearGradient(
+              colors: isDark ? [const Color(0xFF1E1E1E), const Color(0xFF121212)] : [Colors.white, Colors.grey.shade50],
+            ),
+            border: Border.all(color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade200),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF00E676).withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Iconsax.flash_1, color: Color(0xFF00E676), size: 30),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Start Your Journey",
+                        style: TextStyle(
+                          fontFamily: 'Outfit',
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : Colors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Pick a workout below to get started!",
+                        style: TextStyle(
+                          fontFamily: 'Outfit',
+                          fontSize: 13,
+                          color: isDark ? Colors.grey : Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     final assetPath = _getAssetForWorkout(_lastActiveWorkoutName);
     
     // Try to find a matching exercise image for the last active workout if exercises are loaded
@@ -601,7 +758,6 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
   );
 }
 
-  // --- 3. Quick Actions ---
   Widget _buildQuickActions(bool isDark) {
     return Row(
       children: [
@@ -609,7 +765,7 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
           child: _buildAlternativeChip(
             isDark,
             icon: Iconsax.element_3,
-            label: "Exercise Library",
+            label: "Library",
             onTap: () => Navigator.pushNamed(context, AppRoutes.exerciseLibrary),
           ),
         ),
@@ -618,13 +774,17 @@ class _WorkoutHomeScreenState extends State<WorkoutHomeScreen> {
           child: _buildAlternativeChip(
             isDark,
             icon: Iconsax.add_circle,
-            label: "Create Custom",
+            label: "Custom",
             onTap: () {
-               // Direct push to avoid route generator issues
-               Navigator.push(
-                 context,
-                 MaterialPageRoute(builder: (_) => const CreateWorkoutScreen()),
-               );
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => CreateWorkoutScreen(
+                    gymId: widget.gymId,
+                    memberId: widget.memberId,
+                  ),
+                ),
+              );
             },
           ),
         ),

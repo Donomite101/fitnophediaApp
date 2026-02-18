@@ -695,7 +695,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
           (MediaQuery.of(context).size.width > 800 ? 3 : 2),
           crossAxisSpacing: 16,
           mainAxisSpacing: 16,
-          childAspectRatio: 0.75,
+          childAspectRatio: 0.65,
         ),
         itemCount: staff.length,
         itemBuilder: (context, index) => _buildStaffCard(staff[index]),
@@ -811,7 +811,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
               _buildStatusChip(staff.status),
               const SizedBox(height: 5),
               SizedBox(
-                height: 10, // tuned to fit 1-2 lines of small text; tweak as needed
+                height: 36, // Increased height to fit 2 lines of text
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
@@ -1090,62 +1090,71 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
 
   Widget _buildEmptyState() {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 140,
-              height: 140,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [AppTheme.primaryGreen.withOpacity(0.1), AppTheme.primaryGreen.withOpacity(0.05)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 140,
+                height: 140,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppTheme.primaryGreen.withOpacity(0.1),
+                      AppTheme.primaryGreen.withOpacity(0.05)
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  shape: BoxShape.circle,
                 ),
-                shape: BoxShape.circle,
+                child: Icon(
+                  Icons.people_alt_rounded,
+                  size: 70,
+                  color: AppTheme.primaryGreen.withOpacity(0.3),
+                ),
               ),
-              child: Icon(
-                Icons.people_alt_rounded,
-                size: 70,
-                color: AppTheme.primaryGreen.withOpacity(0.3),
+              const SizedBox(height: 24),
+              Text(
+                'No Staff Members Yet',
+                style: GoogleFonts.montserrat(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+                textAlign: TextAlign.center,
               ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'No Staff Members Yet',
-              style: GoogleFonts.montserrat(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.onSurface,
+              const SizedBox(height: 12),
+              Text(
+                'Start building your dream team by adding your first staff member',
+                style: GoogleFonts.inter(
+                  fontSize: 15,
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Start building your dream team by adding your first staff member',
-              style: GoogleFonts.inter(
-                fontSize: 15,
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+              const SizedBox(height: 32),
+              ElevatedButton.icon(
+                onPressed: _showAddStaffSheet,
+                icon: const Icon(Icons.add_rounded, size: 20),
+                label: const Text('Add First Staff Member',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryGreen,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                  elevation: 4,
+                  shadowColor: AppTheme.primaryGreen.withOpacity(0.3),
+                ),
               ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton.icon(
-              onPressed: _showAddStaffSheet,
-              icon: const Icon(Icons.add_rounded, size: 20),
-              label: const Text('Add First Staff Member', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryGreen,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                elevation: 4,
-                shadowColor: AppTheme.primaryGreen.withOpacity(0.3),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1153,35 +1162,41 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
 
   Widget _buildNoResultsState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 100,
-            height: 100,
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
-              shape: BoxShape.circle,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.search_off_rounded,
+                  size: 50,
+                  color:
+                      Theme.of(context).colorScheme.onSurface.withOpacity(0.3)),
             ),
-            child: Icon(Icons.search_off_rounded, size: 50, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3)),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'No staff members found',
-            style: GoogleFonts.inter(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+            const SizedBox(height: 20),
+            Text(
+              'No staff members found',
+              style: GoogleFonts.inter(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Try adjusting your search or filters',
-            style: GoogleFonts.inter(
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+            const SizedBox(height: 8),
+            Text(
+              'Try adjusting your search or filters',
+              style: GoogleFonts.inter(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1304,7 +1319,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                   icon: Icons.work_rounded,
                   children: [
                     _buildDetailItem('Specialization', staff.specialization ?? 'Not specified', Icons.business_center_rounded),
-                    _buildDetailItem('Salary', staff.salary != null ? '\$${staff.salary!.toStringAsFixed(2)}/month' : 'Not set', Icons.attach_money_rounded),
+                    _buildDetailItem('Salary', staff.salary != null ? '₹${staff.salary!.toStringAsFixed(2)}/month' : 'Not set', Icons.currency_rupee_rounded),
                     _buildDetailItem('Join Date', staff.formattedJoinDate, Icons.calendar_today_rounded),
                     _buildDetailItem('Working Days', staff.workingDays.isNotEmpty ? staff.workingDays.join(', ') : 'Not set', Icons.schedule_rounded),
                   ],
@@ -1516,7 +1531,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
             ),
             const SizedBox(height: 18),
 
-            _buildFormField(salaryController, 'Monthly Salary', Icons.attach_money_outlined, TextInputType.number),
+            _buildFormField(salaryController, 'Monthly Salary', Icons.currency_rupee_outlined, TextInputType.number),
             const SizedBox(height: 18),
 
             _buildFormField(specializationController, 'Specialization', Icons.business_center_outlined),
@@ -1715,7 +1730,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
             ),
             const SizedBox(height: 18),
 
-            _buildFormField(salaryController, 'Monthly Salary', Icons.attach_money_outlined, TextInputType.number),
+            _buildFormField(salaryController, 'Monthly Salary', Icons.currency_rupee_outlined, TextInputType.number),
             const SizedBox(height: 18),
 
             _buildFormField(specializationController, 'Specialization', Icons.business_center_outlined),

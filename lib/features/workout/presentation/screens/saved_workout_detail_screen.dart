@@ -315,23 +315,57 @@ class _SavedWorkoutDetailScreenState extends State<SavedWorkoutDetailScreen> {
   }
 
   Widget _buildMainInterface(BuildContext context, bool isDark, Color textColor, Color accentColor) {
-    if (_localWorkoutData['plan'] != null && _localWorkoutData['plan']['schedule'] != null) {
+    // 1. Check for schedule/days (Flattened or Nested)
+    List? schedule;
+    if (_localWorkoutData['schedule'] != null) {
+      schedule = _localWorkoutData['schedule'] as List;
+    } else if (_localWorkoutData['days'] != null) {
+      schedule = _localWorkoutData['days'] as List;
+    } else if (_localWorkoutData['plan'] != null) {
+      final plan = _localWorkoutData['plan'] as Map<String, dynamic>;
+      if (plan['schedule'] != null) schedule = plan['schedule'] as List;
+      else if (plan['days'] != null) schedule = plan['days'] as List;
+    }
+
+    if (schedule != null) {
       return Column(
-        children: (_localWorkoutData['plan']['schedule'] as List).map((day) {
+        children: schedule.map((day) {
+           final dayName = (day['day'] ?? day['name'] ?? 'Day').toString().toUpperCase();
+           final exercises = (day['exercises'] ?? []) as List;
            return Column(
              crossAxisAlignment: CrossAxisAlignment.start,
              children: [
-               Text(day['day'].toString().toUpperCase(), style: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.w900, fontSize: 12, color: accentColor, letterSpacing: 1)),
+               Text(dayName, style: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.w900, fontSize: 12, color: accentColor, letterSpacing: 1)),
                const SizedBox(height: 16),
-               _buildFlexibleList(context, day['exercises'] as List, isDark, textColor, accentColor),
+               exercises.isNotEmpty 
+                   ? _buildFlexibleList(context, exercises, isDark, textColor, accentColor)
+                   : Text("Rest Day / No Exercises", style: TextStyle(color: textColor.withOpacity(0.5))),
                const SizedBox(height: 32),
              ],
            );
         }).toList(),
       );
     }
-    final exercises = (_localWorkoutData['exercises'] ?? _localWorkoutData['plan']['exercises']) as List;
-    return _buildFlexibleList(context, exercises, isDark, textColor, accentColor);
+
+    // 2. Check for exercises list (Flattened or Nested)
+    List? exercises;
+    if (_localWorkoutData['exercises'] != null) {
+      exercises = _localWorkoutData['exercises'] as List;
+    } else if (_localWorkoutData['plan'] != null) {
+      final plan = _localWorkoutData['plan'] as Map<String, dynamic>;
+      if (plan['exercises'] != null) exercises = plan['exercises'] as List;
+    }
+
+    if (exercises != null) {
+      return _buildFlexibleList(context, exercises, isDark, textColor, accentColor);
+    }
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Text("No exercises found", style: TextStyle(color: textColor)),
+      ),
+    );
   }
 
   Widget _buildFlexibleList(BuildContext context, List exercises, bool isDark, Color textColor, Color accentColor) {

@@ -27,7 +27,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _confirmPasswordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
-  bool _isOwner = true; // Toggle between Owner & Member
+  // bool _isOwner = true; // Removed: Only Owner signup allowed now
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
 
@@ -77,11 +77,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> _register() async {
     FocusScope.of(context).unfocus();
 
-    if (_isOwner) {
-      await _registerOwner();
-    } else {
-      await _activateMember();
-    }
+    // Always register as owner
+    await _registerOwner();
   }
 
   Future<void> _registerOwner() async {
@@ -135,71 +132,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  /// Member activation: look up the member record and route to member set-password screen.
-  /// Behaves robustly when offline or when Firestore returns errors.
-  Future<void> _activateMember() async {
-    final email = _emailController.text.trim();
-    if (email.isEmpty || !email.contains('@')) {
-      _showSnack('Enter a valid member email', AppTheme.alertRed);
-      return;
-    }
+  // _activateMember removed
 
-    setState(() => _isLoading = true);
-    try {
-      // Add a short timeout so the UI doesn't hang if Firestore is slow/offline.
-      final query = FirebaseFirestore.instance
-          .collectionGroup('members')
-          .where('email', isEqualTo: email)
-          .limit(1)
-          .get()
-          .timeout(const Duration(seconds: 6));
-
-      final snapshot = await query;
-
-      if (snapshot.docs.isEmpty) {
-        _showSnack('No member found with this email. Ask your gym owner to invite you.', AppTheme.alertRed);
-        return;
-      }
-
-      final memberDoc = snapshot.docs.first;
-      final memberData = memberDoc.data();
-      final gymId = memberDoc.reference.parent.parent?.id;
-
-      final authUid = (memberData['authUid'] ?? '').toString();
-
-      if (authUid.isEmpty) {
-        // route to set password screen (keeps existing behavior)
-        if (!mounted) return;
-        Navigator.pushNamed(
-          context,
-          AppRoutes.memberSetPassword,
-          arguments: {
-            'gymId': gymId,
-            'memberId': memberDoc.id,
-            'data': memberData,
-          },
-        );
-        return;
-      } else {
-        // Member already active
-        _showSnack('This member account is already active. Please sign in.', AppTheme.fitnessOrange);
-        return;
-      }
-    } on FirebaseException catch (e) {
-      debugPrint('Firestore member lookup error: ${e.code} / ${e.message}');
-      final msg = _getFirestoreErrorMessage(e);
-      _showSnack(msg, AppTheme.alertRed);
-    } on SocketException {
-      _showSnack('No internet connection. Please check your network and try again.', AppTheme.alertRed);
-    } on TimeoutException {
-      _showSnack('Server timeout. Please try again in a moment.', AppTheme.alertRed);
-    } catch (e, st) {
-      debugPrint('Unexpected member activation error: $e\n$st');
-      _showSnack('An error occurred while checking member. Try again.', AppTheme.alertRed);
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
 
   // ---------------------------
   // UI helpers
@@ -234,30 +168,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  Widget _roleButton(String title, bool isActive, VoidCallback onTap) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: isActive ? _primaryGreen : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Center(
-            child: Text(
-              title,
-              style: GoogleFonts.poppins(
-                fontWeight: FontWeight.w600,
-                color: isActive ? Colors.white : Colors.grey.shade700,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  // _roleButton removed
+
 
   void _showSnack(String msg, Color color) {
     if (!mounted) return;
@@ -324,13 +236,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
               // Title
               Text(
-                'Create Account',
+                'Gym Owner Registration',
                 style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.w700, color: titleColor),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
               Text(
-                'Join Fitnophedia today',
+                'Register your gym with Fitnophedia',
                 style: GoogleFonts.poppins(fontSize: 13, color: subtitleColor),
                 textAlign: TextAlign.center,
               ),
@@ -340,19 +252,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 key: _formKey,
                 child: Column(
                   children: [
-                    _buildInputContainer(
-                      context: context,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        child: Row(
-                          children: [
-                            _roleButton('Owner', _isOwner, () => setState(() => _isOwner = true)),
-                            const SizedBox(width: 8),
-                            _roleButton('Member', !_isOwner, () => setState(() => _isOwner = false)),
-                          ],
-                        ),
-                      ),
-                    ),
+                    // Role Selection Removed
+
 
                     const SizedBox(height: 14),
 
@@ -391,7 +292,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                     const SizedBox(height: 14),
 
-                    if (_isOwner) ...[
+
                       _buildInputContainer(
                         context: context,
                         child: Padding(
@@ -470,7 +371,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
 
                       const SizedBox(height: 10),
-                    ],
+
 
                     SizedBox(
                       width: double.infinity,
@@ -484,7 +385,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           shadowColor: primary.withOpacity(0.35),
                         ),
                         child: Text(
-                          _isOwner ? 'Create Account' : 'Activate Account',
+                          'Create Account',
                           style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600, color: isDark ? Colors.black : Colors.white),
                         ),
                       ),

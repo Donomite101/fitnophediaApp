@@ -99,7 +99,7 @@ class WorkoutListScreen extends StatelessWidget {
             memberId: memberId,
             isDark: isDark,
             width: double.infinity,
-            height: 320, // Taller card for feed look
+            height: 220, // Reduced from 320 for better density
             margin: EdgeInsets.zero,
           ),
         );

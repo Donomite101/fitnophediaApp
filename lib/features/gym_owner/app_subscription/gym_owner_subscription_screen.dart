@@ -202,7 +202,7 @@ class _GymOwnerSubscriptionScreenState
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, size: 20, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false),
         ),
       ),
       body: _isLoading

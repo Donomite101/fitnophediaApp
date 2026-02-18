@@ -165,11 +165,40 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Future<void> _cacheMemberData(
       Map<String, dynamic> data, SharedPreferences prefs) async {
-    await prefs.setString('memberId', data['_memberId']);
-    await prefs.setString('gymId', data['_gymId']);
+    await prefs.setString('memberId', data['_memberId'] ?? '');
+    await prefs.setString('gymId', data['_gymId'] ?? '');
     await prefs.setBool('profileCompleted', data['profileCompleted'] == true);
-    await prefs.setBool(
-        'hasOngoingSubscription', data['hasOngoingSubscription'] == true);
+    
+    // Robust subscription check matching dashboard logic
+    final subStatus = (data['subscriptionStatus'] as String?)?.toLowerCase();
+    final status = (data['status'] as String?)?.toLowerCase();
+    final hasOngoing = data['hasOngoingSubscription'] == true;
+    final isActive = data['isActive'] == true;
+    final isSubscribed = data['isSubscribed'] == true;
+    
+    bool isPaid = subStatus == 'active' || 
+                 status == 'active' || 
+                 hasOngoing || 
+                 isActive || 
+                 isSubscribed;
+    
+    // Check expiry
+    final expiryRaw = data['expiryDate'] ?? data['subscriptionEndDate'];
+    if (isPaid && expiryRaw != null) {
+      try {
+        DateTime? expiry;
+        if (expiryRaw is Timestamp) {
+          expiry = expiryRaw.toDate();
+        } else if (expiryRaw is String) {
+          expiry = DateTime.tryParse(expiryRaw);
+        }
+        if (expiry != null && expiry.isBefore(DateTime.now())) {
+          isPaid = false;
+        }
+      } catch (_) {}
+    }
+
+    await prefs.setBool('hasOngoingSubscription', isPaid);
     await prefs.setInt('lastMemberVerify', DateTime.now().millisecondsSinceEpoch);
 
     if (data['email'] != null) await prefs.setString('userEmail', data['email']);

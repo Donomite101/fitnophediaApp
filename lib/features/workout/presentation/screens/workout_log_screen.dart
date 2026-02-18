@@ -59,16 +59,16 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
   List<dynamic> _availableDays = [];
   String _selectedDayName = "";
 
-  // Rest Timer
+  // Rest Timer (Count Up)
   Timer? _restTimer;
-  int _restSecondsRemaining = 0;
+  int _restSecondsElapsed = 0;
+  int _restTotalSeconds = 0;
   bool _isResting = false;
   bool _showRestOverlay = false;
   
-  // Warmup Timer
+  // Warmup Timer (Count Up)
   Timer? _warmupTimer;
-  int _warmupSecondsRemaining = 0;
-  int _warmupTotalSeconds = 0;
+  int _warmupSecondsElapsed = 0;
   bool _isWarmupTimerRunning = false;
   
   // Music Mock
@@ -114,12 +114,11 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
       setState(() {
         _secondsElapsed += difference;
         if (_isResting) {
-          if (_restSecondsRemaining > difference) {
-            _restSecondsRemaining -= difference;
-          } else {
-            _restSecondsRemaining = 0;
-            _onRestTimerFinished();
-          }
+          _restSecondsElapsed += difference;
+          // We don't auto-finish on resume if it's counting UP
+        }
+        if (_isWarmupTimerRunning) {
+          _warmupSecondsElapsed += difference;
         }
       });
       _backgroundTimestamp = null;
@@ -131,50 +130,61 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
     final hasDraft = await _checkAndLoadDraft();
     if (hasDraft) return;
 
-    // Check for schedule
-    if (widget.workoutData['plan'] != null && widget.workoutData['plan']['schedule'] != null) {
-      final schedule = widget.workoutData['plan']['schedule'] as List;
-      if (schedule.isNotEmpty) {
-        _availableDays = schedule;
-        
-        // Try initial day if provided
-        if (widget.initialDayName != null) {
-          dynamic match;
-          try {
-            match = schedule.firstWhere(
-              (d) => d['day'].toString().toLowerCase() == widget.initialDayName!.toLowerCase(),
-            );
-          } catch (_) {
-            match = null;
-          }
-          if (match != null) {
-            _loadDay(match);
-            return;
-          }
-        }
+    // Check for schedule in various locations (plan.schedule, plan.days, schedule, days)
+    dynamic schedule;
+    if (widget.workoutData['plan'] != null) {
+      final plan = widget.workoutData['plan'];
+      if (plan is Map) {
+        schedule = plan['schedule'] ?? plan['days'];
+      }
+    }
+    schedule ??= widget.workoutData['schedule'] ?? widget.workoutData['days'];
 
-        // Try to match today
-        final today = DateFormat('EEEE').format(DateTime.now()); // e.g., "Monday"
+    if (schedule != null && schedule is List && schedule.isNotEmpty) {
+      _availableDays = schedule;
+      
+      // Try initial day if provided
+      if (widget.initialDayName != null) {
         dynamic match;
         try {
           match = schedule.firstWhere(
-            (d) => d['day'].toString().toLowerCase() == today.toLowerCase(),
+            (d) => d is Map && d['day'].toString().toLowerCase() == widget.initialDayName!.toLowerCase(),
           );
         } catch (_) {
           match = null;
         }
-
         if (match != null) {
           _loadDay(match);
-        } else {
-          setState(() => _needsDaySelection = true);
+          return;
         }
-        return;
       }
+
+      // Try to match today
+      final today = DateFormat('EEEE').format(DateTime.now()); // e.g., "Monday"
+      dynamic match;
+      try {
+        match = schedule.firstWhere(
+          (d) => d is Map && d['day'].toString().toLowerCase() == today.toLowerCase(),
+        );
+      } catch (_) {
+        match = null;
+      }
+      if (match != null) {
+        _loadDay(match);
+      } else {
+        setState(() => _needsDaySelection = true);
+      }
+      return;
+    }
+    // Fallback: Load all exercises
+    List<dynamic> raw = [];
+    if (widget.workoutData['exercises'] != null) {
+      raw = widget.workoutData['exercises'];
+    } else if (widget.workoutData['plan'] != null && widget.workoutData['plan'] is Map) {
+      final plan = widget.workoutData['plan'] as Map<String, dynamic>;
+      raw = plan['exercises'] ?? plan['generated_exercises'] ?? [];
     }
     
-    // Fallback: Load all exercises
-    List<dynamic> raw = widget.workoutData['exercises'] ?? widget.workoutData['plan']['exercises'] ?? [];
     _parseExercises(raw);
   }
 
@@ -233,7 +243,10 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
         'currentExerciseIndex': _currentExerciseIndex,
         'currentSetIndex': _currentSetIndex,
         'isResting': _isResting,
-        'restSecondsRemaining': _restSecondsRemaining,
+        'restSecondsElapsed': _restSecondsElapsed,
+        'restTotalSeconds': _restTotalSeconds,
+        'warmupSecondsElapsed': _warmupSecondsElapsed,
+        'isWarmupTimerRunning': _isWarmupTimerRunning,
         'exercises': _exercises,
         'logs': _logs.map((key, value) => MapEntry(key.toString(), value)),
         'workoutName': widget.workoutData['name'] ?? widget.workoutData['planName'] ?? "Workout",
@@ -305,29 +318,69 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
       if (resume != true) return false;
 
       setState(() {
-        _secondsElapsed = draft['secondsElapsed'];
-        _currentExerciseIndex = draft['currentExerciseIndex'];
-        _currentSetIndex = draft['currentSetIndex'];
+        _secondsElapsed = draft['secondsElapsed'] ?? 0;
+        _currentExerciseIndex = draft['currentExerciseIndex'] ?? 0;
+        _currentSetIndex = draft['currentSetIndex'] ?? 0;
         _isResting = draft['isResting'] ?? false;
-        _restSecondsRemaining = draft['restSecondsRemaining'] ?? 0;
-        _exercises = List<Map<String, dynamic>>.from(draft['exercises']);
+        _restSecondsElapsed = draft['restSecondsElapsed'] ?? 0;
+        _restTotalSeconds = draft['restTotalSeconds'] ?? 0;
+        _warmupSecondsElapsed = draft['warmupSecondsElapsed'] ?? 0;
+        _isWarmupTimerRunning = draft['isWarmupTimerRunning'] ?? false;
         
-        final Map<String, dynamic> rawLogs = draft['logs'];
+        // Robust restoration of exercises
+        if (draft['exercises'] != null && draft['exercises'] is List) {
+          _exercises = (draft['exercises'] as List)
+              .map((e) => Map<String, dynamic>.from(e as Map))
+              .toList();
+        }
+        
+        // Ensure index stays in bounds
+        if (_currentExerciseIndex >= _exercises.length) {
+          _currentExerciseIndex = 0;
+        }
+
+        // Robust restoration of logs
+        final Map<String, dynamic> rawLogs = draft['logs'] ?? {};
+        _logs.clear();
         rawLogs.forEach((key, value) {
-          _logs[int.parse(key)] = List<Map<String, dynamic>>.from(value);
+          final idx = int.tryParse(key);
+          if (idx != null && value is List) {
+            _logs[idx] = value
+                .map((e) => Map<String, dynamic>.from(e as Map))
+                .toList();
+          }
         });
+
+        // Healing: Ensure all exercises have logs initialized
+        for (int i = 0; i < _exercises.length; i++) {
+          if (_logs[i] == null || _logs[i]!.isEmpty) {
+            int targetSets = int.tryParse(_exercises[i]['sets']?.toString() ?? '3') ?? 3;
+            double lastWeight = double.tryParse(_exercises[i]['weight']?.toString() ?? '0') ?? 0.0;
+            _logs[i] = List.generate(targetSets, (idx) => {
+              'set': idx + 1,
+              'reps': '',
+              'weight': lastWeight > 0 ? lastWeight.toString() : '',
+              'isCompleted': false,
+            });
+          }
+        }
       });
 
-      // Rebuild PageController after state is set
+      // Jump to restored page after build
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          setState(() {
-            _pageController = PageController(initialPage: _currentExerciseIndex);
-            
-            if (_isResting && _restSecondsRemaining > 0) {
-              _startRestTimerInternal(_restSecondsRemaining);
-            }
-          });
+        if (mounted && _pageController.hasClients) {
+          _pageController.jumpToPage(_currentExerciseIndex);
+          
+          if (_isResting && _restTotalSeconds > 0) {
+            _startRestTimerInternal(_restTotalSeconds);
+            // Restore elapsed time
+            _restSecondsElapsed = draft['restSecondsElapsed'] ?? 0;
+          }
+
+          if (_isWarmupTimerRunning) {
+            _isWarmupTimerRunning = false; // Reset so toggle starts it
+            _toggleWarmupTimer();
+          }
         }
       });
 
@@ -358,52 +411,58 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
   }
 
   void _addSet(int exerciseIndex) {
+    if (!_logs.containsKey(exerciseIndex)) return;
     setState(() {
-      final lastSet = _logs[exerciseIndex]!.last;
-      _logs[exerciseIndex]!.add({
-        'weight': lastSet['weight'],
-        'reps': lastSet['reps'],
-        'completed': false,
-      });
+      final sets = _logs[exerciseIndex];
+      if (sets != null && sets.isNotEmpty) {
+        final lastSet = sets.last;
+        sets.add({
+          'weight': lastSet['weight'],
+          'reps': lastSet['reps'],
+          'completed': false,
+        });
+      }
       _saveDraft();
     });
   }
 
   void _removeSet(int exerciseIndex) {
+    if (!_logs.containsKey(exerciseIndex)) return;
     setState(() {
-      if (_logs[exerciseIndex]!.length > 1) {
-        _logs[exerciseIndex]!.removeLast();
-        if (_currentSetIndex >= _logs[exerciseIndex]!.length) {
-          _currentSetIndex = _logs[exerciseIndex]!.length - 1;
+      final sets = _logs[exerciseIndex];
+      if (sets != null && sets.length > 1) {
+        sets.removeLast();
+        if (exerciseIndex == _currentExerciseIndex && _currentSetIndex >= sets.length) {
+          _currentSetIndex = sets.length - 1;
         }
         _saveDraft();
       }
     });
   }
-
   void _logSetAndRest() {
     if (_isResting) return;
+    if (_currentExerciseIndex >= _exercises.length) return;
+    final exerciseLogs = _logs[_currentExerciseIndex];
+    if (exerciseLogs == null || _currentSetIndex >= exerciseLogs.length) return;
 
     setState(() {
-      final currentLog = _logs[_currentExerciseIndex]![_currentSetIndex];
+      final currentLog = exerciseLogs[_currentSetIndex];
       currentLog['completed'] = true;
       
       // Auto-Suggest next set weight
-      if (_currentSetIndex < _logs[_currentExerciseIndex]!.length - 1) {
-        _logs[_currentExerciseIndex]![_currentSetIndex + 1]['weight'] = currentLog['weight'];
+      if (_currentSetIndex < exerciseLogs.length - 1) {
+        exerciseLogs[_currentSetIndex + 1]['weight'] = currentLog['weight'];
       }
     });
 
     // Determine Rest Duration
-    int restDuration = 90; // Default
+    int restDuration = 90; 
     
     try {
-      final currentLog = _logs[_currentExerciseIndex]![_currentSetIndex];
+      final currentLog = exerciseLogs[_currentSetIndex];
       final currentReps = currentLog['reps'];
       
-      // Check if it's a warmup
       if (currentLog['isWarmup'] == true) {
-        // Skip rest for warmups, just transition
         _onRestTimerFinished();
         _saveDraft();
         return;
@@ -413,21 +472,18 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
       if (currentReps is int) reps = currentReps;
       else if (currentReps is String && int.tryParse(currentReps) != null) reps = int.parse(currentReps);
       
-      if (reps <= 5) restDuration = 180; // Heavy Strength: 3 mins
-      else if (reps <= 12) restDuration = 90; // Hypertrophy: 1.5 mins
-      else restDuration = 60; // Endurance: 1 min
+      if (reps <= 5) restDuration = 180;
+      else if (reps <= 12) restDuration = 90;
+      else restDuration = 60;
     } catch (_) {}
 
-    // Check if switching exercises
-    if (_currentSetIndex >= _logs[_currentExerciseIndex]!.length - 1) {
-       restDuration = 120; // Between Exercises: 2 mins
+    if (_currentSetIndex >= exerciseLogs.length - 1) {
+       restDuration = 120;
     }
     
-    // Auto-advance logic for exercise transitions
-    if (_currentSetIndex < _logs[_currentExerciseIndex]!.length - 1) {
+    if (_currentSetIndex < exerciseLogs.length - 1) {
       _startRestTimerInternal(restDuration, showOverlay: true);
     } else {
-      // LAST SET transition
       if (_currentExerciseIndex < _exercises.length - 1) {
         _startRestTimerInternal(restDuration, showOverlay: true);
       } else {
@@ -439,30 +495,29 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
   }
 
   void _onRestTimerFinished() {
+    if (!mounted) return;
     setState(() {
       _isResting = false;
       _showRestOverlay = false;
       
-      // Reset Warmup Timer
       _warmupTimer?.cancel();
-      _warmupSecondsRemaining = 0;
-      _warmupTotalSeconds = 0;
+      _warmupSecondsElapsed = 0;
       _isWarmupTimerRunning = false;
 
-      // HANDS-FREE TRANSITION LOGIC
-      if (_currentSetIndex >= _logs[_currentExerciseIndex]!.length - 1) {
-        // We finished an exercise exercise entirely
+      final currentEntry = _logs[_currentExerciseIndex];
+      if (currentEntry != null && _currentSetIndex >= currentEntry.length - 1) {
         if (_currentExerciseIndex < _exercises.length - 1) {
           _currentExerciseIndex++;
           _currentSetIndex = 0;
-          _pageController.animateToPage(
-            _currentExerciseIndex,
-            duration: const Duration(milliseconds: 700),
-            curve: Curves.easeOutCubic,
-          );
+          if (_pageController.hasClients) {
+            _pageController.animateToPage(
+              _currentExerciseIndex,
+              duration: const Duration(milliseconds: 700),
+              curve: Curves.easeOutCubic,
+            );
+          }
         }
       } else {
-        // Just move to the next set in the same exercise
         _currentSetIndex++;
       }
     });
@@ -471,9 +526,12 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
   // Internal helper to setup timer without triggering its own setState immediately
   void _startRestTimerInternal(int seconds, {bool showOverlay = true}) {
     _restTimer?.cancel();
-    _isResting = true;
-    _showRestOverlay = showOverlay;
-    _restSecondsRemaining = seconds;
+    setState(() {
+      _isResting = true;
+      _showRestOverlay = showOverlay;
+      _restSecondsElapsed = 0;
+      _restTotalSeconds = seconds;
+    });
 
     _restTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) {
@@ -481,12 +539,10 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
         return;
       }
       setState(() {
-        if (_restSecondsRemaining > 0) {
-          _restSecondsRemaining--;
-        } else {
-          timer.cancel();
+        _restSecondsElapsed++;
+        if (_restSecondsElapsed == _restTotalSeconds) {
           if (mounted) Vibration.vibrate();
-          _onRestTimerFinished();
+          // We don't auto-finish if it's counting UP, we wait for user to hit "DONE"
         }
       });
     });
@@ -499,21 +555,10 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
 
   // --- Warmup Timer Logic ---
   void _initWarmupTimer(String durationStr) {
-    int seconds = 0;
-    if (durationStr.toLowerCase().contains('min')) {
-      final min = int.tryParse(durationStr.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-      seconds = min * 60;
-    } else {
-      seconds = int.tryParse(durationStr.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-    }
-    
-    if (seconds > 0) {
-      setState(() {
-        _warmupTotalSeconds = seconds;
-        _warmupSecondsRemaining = seconds;
-        _isWarmupTimerRunning = false;
-      });
-    }
+    setState(() {
+      _warmupSecondsElapsed = 0;
+      _isWarmupTimerRunning = false;
+    });
   }
 
   void _toggleWarmupTimer() {
@@ -528,39 +573,35 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
           return;
         }
         setState(() {
-          if (_warmupSecondsRemaining > 0) {
-            _warmupSecondsRemaining--;
-          } else {
-            timer.cancel();
-            _isWarmupTimerRunning = false;
-            // Vibrate on completion
-            if (mounted) Vibration.vibrate();
-          }
+          _warmupSecondsElapsed++;
         });
       });
     }
   }
 
   void _updateValue(String key, double change) {
+    if (_currentExerciseIndex >= _exercises.length) return;
+    final exerciseLogs = _logs[_currentExerciseIndex];
+    if (exerciseLogs == null || _currentSetIndex >= exerciseLogs.length) return;
+
     setState(() {
-      final rawValue = _logs[_currentExerciseIndex]![_currentSetIndex][key];
+      final currentSetData = exerciseLogs[_currentSetIndex];
+      final rawValue = currentSetData[key];
       double current = 0;
       
       if (rawValue is num) {
         current = rawValue.toDouble();
       } else if (rawValue is String) {
-        // Handle strings like "10" or "5 min"
-        // Try to extract the first number found
         final match = RegExp(r'(\d+\.?\d*)').firstMatch(rawValue);
         if (match != null) {
           current = double.tryParse(match.group(0)!) ?? 0;
         }
       }
       
-      double newValue = (current + change).clamp(0, 999);
+      double newValue = (current + change).clamp(0.0, 999.0);
       if (key == 'reps') newValue = newValue.roundToDouble();
-      _logs[_currentExerciseIndex]![_currentSetIndex][key] = newValue;
-      _saveDraft(); // Persist changes
+      currentSetData[key] = newValue;
+      _saveDraft();
     });
   }
 
@@ -737,11 +778,16 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
     //   return _buildRestScreen(isDark, textColor);
     // }
 
-    if (_exercises.isEmpty) {
+    if (_exercises.isEmpty || _currentExerciseIndex >= _exercises.length) {
       return Scaffold(backgroundColor: bgColor, body: const Center(child: CircularProgressIndicator()));
     }
 
-    final totalSets = _logs[_currentExerciseIndex]!.length;
+    final currentLogs = _logs[_currentExerciseIndex];
+    if (currentLogs == null || currentLogs.isEmpty) {
+        return Scaffold(backgroundColor: bgColor, body: const Center(child: CircularProgressIndicator()));
+    }
+
+    final totalSets = currentLogs.length;
     final progress = (_currentExerciseIndex + (_currentSetIndex / totalSets)) / _exercises.length;
 
     return Scaffold(
@@ -766,8 +812,7 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
                         
                         // Reset Warmup Timer
                         _warmupTimer?.cancel();
-                        _warmupSecondsRemaining = 0;
-                        _warmupTotalSeconds = 0;
+                        _warmupSecondsElapsed = 0;
                         _isWarmupTimerRunning = false;
                       });
                     },
@@ -781,12 +826,17 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
             ),
           ),
           
-          // Rest Overlay
+          // Rest Overlay (Popup Screen)
           if (_showRestOverlay)
             Positioned.fill(
               child: Container(
-                color: isDark ? const Color(0xFF000000) : const Color(0xFFF5F5F5),
-                child: _buildRestScreen(isDark, textColor),
+                color: Colors.black.withOpacity(0.8), // Semi-transparent black
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: _buildRestScreen(isDark, textColor),
+                  ),
+                ),
               ),
             ),
 
@@ -843,16 +893,17 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
 
   Widget _buildWarmupPage(BuildContext context, int index, bool isDark, Color textColor) {
     final exercise = _exercises[index];
-    // Fix RangeError: Only use _currentSetIndex if this is the active page, otherwise default to 0
+    final sets = _logs[index];
+    if (sets == null || sets.isEmpty) return const Center(child: CircularProgressIndicator());
+
     final setIndex = (index == _currentExerciseIndex) ? _currentSetIndex : 0;
-    // Double check bounds just to be safe
-    final safeSetIndex = setIndex < _logs[index]!.length ? setIndex : 0;
-    final currentSetData = _logs[index]![safeSetIndex];
+    final safeSetIndex = setIndex < sets.length ? setIndex : 0;
+    final currentSetData = sets[safeSetIndex];
     final repsStr = currentSetData['reps'].toString();
     final isTimeBased = repsStr.contains('s') || repsStr.contains('min');
     
     // Initialize timer if needed and not running, BUT ONLY for the current exercise
-    if (isTimeBased && _warmupTotalSeconds == 0 && index == _currentExerciseIndex) {
+    if (isTimeBased && index == _currentExerciseIndex && !_isWarmupTimerRunning && _warmupSecondsElapsed == 0) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _initWarmupTimer(repsStr);
       });
@@ -918,16 +969,16 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
                   radius: 110.0,
                   lineWidth: 12.0,
                   // Only show progress if this is the active exercise
-                  percent: (index == _currentExerciseIndex && _warmupTotalSeconds > 0) 
-                      ? (_warmupSecondsRemaining / _warmupTotalSeconds).clamp(0.0, 1.0) 
-                      : 1.0,
+                  percent: (index == _currentExerciseIndex && _warmupSecondsElapsed > 0) 
+                      ? (_warmupSecondsElapsed / 60.0).clamp(0.0, 1.0) // Arbitrary 60s for visual rotation
+                      : 0.0,
                   center: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
                         // Show active time or full duration
-                        (index == _currentExerciseIndex && _warmupTotalSeconds > 0)
-                            ? _formatTime(_warmupSecondsRemaining)
+                        (index == _currentExerciseIndex && _warmupSecondsElapsed > 0)
+                            ? _formatTime(_warmupSecondsElapsed)
                             : repsStr,
                         style: TextStyle(
                           fontFamily: 'Outfit',
@@ -1093,7 +1144,7 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    "COMPLETE WARMUP",
+                    "DONE",
                     style: TextStyle(
                       fontFamily: 'Outfit',
                       fontSize: 18,
@@ -1119,12 +1170,13 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
     }
 
     final exercise = _exercises[index];
-    // Fix RangeError: Only use _currentSetIndex if this is the active page, otherwise default to 0
+    final sets = _logs[index];
+    if (sets == null || sets.isEmpty) return const Center(child: CircularProgressIndicator());
+
     final setIndex = (index == _currentExerciseIndex) ? _currentSetIndex : 0;
-    // Double check bounds just to be safe
-    final safeSetIndex = setIndex < _logs[index]!.length ? setIndex : 0;
-    final currentSetData = _logs[index]![safeSetIndex];
-    final totalSets = _logs[index]!.length;
+    final safeSetIndex = setIndex < sets.length ? setIndex : 0;
+    final currentSetData = sets[safeSetIndex];
+    final totalSets = sets.length;
 
     // Optimized Image Logic with caching
     String? imageUrl;
@@ -1135,12 +1187,13 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
     } else {
       try {
         final provider = Provider.of<WorkoutProvider>(context, listen: false);
-        final match = provider.exercises.firstWhere(
-          (e) => e.name.toLowerCase().contains(exerciseName), 
-          orElse: () => provider.exercises.first
-        );
-        _matchCache[exerciseName] = match;
-        imageUrl = match.imageUrl;
+        if (provider.exercises.isNotEmpty) {
+          final match = provider.exercises.firstWhere(
+              (e) => e.name.toLowerCase().contains(exerciseName),
+              orElse: () => provider.exercises.first);
+          _matchCache[exerciseName] = match;
+          imageUrl = match.imageUrl;
+        }
       } catch (_) {}
     }
 
@@ -1218,34 +1271,37 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
                         final exerciseKey = exerciseName.toLowerCase();
                         
                         Exercise? match = _matchCache[exerciseKey];
-                        if (match == null) {
+                        if (match == null && provider.exercises.isNotEmpty) {
                           try {
                             match = provider.exercises.firstWhere(
                               (e) => e.name.toLowerCase().contains(exerciseKey),
-                              orElse: () => throw Exception(),
+                              orElse: () => provider.exercises.first,
                             );
                             _matchCache[exerciseKey] = match;
-                          } catch (_) {
-                            match = Exercise(
-                              id: 'default',
-                              name: exerciseName,
-                              bodyPart: 'General',
-                              equipment: 'None',
-                              target: 'Full Body',
-                              secondaryMuscles: [],
-                              gifUrl: '',
-                              instructions: "Focus on controlled movements and proper form. Maintain a steady breathing pattern throughout the set.",
-                              steps: [
-                                "Start with a stable posture and engage your core.",
-                                "Perform the movement with a full range of motion.",
-                                "Exhale during the exertion phase of the exercise.",
-                                "Control the weight on the way back to the starting position."
-                              ],
-                              imageUrl: '',
-                              videoUrl: '',
-                              category: '',
-                            );
-                          }
+                          } catch (_) {}
+                        }
+
+                        if (match == null) {
+                          match = Exercise(
+                            id: 'default',
+                            name: exerciseName,
+                            bodyPart: 'General',
+                            equipment: 'None',
+                            target: 'Full Body',
+                            secondaryMuscles: [],
+                            gifUrl: '',
+                            instructions:
+                                "Focus on controlled movements and proper form. Maintain a steady breathing pattern throughout the set.",
+                            steps: [
+                              "Start with a stable posture and engage your core.",
+                              "Perform the movement with a full range of motion.",
+                              "Exhale during the exertion phase of the exercise.",
+                              "Control the weight on the way back to the starting position."
+                            ],
+                            imageUrl: '',
+                            videoUrl: '',
+                            category: '',
+                          );
                         }
                         
                         // Ensure match is not null for the following sections
@@ -1382,7 +1438,7 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
                           shadowColor: const Color(0xFF00E676).withOpacity(0.4),
                         ),
                         child: Text(
-                          _currentSetIndex < totalSets - 1 ? "LOG SET" : "REST", 
+                          "DONE", 
                           style: const TextStyle(fontFamily: 'Outfit', fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 1)
                         ),
                       ),
@@ -1476,7 +1532,7 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
                       const Icon(Iconsax.refresh, size: 16, color: Color(0xFF00E676)),
                       const SizedBox(width: 6),
                       Text(
-                        "REST: ${_formatTime(_restSecondsRemaining)}",
+                        "WRK: ${_formatTime(_restSecondsElapsed)}",
                         style: const TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold, color: Color(0xFF00E676)),
                       ),
                     ],
@@ -1505,7 +1561,7 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
 
   Widget _buildRestScreen(bool isDark, Color textColor) {
     // Determine Next State (Next Set vs Next Exercise)
-    String titleText = "Rest";
+    String titleText = "Active Phase";
     String subtitleText = "Next Set";
     String? imageUrl;
     
@@ -1520,9 +1576,11 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
       // Use Cached image
       if (_matchCache.containsKey(name)) {
         imageUrl = _matchCache[name]!.imageUrl;
-      } else {
+      } else if (provider.exercises.isNotEmpty) {
         try {
-          final match = provider.exercises.firstWhere((e) => e.name.toLowerCase().contains(name), orElse: () => provider.exercises.first);
+          final match = provider.exercises.firstWhere(
+              (e) => e.name.toLowerCase().contains(name),
+              orElse: () => provider.exercises.first);
           _matchCache[name] = match;
           imageUrl = match.imageUrl;
         } catch (_) {}
@@ -1539,9 +1597,11 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
       // Use Cached image of the NEXT exercise
       if (_matchCache.containsKey(nextName)) {
         imageUrl = _matchCache[nextName]!.imageUrl;
-      } else {
+      } else if (provider.exercises.isNotEmpty) {
         try {
-          final nextMatch = provider.exercises.firstWhere((e) => e.name.toLowerCase().contains(nextName), orElse: () => provider.exercises.first);
+          final nextMatch = provider.exercises.firstWhere(
+              (e) => e.name.toLowerCase().contains(nextName),
+              orElse: () => provider.exercises.first);
           _matchCache[nextName] = nextMatch;
           imageUrl = nextMatch.imageUrl;
         } catch (_) {}
@@ -1551,115 +1611,120 @@ class _WorkoutLogScreenState extends State<WorkoutLogScreen> with TickerProvider
       subtitleText = "GREAT WORK TODAY!";
     }
 
-    return Stack(
-      children: [
-        // 1. Top Banner Image (if available)
-        if (imageUrl != null)
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: MediaQuery.of(context).size.height * 0.4, // Top 40%
-            child: Stack(
-              fit: StackFit.expand,
+    return Container(
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1A1A1A) : Colors.white,
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.5),
+            blurRadius: 40,
+            spreadRadius: 10,
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Header
+          Text(
+            titleText.toUpperCase(),
+            textAlign: TextAlign.center,
+            style: GoogleFonts.bebasNeue(
+              fontSize: 32,
+              letterSpacing: 2,
+              color: const Color(0xFF00E676),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            subtitleText,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: 'Outfit',
+              fontSize: 14,
+              color: textColor.withOpacity(0.6),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          
+          if (imageUrl != null) ...[
+            const SizedBox(height: 24),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: CachedNetworkImage(
+                imageUrl: imageUrl!,
+                height: 120,
+                width: double.infinity,
+                fit: BoxFit.cover,
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 32),
+
+          // Timer Display
+          CircularPercentIndicator(
+            radius: 80.0,
+            lineWidth: 8.0,
+            percent: (_restTotalSeconds > 0) 
+                ? (_restSecondsElapsed / _restTotalSeconds).clamp(0.0, 1.0) 
+                : 0.0,
+            center: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                CachedNetworkImage(
-                  imageUrl: imageUrl,
-                  fit: BoxFit.cover,
+                Text(
+                  _formatTime(_restSecondsElapsed),
+                  style: TextStyle(
+                    fontFamily: 'Outfit',
+                    fontSize: 36,
+                    fontWeight: FontWeight.bold,
+                    color: textColor,
+                    letterSpacing: -1,
+                  ),
                 ),
-                // Gradient fade to blend with background
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        isDark ? const Color(0xFF000000) : const Color(0xFFF5F5F5),
-                      ],
-                      stops: const [0.6, 1.0],
-                    ),
+                Text(
+                  "WORKOUT",
+                  style: TextStyle(
+                    fontFamily: 'Outfit',
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[500],
+                    letterSpacing: 1.5,
                   ),
                 ),
               ],
             ),
+            progressColor: const Color(0xFF00E676),
+            backgroundColor: isDark ? Colors.white10 : Colors.grey[200]!,
+            circularStrokeCap: CircularStrokeCap.round,
           ),
-        
-        // 2. Content Overlay
-        SafeArea(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Spacer(flex: 3), 
-              
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 30),
-                child: Text(
-                  titleText.toUpperCase(),
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.bebasNeue(
-                    fontSize: 36, 
-                    letterSpacing: 1.5, 
-                    fontWeight: FontWeight.w400, 
-                    color: textColor,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                subtitleText.toUpperCase(),
-                style: TextStyle(
-                  fontSize: 12, 
-                  letterSpacing: 5, 
-                  fontWeight: FontWeight.bold, 
-                  color: const Color(0xFF00E676).withOpacity(0.8),
-                ),
-              ),
-              const SizedBox(height: 40),
-              
-              // Timer
-              Text(
-                _formatTime(_restSecondsRemaining),
-                style: GoogleFonts.teko(
-                  fontSize: 150, 
-                  fontWeight: FontWeight.w400, 
-                  color: const Color(0xFF00E676),
-                  height: 0.8,
-                  shadows: [
-                    Shadow(blurRadius: 2, color: const Color(0xFF00E676).withOpacity(0.15), offset: const Offset(0,0))
-                  ]
-                ),
-              ),
-                
-              const Spacer(flex: 3),
 
-              // Controls
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 40),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _restControlBtn(Icons.remove, "-10s", () => setState(() => _restSecondsRemaining = (_restSecondsRemaining - 10).clamp(0, 300)), isDark),
-                    ElevatedButton(
-                      onPressed: _skipRest,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF00E676),
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                        elevation: 10,
-                        shadowColor: const Color(0xFF00E676).withOpacity(0.5),
-                      ),
-                      child: const Text("SKIP", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    ),
-                    _restControlBtn(Icons.add, "+10s", () => setState(() => _restSecondsRemaining += 10), isDark),
-                  ],
+          const SizedBox(height: 32),
+
+          // Controls
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _restControlBtn(Icons.remove, "-10s", () => setState(() => _restSecondsElapsed = (_restSecondsElapsed - 10).clamp(0, _restTotalSeconds)), isDark),
+              ElevatedButton(
+                onPressed: _skipRest,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF00E676),
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                  elevation: 10,
+                  shadowColor: const Color(0xFF00E676).withOpacity(0.5),
                 ),
+                child: const Text("DONE", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               ),
+              _restControlBtn(Icons.add, "+10s", () => setState(() => _restSecondsElapsed += 10), isDark),
             ],
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 

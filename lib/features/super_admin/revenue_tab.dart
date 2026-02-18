@@ -218,7 +218,7 @@ class _RevenueSubscriptionsTabState extends State<RevenueSubscriptionsTab> with 
       ),
       child: Row(
         children: [
-          const Icon(Icons.attach_money, size: 24, color: Colors.green),
+          const Icon(Icons.currency_rupee, size: 24, color: Colors.green),
           const SizedBox(width: 8),
           const Expanded(
             child: Text(
@@ -260,7 +260,7 @@ class _RevenueSubscriptionsTabState extends State<RevenueSubscriptionsTab> with 
             _buildRevenueStatCard(
               'Total Revenue',
               '₹${_formatCurrency(_revenueStats['totalRevenue'] ?? 0)}',
-              Icons.attach_money,
+              Icons.currency_rupee,
               Colors.green,
               '${_revenueStats['revenueGrowth'] ?? 0}% growth',
             ),

@@ -8,7 +8,14 @@ import '../../data/providers/workout_provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 class CreateWorkoutScreen extends StatefulWidget {
-  const CreateWorkoutScreen({Key? key}) : super(key: key);
+  final String? gymId;
+  final String? memberId;
+
+  const CreateWorkoutScreen({
+    Key? key,
+    this.gymId,
+    this.memberId,
+  }) : super(key: key);
 
   @override
   State<CreateWorkoutScreen> createState() => _CreateWorkoutScreenState();
@@ -1828,12 +1835,26 @@ class _CreateWorkoutScreenState extends State<CreateWorkoutScreen> {
 
 
 
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-      final gymId = userDoc.data()?['gymId'];
+      String? gymId = widget.gymId;
+      String? memberId = widget.memberId ?? user.uid;
 
-      if (gymId == null) {
+      if (gymId == null || gymId.isEmpty) {
+        // Try member_index
+        final indexDoc = await FirebaseFirestore.instance.collection('member_index').doc(user.uid).get();
+        if (indexDoc.exists) {
+          gymId = indexDoc.data()?['gymId'];
+        }
+      }
+
+      if (gymId == null || gymId.isEmpty) {
+        // Try users collection as last resort
+        final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        gymId = userDoc.data()?['gymId'];
+      }
+
+      if (gymId == null || gymId.isEmpty) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error: Gym ID not found')));
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error: Gym ID not found. Please try again later.')));
         }
         return;
       }
@@ -1873,7 +1894,7 @@ class _CreateWorkoutScreenState extends State<CreateWorkoutScreen> {
           .collection('gyms')
           .doc(gymId)
           .collection('members')
-          .doc(user.uid)
+          .doc(memberId)
           .collection('workout_plans')
           .add(workoutData);
 

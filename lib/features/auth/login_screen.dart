@@ -29,6 +29,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   bool _rememberMe = false;
   bool _obscure = true;
+  bool _showPasswordInput = false;
 
   // Green theme (fitness influenced)
   static const Color lightPrimaryGreen = Color(0xFF2ECC71); // friendly fitness green
@@ -74,16 +75,110 @@ class _LoginScreenState extends State<LoginScreen> {
   // LOGIN
   // ---------------------------------------------------------------------------
 
+  // ---------------------------------------------------------------------------
+  // LOGIN / STEP FLOW
+  // ---------------------------------------------------------------------------
+
+  Future<void> _handleMainButton() async {
+    if (_showPasswordInput) {
+      // Step 2: Login
+      await _login();
+    } else {
+      // Step 1: Check Email
+      await _checkEmailStep();
+    }
+  }
+
+  Future<void> _checkEmailStep() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty || !email.contains('@')) {
+      _showSnack('Please enter a valid email address.', AppTheme.alertRed);
+      return;
+    }
+
+    // Hide keyboard
+    FocusScope.of(context).unfocus();
+    setState(() => _isLoading = true);
+
+    try {
+      // 1. Check if email exists in Firestore Users collection
+      // (Proxy for Auth existence, as fetchSignInMethodsForEmail is not available/reliable)
+      final userSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('email', isEqualTo: email)
+          .limit(1)
+          .get()
+          .timeout(const Duration(seconds: 8));
+      
+      if (userSnapshot.docs.isNotEmpty) {
+        // User exists in Users collection -> Show password field
+        setState(() {
+          _showPasswordInput = true;
+        });
+      } else {
+        // User NOT in Auth -> Check if they are a member in Firestore
+        // (Gym owner added them but they haven't set password yet)
+        
+        // We look for them in collectionGroup('members')
+        final memberSnapshot = await FirebaseFirestore.instance
+            .collectionGroup('members')
+            .where('email', isEqualTo: email)
+            .limit(1)
+            .get()
+            .timeout(const Duration(seconds: 8));
+
+        if (memberSnapshot.docs.isNotEmpty) {
+          // Found as member! Redirect to Set Password
+          final doc = memberSnapshot.docs.first;
+          final gymId = doc.reference.parent.parent?.id;
+          final data = doc.data();
+
+          // Double check if authUid is already set (should have been caught by fetchSignInMethods, but safe check)
+          if ((data['authUid'] ?? '').toString().isNotEmpty) {
+             // Weird state: Auth thinks no user, but DB says authUid exists. 
+             // Maybe deleted from Auth? Treat as new/reset needed or just show password to fail?
+             // Let's assume they need to set password if Auth ignores them.
+             // Actually, if Auth has no record, they MUST recreate/set password.
+             _redirectToSetPassword(gymId, doc.id, data);
+          } else {
+             _redirectToSetPassword(gymId, doc.id, data);
+          }
+        } else {
+           _showSnack('Email not found. Please contact your gym or sign up.', AppTheme.alertRed);
+        }
+      }
+    } on FirebaseAuthException catch (e) {
+      _showSnack(_getAuthErrorMessage(e), AppTheme.alertRed);
+    } on SocketException {
+      _showSnack('No internet connection.', AppTheme.alertRed);
+    } catch (e) {
+      debugPrint('Check email error: $e');
+      _showSnack('Something went wrong. Please try again.', AppTheme.alertRed);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _redirectToSetPassword(String? gymId, String memberId, Map<String, dynamic> data) {
+    if (!mounted) return;
+    Navigator.pushNamed(
+      context, 
+      AppRoutes.memberSetPassword, 
+      arguments: {
+        'gymId': gymId,
+        'memberId': memberId,
+        'data': data,
+      },
+    );
+  }
+
   Future<void> _login() async {
-    // keep logic unchanged, but guard against null form
     if (!(_formKey.currentState?.validate() ?? false)) {
       _showSnack('Please fill required fields', AppTheme.alertRed);
       return;
     }
 
-    // Hide keyboard for a cleaner UX
     FocusScope.of(context).unfocus();
-
     setState(() => _isLoading = true);
 
     final email = _emailController.text.trim();
@@ -102,7 +197,7 @@ class _LoginScreenState extends State<LoginScreen> {
       await prefs.setBool('isLoggedIn', true);
       await prefs.setString('uid', user.uid);
 
-      // User profile / member lookup (kept same logic, better error handling)
+      // User profile / member lookup
       try {
         final userDoc = await FirebaseFirestore.instance
             .collection('users')
@@ -115,6 +210,7 @@ class _LoginScreenState extends State<LoginScreen> {
           return;
         }
 
+        // Fallback: check member collection if not in users (unlikely if we just logged in, but safe)
         final memberSnapshot = await FirebaseFirestore.instance
             .collectionGroup('members')
             .where('email', isEqualTo: email)
@@ -127,7 +223,7 @@ class _LoginScreenState extends State<LoginScreen> {
           final gymId = doc.reference.parent.parent?.id;
           _redirectMember(gymId, doc.id, doc.data());
         } else {
-          _showSnack('User not found. Please contact support.', AppTheme.alertRed);
+          _showSnack('User profile not found.', AppTheme.alertRed);
         }
       } on FirebaseException catch (e) {
         debugPrint('Firestore login flow error: ${e.code} / ${e.message}');
@@ -709,75 +805,81 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     const SizedBox(height: 14),
 
-                    // Password field container
-                    _buildInputContainer(
-                      context: context,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 6,
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.lock_outline,
-                              color: isDark
-                                  ? Colors.white54
-                                  : Colors.grey,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: TextFormField(
-                                controller: _passwordController,
-                                obscureText: _obscure,
-                                validator: (v) {
-                                  final value = v?.trim() ?? '';
-                                  if (value.isEmpty) {
-                                    return 'Required';
-                                  }
-                                  if (value.length < 6) {
-                                    return 'Minimum 6 characters';
-                                  }
-                                  return null;
-                                },
-                                style: GoogleFonts.poppins(
-                                  color: textColor,
-                                ),
-                                decoration: InputDecoration(
-                                  isDense: true,
-                                  contentPadding:
-                                  const EdgeInsets.symmetric(
-                                    vertical: 16,
-                                  ),
-                                  hintText: 'Password',
-                                  hintStyle: GoogleFonts.poppins(
-                                    color: Colors.grey.shade500,
-                                  ),
-                                  border: InputBorder.none,
-                                ),
-                              ),
-                            ),
-                            GestureDetector(
-                              onTap: () =>
-                                  setState(() => _obscure = !_obscure),
-                              child: Icon(
-                                _obscure
-                                    ? Icons.visibility_off_outlined
-                                    : Icons.visibility_outlined,
+                      const SizedBox(height: 14),
+
+                    // Password field container (Hidden until email checked)
+                    // We use AnimatedSize or just conditional rendering
+                    if (_showPasswordInput)
+                      _buildInputContainer(
+                        context: context,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 6,
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.lock_outline,
                                 color: isDark
                                     ? Colors.white54
                                     : Colors.grey,
                               ),
-                            ),
-                            const SizedBox(width: 6),
-                          ],
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _passwordController,
+                                  obscureText: _obscure,
+                                  validator: (v) {
+                                    final value = v?.trim() ?? '';
+                                    if (value.isEmpty) {
+                                      return 'Required';
+                                    }
+                                    if (value.length < 6) {
+                                      return 'Minimum 6 characters';
+                                    }
+                                    return null;
+                                  },
+                                  style: GoogleFonts.poppins(
+                                    color: textColor,
+                                  ),
+                                  decoration: InputDecoration(
+                                    isDense: true,
+                                    contentPadding:
+                                    const EdgeInsets.symmetric(
+                                      vertical: 16,
+                                    ),
+                                    hintText: 'Password',
+                                    hintStyle: GoogleFonts.poppins(
+                                      color: Colors.grey.shade500,
+                                    ),
+                                    border: InputBorder.none,
+                                  ),
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () =>
+                                    setState(() => _obscure = !_obscure),
+                                child: Icon(
+                                  _obscure
+                                      ? Icons.visibility_off_outlined
+                                      : Icons.visibility_outlined,
+                                  color: isDark
+                                      ? Colors.white54
+                                      : Colors.grey,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-
-                    const SizedBox(height: 10),
+                    
+                    if (_showPasswordInput)
+                      const SizedBox(height: 10),
 
                     // Remember + Forgot row
+                    if (_showPasswordInput)
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -816,12 +918,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     const SizedBox(height: 18),
 
-                    // Sign in button — big rounded green
+                    // Action button
                     SizedBox(
                       width: double.infinity,
                       height: 56,
                       child: ElevatedButton(
-                        onPressed: _login,
+                        onPressed: _handleMainButton,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: primary,
                           elevation: 6,
@@ -832,7 +934,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           primary.withOpacity(0.35),
                         ),
                         child: Text(
-                          'Sign in',
+                          _showPasswordInput ? 'Sign in' : 'Next',
                           style: GoogleFonts.poppins(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -851,7 +953,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          "Don't have an account? ",
+                          "Gym Owner? ",
                           style: GoogleFonts.poppins(
                             color: subtitleColor,
                           ),

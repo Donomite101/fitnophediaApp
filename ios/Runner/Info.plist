@@ -45,6 +45,12 @@
 		<true/>
 		<key>UIApplicationSupportsIndirectInputEvents</key>
 		<true/>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>This app needs access to your photos to create stories and posts.</string>
+		<key>NSCameraUsageDescription</key>
+		<string>This app needs access to your camera to take photos for stories and posts.</string>
+		<key>NSMicrophoneUsageDescription</key>
+		<string>This app needs access to your microphone to record videos for stories.</string>
 		<key>UIStatusBarHidden</key>
 		<false/>
 	</dict>

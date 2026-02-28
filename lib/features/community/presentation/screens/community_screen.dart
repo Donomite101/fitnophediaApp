@@ -413,31 +413,25 @@ class _CommunityScreenState extends State<CommunityScreen> {
   Widget _buildPostItem(PostModel post) {
     final isMe = post.userId == FirebaseAuth.instance.currentUser?.uid;
 
-    // Increment view count once per session
-    if (!_viewedPostIds.contains(post.id)) {
-      _viewedPostIds.add(post.id);
-      CommunityService.instance.incrementPostViews(post.id);
-    }
-
-    return GestureDetector(
-      onLongPress: isMe ? () => _deletePost(post.id) : null,
-      onTap: () {
-        if (!_viewedPostIds.contains(post.id)) {
-          _viewedPostIds.add(post.id);
-          CommunityService.instance.incrementPostViews(post.id);
-        }
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
           Padding(
-            padding: const EdgeInsets.all(12.0),
+            padding: const EdgeInsets.all(14.0),
             child: FutureBuilder<Map<String, dynamic>>(
               future: CommunityService.instance.getMemberDetails(post.userId),
               builder: (context, userSnap) {
@@ -449,51 +443,96 @@ class _CommunityScreenState extends State<CommunityScreen> {
                   children: [
                     GestureDetector(
                       onTap: () => MemberProfileScreen.navigate(context, post.userId),
-                      child: CircleAvatar(
-                        backgroundImage: profileImg.isNotEmpty 
-                          ? CachedNetworkImageProvider(profileImg)
-                          : null,
-                        child: profileImg.isEmpty ? const Icon(Icons.person) : null,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.green.withOpacity(0.3), width: 1.5),
+                        ),
+                        child: CircleAvatar(
+                          radius: 20,
+                          backgroundImage: profileImg.isNotEmpty 
+                            ? CachedNetworkImageProvider(profileImg)
+                            : null,
+                          child: profileImg.isEmpty ? const Icon(Iconsax.user, size: 20) : null,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
-                    GestureDetector(
-                      onTap: () => MemberProfileScreen.navigate(context, post.userId),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            displayName,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          FutureBuilder<String>(
-                            future: CommunityService.instance.getGymName(post.gymId),
-                            builder: (context, snap) => Text(
-                              snap.data ?? 'Gym Member',
-                              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => MemberProfileScreen.navigate(context, post.userId),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              displayName,
+                              style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
                             ),
-                          ),
-                        ],
+                            FutureBuilder<String>(
+                              future: CommunityService.instance.getGymName(post.gymId),
+                              builder: (context, snap) => Text(
+                                snap.data ?? 'Gym Member',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 11, 
+                                  color: Colors.grey[500],
+                                  fontWeight: FontWeight.w400,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
+                    if (isMe)
+                      IconButton(
+                        icon: const Icon(Iconsax.more, size: 20, color: Colors.grey),
+                        onPressed: () => _deletePost(post.id),
+                      ),
                   ],
                 );
               },
             ),
           ),
-          // Media
-          AspectRatio(
-            aspectRatio: 1,
-            child: CachedNetworkImage(
-              imageUrl: post.mediaUrl,
-              fit: BoxFit.cover,
-              placeholder: (context, url) => Container(color: Colors.grey[900]),
-              errorWidget: (context, url, error) => const Icon(Icons.error),
+          
+          // Media with Double Tap to Like
+          GestureDetector(
+            onDoubleTap: () {
+              CommunityService.instance.toggleLike(post.id, widget.userId);
+              // Show quick heart animation if possible (skipping for brevity but could be added)
+            },
+            onTap: () {
+              final uid = FirebaseAuth.instance.currentUser?.uid;
+              if (uid != null) {
+                CommunityService.instance.incrementPostViews(post.id, uid);
+              }
+            },
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(0),
+              child: AspectRatio(
+                aspectRatio: 1,
+                child: CachedNetworkImage(
+                  imageUrl: post.mediaUrl,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => Container(
+                    color: Colors.grey[900],
+                    child: const Center(child: CircularProgressIndicator(color: Colors.green, strokeWidth: 2)),
+                  ),
+                  errorWidget: (context, url, error) => Container(
+                    color: Colors.grey[900],
+                    child: const Icon(Iconsax.image, color: Colors.grey),
+                  ),
+                ),
+              ),
             ),
           ),
-          // Actions
+          
+          // Actions bar
           Padding(
-            padding: const EdgeInsets.all(12.0),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             child: Row(
               children: [
                 StreamBuilder<DocumentSnapshot>(
@@ -509,13 +548,14 @@ class _CommunityScreenState extends State<CommunityScreen> {
                       icon: Icon(
                         isLiked ? Iconsax.heart5 : Iconsax.heart,
                         color: isLiked ? Colors.red : null,
+                        size: 26,
                       ),
                       onPressed: () => CommunityService.instance.toggleLike(post.id, widget.userId),
                     );
                   },
                 ),
                 IconButton(
-                  icon: const Icon(Iconsax.message), 
+                  icon: const Icon(Iconsax.message, size: 24), 
                   onPressed: () {
                     Navigator.push(
                       context,
@@ -526,7 +566,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                   },
                 ),
                 IconButton(
-                  icon: const Icon(Iconsax.send_2), 
+                  icon: const Icon(Iconsax.send_2, size: 24), 
                   onPressed: () {
                     Share.share('Check out this post on FitNophedia!\n\n${post.caption}\n${post.mediaUrl}');
                   },
@@ -537,7 +577,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                   builder: (context, savedSnap) {
                     final isSaved = savedSnap.data ?? false;
                     return IconButton(
-                      icon: Icon(isSaved ? Iconsax.archive_15 : Iconsax.archive_1),
+                      icon: Icon(isSaved ? Iconsax.archive_1 : Iconsax.archive, size: 24),
                       onPressed: () => CommunityService.instance.toggleSave(widget.userId, post.id),
                       color: isSaved ? Colors.green : null,
                     );
@@ -546,9 +586,10 @@ class _CommunityScreenState extends State<CommunityScreen> {
               ],
             ),
           ),
-          // Likes & Caption
+          
+          // Details (Likes, Caption, Time)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            padding: const EdgeInsets.only(left: 16.0, right: 16, bottom: 20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -559,59 +600,57 @@ class _CommunityScreenState extends State<CommunityScreen> {
                     final likes = data?['likesCount'] ?? post.likesCount;
                     final views = data?['viewsCount'] ?? post.viewsCount;
                     
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Row(
-                        children: [
-                          const Icon(Iconsax.heart5, size: 14, color: Colors.red),
-                          const SizedBox(width: 4),
-                          Text(
-                            '$likes',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                          ),
-                          const SizedBox(width: 16),
-                          const Icon(Iconsax.eye, size: 14, color: Colors.grey),
-                          const SizedBox(width: 4),
-                          Text(
-                            '$views',
-                            style: const TextStyle(color: Colors.grey, fontSize: 13),
-                          ),
-                        ],
-                      ),
+                    return Row(
+                      children: [
+                        Text(
+                          '$likes likes',
+                          style: GoogleFonts.poppins(fontWeight: FontWeight.w700, fontSize: 13),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          '$views views',
+                          style: GoogleFonts.poppins(color: Colors.grey[500], fontSize: 13, fontWeight: FontWeight.w500),
+                        ),
+                      ],
                     );
                   },
                 ),
-                const SizedBox(height: 8),
-                if (post.caption.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: RichText(
-                      text: TextSpan(
-                        style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color, fontSize: 14),
-                        children: [
-                          TextSpan(
-                            text: post.userName,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          const TextSpan(text: ' '),
-                          TextSpan(text: post.caption),
-                        ],
+                if (post.caption.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  RichText(
+                    text: TextSpan(
+                      style: GoogleFonts.poppins(
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
+                        fontSize: 14,
+                        height: 1.4,
                       ),
+                      children: [
+                        TextSpan(
+                          text: '${post.userName} ',
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        TextSpan(text: post.caption),
+                      ],
                     ),
                   ),
+                ],
+                const SizedBox(height: 6),
                 Text(
-                  _formatTimestamp(post.createdAt),
-                  style: const TextStyle(color: Colors.grey, fontSize: 10),
+                  _formatTimestamp(post.createdAt).toUpperCase(),
+                  style: GoogleFonts.poppins(
+                    color: Colors.grey[500], 
+                    fontSize: 10, 
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                  ),
                 ),
-                const SizedBox(height: 12),
               ],
             ),
           ),
         ],
       ),
-    ),
-  );
-}
+    );
+  }
 
   String _formatTimestamp(DateTime timestamp) {
     final now = DateTime.now();

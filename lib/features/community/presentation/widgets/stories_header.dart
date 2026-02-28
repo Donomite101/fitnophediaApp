@@ -40,18 +40,24 @@ class StoriesHeader extends StatelessWidget {
           final ownStories = groupedStories[currentUserId] ?? [];
           final otherUserIds = groupedStories.keys.where((id) => id != currentUserId).toList();
           
+          // Flatten the stories in order: Own first, then others
+          final List<StoryModel> allFlattenedStories = [...ownStories];
+          for (var id in otherUserIds) {
+            allFlattenedStories.addAll(groupedStories[id]!);
+          }
+
           return ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: otherUserIds.length + 1, // +1 for "Your Story"
             itemBuilder: (context, index) {
               if (index == 0) {
-                return _buildAddStoryButton(context, ownStories);
+                return _buildAddStoryButton(context, ownStories, allFlattenedStories);
               }
               
               final userId = otherUserIds[index - 1];
               final userStories = groupedStories[userId]!;
-              return _buildUserStoryCircle(context, userId, userStories);
+              return _buildUserStoryCircle(context, userId, userStories, allFlattenedStories);
             },
           );
         },
@@ -59,16 +65,19 @@ class StoriesHeader extends StatelessWidget {
     );
   }
 
-  Widget _buildUserStoryCircle(BuildContext context, String userId, List<StoryModel> userStories) {
+  Widget _buildUserStoryCircle(BuildContext context, String userId, List<StoryModel> userStories, List<StoryModel> allFlattenedStories) {
     final firstStory = userStories.first;
+    // Find the global index of the first story of this user
+    final initialIndex = allFlattenedStories.indexOf(firstStory);
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => StoryViewerScreen(
-              stories: userStories,
-              initialIndex: 0,
+              stories: allFlattenedStories,
+              initialIndex: initialIndex,
             ),
           ),
         );
@@ -112,7 +121,7 @@ class StoriesHeader extends StatelessWidget {
     );
   }
 
-  Widget _buildAddStoryButton(BuildContext context, List<StoryModel> ownStories) {
+  Widget _buildAddStoryButton(BuildContext context, List<StoryModel> ownStories, List<StoryModel> allFlattenedStories) {
     final hasStory = ownStories.isNotEmpty;
     final latestStory = hasStory ? ownStories.first : null;
 
@@ -123,7 +132,7 @@ class StoriesHeader extends StatelessWidget {
             context,
             MaterialPageRoute(
               builder: (context) => StoryViewerScreen(
-                stories: ownStories,
+                stories: allFlattenedStories,
                 initialIndex: 0,
               ),
             ),

@@ -43,10 +43,16 @@ class CommunityService {
     await _firestore.collection('posts').doc(postId).delete();
   }
 
-  Future<void> incrementPostViews(String postId) async {
-    await _firestore.collection('posts').doc(postId).update({
-      'viewsCount': FieldValue.increment(1)
-    });
+  Future<void> incrementPostViews(String postId, String userId) async {
+    final viewRef = _firestore.collection('posts').doc(postId).collection('views').doc(userId);
+    final viewDoc = await viewRef.get();
+    
+    if (!viewDoc.exists) {
+      await viewRef.set({'viewedAt': FieldValue.serverTimestamp()});
+      await _firestore.collection('posts').doc(postId).update({
+        'viewsCount': FieldValue.increment(1)
+      });
+    }
   }
 
   Stream<List<PostModel>> getCommunityFeed({String? gymId, int limit = 10}) {

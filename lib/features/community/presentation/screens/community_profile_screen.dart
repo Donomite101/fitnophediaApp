@@ -24,6 +24,18 @@ class CommunityProfileScreen extends StatefulWidget {
     this.isGymOwner = false,
   }) : super(key: key);
 
+  static void navigate(BuildContext context, String userId, {bool isGymOwner = false}) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CommunityProfileScreen(
+          userId: userId,
+          isGymOwner: isGymOwner,
+        ),
+      ),
+    );
+  }
+
   @override
   State<CommunityProfileScreen> createState() => _CommunityProfileScreenState();
 }

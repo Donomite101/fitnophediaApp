@@ -278,6 +278,11 @@ class _SplashScreenState extends State<SplashScreen> {
           );
         }
         break;
+      
+      case 'staff':
+      case 'trainer':
+        Navigator.pushReplacementNamed(context, AppRoutes.staffTrainerDashboard);
+        break;
 
       default:
         _goToLogin();

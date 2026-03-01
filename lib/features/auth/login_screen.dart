@@ -341,6 +341,11 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.pushReplacementNamed(context, AppRoutes.memberDashboard);
         break;
 
+      case 'staff':
+      case 'trainer':
+        Navigator.pushReplacementNamed(context, AppRoutes.staffTrainerDashboard);
+        break;
+
       default:
         _showSnack('Unknown role. Please contact support.', AppTheme.alertRed);
     }

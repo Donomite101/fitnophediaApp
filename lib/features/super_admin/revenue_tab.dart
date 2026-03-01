@@ -157,10 +157,10 @@ class _RevenueSubscriptionsTabState extends State<RevenueSubscriptionsTab> with 
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final surfaceColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
-    final textColor = isDark ? Colors.white : const Color(0xFF2B3674);
-    final subtitleColor = isDark ? Colors.grey[400] : Colors.grey[600];
-    final bgColor = isDark ? const Color(0xFF121212) : Colors.grey[50];
+    final Color surfaceColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final Color textColor = isDark ? Colors.white : const Color(0xFF2B3674);
+    final Color subtitleColor = isDark ? const Color(0xFFBDBDBD) : const Color(0xFF757575);
+    final Color bgColor = isDark ? const Color(0xFF121212) : const Color(0xFFF5F5F5);
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -170,7 +170,7 @@ class _RevenueSubscriptionsTabState extends State<RevenueSubscriptionsTab> with 
           _buildHeader(isDark, surfaceColor, textColor),
 
           // QUICK STATS
-          _buildRevenueStats(isDark, surfaceColor, textColor, subtitleColor!),
+          _buildRevenueStats(isDark, surfaceColor, textColor, subtitleColor),
 
           // TIME FILTER & CONTROLS
           _buildTimeFilterBar(),

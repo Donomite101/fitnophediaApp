@@ -31,6 +31,7 @@ import 'diet_plans_card.dart';
 import 'notices_updates_card.dart';
 import 'challenge_card.dart';
 import 'next_meal_card.dart';
+import 'trainer_section_card.dart';
 
 class MemberDashboardScreen extends StatefulWidget {
   const MemberDashboardScreen({Key? key}) : super(key: key);
@@ -1084,6 +1085,17 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen>
                 SliverToBoxAdapter(child: const SizedBox(height: 24)),
                 SliverToBoxAdapter(child: _buildChallengesSection(context)),
               ],
+              SliverToBoxAdapter(child: const SizedBox(height: 24)),
+              SliverToBoxAdapter(
+                child: TrainerSectionCard(
+                  gymId: _gymId,
+                  memberId: _memberId,
+                  cardBackground: _cardBackground(context),
+                  textPrimary: _textPrimary(context),
+                  greyText: _greyText(context),
+                  primaryGreen: const Color(0xFF00E676),
+                ),
+              ),
               SliverToBoxAdapter(child: const SizedBox(height: 100)),
             ],
           ),

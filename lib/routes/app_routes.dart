@@ -21,6 +21,7 @@ import '../features/member/profile/member_profile_setup_screen.dart';
 import '../features/workout/presentation/screens/exercise_library_screen.dart';
 import '../features/workout/presentation/screens/workout_create_screen.dart';
 import '../features/workout/presentation/screens/workout_home_screen.dart';
+import '../features/staff_trainer/presentation/screens/staff_trainer_dashboard.dart';
 
 class AppRoutes {
   static const String splash = '/';
@@ -35,6 +36,7 @@ class AppRoutes {
   static const subscribe = '/subscribe';
   static const String memberDashboard = '/memberDashboard';
   static const String memberSubscription = '/memberSubscription';
+  static const String staffTrainerDashboard = '/staff-trainer-dashboard';
   static const String memberProfileSetup = '/memberProfileSetup';
   static const String memberNotifications = '/memberNotifications';
   static const subscriptionInactive = '/subscription-inactive';
@@ -80,6 +82,9 @@ class AppRoutes {
 
       case memberDashboard:
         return MaterialPageRoute(builder: (_) => const MemberDashboardScreen());
+
+      case staffTrainerDashboard:
+        return MaterialPageRoute(builder: (_) => const StaffTrainerDashboard());
 
       case memberSubscription:
         return MaterialPageRoute(builder: (_) => const MemberSubscriptionScreen());

@@ -10,6 +10,8 @@ import 'package:fitnophedia/features/community/presentation/screens/create_commu
 import 'package:fitnophedia/features/member/profile/MemberProfileScreen.dart';
 import 'package:fitnophedia/features/member/profile/member_profile_setup_screen.dart';
 import 'package:fitnophedia/features/community/presentation/screens/comments_screen.dart';
+import 'package:fitnophedia/features/community/presentation/widgets/community_post_card.dart';
+import 'package:fitnophedia/features/community/presentation/screens/community_profile_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fitnophedia/features/community/presentation/widgets/community_shimmer.dart';
@@ -177,7 +179,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
           leading: Padding(
             padding: const EdgeInsets.only(left: 8.0),
             child: GestureDetector(
-              onTap: () => MemberProfileScreen.navigate(context, widget.userId),
+              onTap: () => CommunityProfileScreen.navigate(context, widget.userId),
               child: FutureBuilder<DocumentSnapshot>(
                 future: FirebaseFirestore.instance.collection('members').doc(widget.userId).get(),
                 builder: (context, snapshot) {
@@ -302,7 +304,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
           ),
           title: Text(user['firstName'] ?? 'User'),
           subtitle: Text(user['bio'] ?? 'Fitness Enthusiast'),
-          onTap: () => MemberProfileScreen.navigate(context, user['id']),
+          onTap: () => CommunityProfileScreen.navigate(context, user['id']),
         );
       },
     );
@@ -377,7 +379,11 @@ class _CommunityScreenState extends State<CommunityScreen> {
                 return const SizedBox.shrink();
               }
 
-              return _buildPostItem(posts[postIdx]);
+              return CommunityPostCard(
+                post: posts[postIdx],
+                userId: widget.userId,
+                onDelete: () => _deletePost(posts[postIdx].id),
+              );
             },
           ),
         );
@@ -442,7 +448,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                 return Row(
                   children: [
                     GestureDetector(
-                      onTap: () => MemberProfileScreen.navigate(context, post.userId),
+                      onTap: () => CommunityProfileScreen.navigate(context, post.userId),
                       child: Container(
                         padding: const EdgeInsets.all(2),
                         decoration: BoxDecoration(
@@ -461,7 +467,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: GestureDetector(
-                        onTap: () => MemberProfileScreen.navigate(context, post.userId),
+                        onTap: () => CommunityProfileScreen.navigate(context, post.userId),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [

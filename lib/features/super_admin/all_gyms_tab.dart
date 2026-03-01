@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
 import 'package:jose/jose.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../core/app_theme.dart';
 
 class AllGymsTab extends StatefulWidget {
@@ -81,8 +82,10 @@ class _AllGymsTabState extends State<AllGymsTab> {
               Icon(Icons.fitness_center, size: 28, color: colors.primary),
               const SizedBox(width: 12),
               Text('Gym Management',
-                  style: textTheme.headlineSmall
-                      ?.copyWith(fontWeight: FontWeight.bold)),
+                  style: GoogleFonts.poppins(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: colors.onSurface)),
               const Spacer(),
               Container(
                 decoration: BoxDecoration(
@@ -114,12 +117,12 @@ class _AllGymsTabState extends State<AllGymsTab> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: TextField(
-                    style: textTheme.bodyMedium,
+                    style: GoogleFonts.poppins(color: colors.onSurface),
                     decoration: InputDecoration(
                       hintText: 'Search gyms...',
                       border: InputBorder.none,
                       hintStyle:
-                      TextStyle(color: colors.onSurface.withOpacity(0.5)),
+                      GoogleFonts.poppins(color: colors.onSurface.withOpacity(0.5)),
                       contentPadding: EdgeInsets.zero,
                     ),
                     onChanged: (v) =>
@@ -248,16 +251,17 @@ class _AllGymsTabState extends State<AllGymsTab> {
                     fit: BoxFit.scaleDown,
                     child: Text(
                       value.toString(),
-                      style: TextStyle(
-                          fontSize: 14,
+                      style: GoogleFonts.poppins(
+                          fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: color),
                     ),
                   ),
                   Text(
                     title,
-                    style: TextStyle(
-                        fontSize: 10,
+                    style: GoogleFonts.poppins(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
                         color: colors.onSurface.withOpacity(0.6)),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -285,7 +289,7 @@ class _AllGymsTabState extends State<AllGymsTab> {
                   .map((s) => DropdownMenuItem(
                 value: s,
                 child: Text(_capitalize(s),
-                    style: TextStyle(
+                    style: GoogleFonts.poppins(
                         color: _getStatusColor(s),
                         fontWeight: FontWeight.w500)),
               ))
@@ -296,7 +300,7 @@ class _AllGymsTabState extends State<AllGymsTab> {
           const Spacer(),
           if (_selectedGyms.isNotEmpty)
             Text('${_selectedGyms.length} selected',
-                style: TextStyle(
+                style: GoogleFonts.poppins(
                     color: colors.primary, fontWeight: FontWeight.w500)),
           if (_selectedGyms.isNotEmpty)
             TextButton(
@@ -331,7 +335,7 @@ class _AllGymsTabState extends State<AllGymsTab> {
     return ElevatedButton.icon(
       onPressed: () => _bulkUpdateStatus(text.toLowerCase()),
       icon: Icon(icon, size: 12),
-      label: Text(text, style: const TextStyle(fontSize: 12)),
+      label: Text(text, style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w500)),
       style: ElevatedButton.styleFrom(
         backgroundColor: color,
         foregroundColor: Colors.white,
@@ -394,7 +398,7 @@ class _AllGymsTabState extends State<AllGymsTab> {
                           fit: BoxFit.scaleDown,
                           child: Chip(
                             label: Text(status.toUpperCase(),
-                                style: const TextStyle(
+                                style: GoogleFonts.poppins(
                                     fontSize: 9, fontWeight: FontWeight.bold)),
                             backgroundColor:
                             _getStatusColor(status).withOpacity(0.15),
@@ -413,20 +417,22 @@ class _AllGymsTabState extends State<AllGymsTab> {
                   Text(name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
+                      style: GoogleFonts.poppins(
                           fontWeight: FontWeight.bold,
+                          fontSize: 14,
                           color: colors.onSurface)),
                   const SizedBox(height: 4),
                   Text(owner,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
+                      style: GoogleFonts.poppins(
+                          fontSize: 12,
                           color: colors.onSurface.withOpacity(0.6))),
                   const Spacer(),
                   Text(address,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
+                      style: GoogleFonts.poppins(
                           fontSize: 10,
                           color: colors.onSurface.withOpacity(0.6))),
                 ],
@@ -456,12 +462,12 @@ class _AllGymsTabState extends State<AllGymsTab> {
           margin: const EdgeInsets.only(bottom: 10),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           child: ListTile(
-            title: Text(name, overflow: TextOverflow.ellipsis),
+            title: Text(name, overflow: TextOverflow.ellipsis, style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14, color: colors.onSurface)),
             subtitle: Text('$owner • $address',
-                maxLines: 1, overflow: TextOverflow.ellipsis),
+                maxLines: 1, overflow: TextOverflow.ellipsis, style: GoogleFonts.poppins(fontSize: 12, color: colors.onSurface.withOpacity(0.6))),
             trailing: Chip(
               label: Text(status.toUpperCase(),
-                  style: const TextStyle(
+                  style: GoogleFonts.poppins(
                       fontSize: 9, fontWeight: FontWeight.bold)),
               backgroundColor: _getStatusColor(status).withOpacity(0.15),
               labelStyle: TextStyle(color: _getStatusColor(status)),
@@ -526,8 +532,8 @@ class _AllGymsTabState extends State<AllGymsTab> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text('Actions',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    Text('Actions',
+                        style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: colors.onSurface)),
                     const SizedBox(height: 12),
                     Wrap(
                       spacing: 8,
@@ -563,7 +569,7 @@ class _AllGymsTabState extends State<AllGymsTab> {
     return ElevatedButton.icon(
       onPressed: onPressed,
       icon: Icon(icon, size: 16),
-      label: Text(label, style: const TextStyle(fontSize: 12)),
+      label: Text(label, style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w500)),
       style: ElevatedButton.styleFrom(
         backgroundColor: color,
         foregroundColor: Colors.white,

@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import '../../core/services/emails/email_service.dart';
 import '../../core/widgets/custom_button.dart';
 import '../../core/app_theme.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class PendingApprovalsTab extends StatefulWidget {
   const PendingApprovalsTab({Key? key}) : super(key: key);
@@ -88,7 +89,7 @@ class _PendingApprovalsTabState extends State<PendingApprovalsTab> {
                 const SizedBox(height: 16),
                 Text(
                   'No pending approvals',
-                  style: TextStyle(fontSize: 18, color: subTextColor),
+                  style: GoogleFonts.poppins(fontSize: 18, color: subTextColor, fontWeight: FontWeight.w500),
                 ),
               ],
             ),
@@ -141,14 +142,14 @@ class _PendingApprovalsTabState extends State<PendingApprovalsTab> {
                   children: [
                     Text(
                       gymData['businessName'] ?? 'Unknown Gym',
-                      style: TextStyle(
+                      style: GoogleFonts.poppins(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: textColor),
                     ),
                     Text(
                       gymData['businessType'] ?? 'N/A',
-                      style: TextStyle(color: subTextColor, fontSize: 14),
+                      style: GoogleFonts.poppins(color: subTextColor, fontSize: 13),
                     ),
                   ],
                 ),
@@ -215,7 +216,7 @@ class _PendingApprovalsTabState extends State<PendingApprovalsTab> {
     ),
     child: Text(
       label,
-      style: TextStyle(
+      style: GoogleFonts.poppins(
           color: color, fontWeight: FontWeight.bold, fontSize: 12),
     ),
   );
@@ -229,13 +230,13 @@ class _PendingApprovalsTabState extends State<PendingApprovalsTab> {
             width: 100,
             child: Text(
               "$label:",
-              style: TextStyle(fontWeight: FontWeight.bold, color: textColor),
+              style: GoogleFonts.poppins(fontWeight: FontWeight.w600, color: textColor, fontSize: 13),
             ),
           ),
           Expanded(
             child: Text(
               value ?? 'N/A',
-              style: TextStyle(color: subTextColor),
+              style: GoogleFonts.poppins(color: subTextColor, fontSize: 13),
             ),
           ),
         ],

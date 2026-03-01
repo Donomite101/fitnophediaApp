@@ -155,15 +155,22 @@ class _RevenueSubscriptionsTabState extends State<RevenueSubscriptionsTab> with 
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final surfaceColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF2B3674);
+    final subtitleColor = isDark ? Colors.grey[400] : Colors.grey[600];
+    final bgColor = isDark ? const Color(0xFF121212) : Colors.grey[50];
+
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: bgColor,
       body: Column(
         children: [
           // HEADER
-          _buildHeader(),
+          _buildHeader(isDark, surfaceColor, textColor),
 
           // QUICK STATS
-          _buildRevenueStats(),
+          _buildRevenueStats(isDark, surfaceColor, textColor, subtitleColor!),
 
           // TIME FILTER & CONTROLS
           _buildTimeFilterBar(),
@@ -203,14 +210,14 @@ class _RevenueSubscriptionsTabState extends State<RevenueSubscriptionsTab> with 
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(bool isDark, Color surfaceColor, Color textColor) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surfaceColor,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: isDark ? Colors.black.withOpacity(0.2) : Colors.black.withOpacity(0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -220,12 +227,13 @@ class _RevenueSubscriptionsTabState extends State<RevenueSubscriptionsTab> with 
         children: [
           const Icon(Icons.currency_rupee, size: 24, color: Colors.green),
           const SizedBox(width: 8),
-          const Expanded(
+          Expanded(
             child: Text(
               'Revenue & Subscriptions',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
+                color: textColor,
               ),
             ),
           ),
@@ -244,7 +252,7 @@ class _RevenueSubscriptionsTabState extends State<RevenueSubscriptionsTab> with 
     );
   }
 
-  Widget _buildRevenueStats() {
+  Widget _buildRevenueStats(bool isDark, Color surfaceColor, Color textColor, Color subtitleColor) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: SizedBox(
@@ -258,28 +266,28 @@ class _RevenueSubscriptionsTabState extends State<RevenueSubscriptionsTab> with 
           childAspectRatio: 1.8,
           children: [
             _buildRevenueStatCard(
-              'Total Revenue',
+              'Total Revenue', isDark, surfaceColor, textColor, subtitleColor,
               '₹${_formatCurrency(_revenueStats['totalRevenue'] ?? 0)}',
               Icons.currency_rupee,
               Colors.green,
               '${_revenueStats['revenueGrowth'] ?? 0}% growth',
             ),
             _buildRevenueStatCard(
-              'Monthly Recurring',
+              'Monthly Recurring', isDark, surfaceColor, textColor, subtitleColor,
               '₹${_formatCurrency(_revenueStats['monthlyRecurring'] ?? 0)}',
               Icons.autorenew,
               Colors.blue,
               'MRR from active subs',
             ),
             _buildRevenueStatCard(
-              'Active Subs',
+              'Active Subs', isDark, surfaceColor, textColor, subtitleColor,
               '${_revenueStats['activeSubscriptions'] ?? 0}',
               Icons.subscriptions,
               Colors.orange,
               '${_revenueStats['subscriptionGrowth'] ?? 0}% growth',
             ),
             _buildRevenueStatCard(
-              'Avg. Revenue/Sub',
+              'Avg. Revenue/Sub', isDark, surfaceColor, textColor, subtitleColor,
               '₹${_calculateARPU()}',
               Icons.trending_up,
               Colors.purple,
@@ -298,9 +306,10 @@ class _RevenueSubscriptionsTabState extends State<RevenueSubscriptionsTab> with 
     return _formatCurrency(arpu.round());
   }
 
-  Widget _buildRevenueStatCard(String title, String value, IconData icon, Color color, String subtitle) {
+  Widget _buildRevenueStatCard(String title, bool isDark, Color surfaceColor, Color textColor, Color subtitleColor, String value, IconData icon, Color color, String subtitle) {
     return Card(
       elevation: 1,
+      color: surfaceColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       child: Padding(
         padding: const EdgeInsets.all(10),
@@ -332,18 +341,18 @@ class _RevenueSubscriptionsTabState extends State<RevenueSubscriptionsTab> with 
             const SizedBox(height: 6),
             Text(
               title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w500,
-                color: Colors.grey,
+                color: subtitleColor,
               ),
             ),
             const SizedBox(height: 2),
             Text(
               subtitle,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 8,
-                color: Colors.grey,
+                color: subtitleColor,
               ),
             ),
           ],

@@ -149,6 +149,13 @@ class _DashboardOverviewTabState extends State<DashboardOverviewTab> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
+        final theme = Theme.of(context);
+        final isDark = theme.brightness == Brightness.dark;
+        
+        final surfaceColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+        final textColor = isDark ? Colors.white : const Color(0xFF2B3674);
+        final subtitleColor = isDark ? Colors.grey[400] : Colors.grey[600];
+
         final isWide = constraints.maxWidth > 900;
         
         return SingleChildScrollView(
@@ -156,7 +163,7 @@ class _DashboardOverviewTabState extends State<DashboardOverviewTab> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Stats Grid
-              _buildStatsGrid(constraints.maxWidth),
+              _buildStatsGrid(constraints.maxWidth, isDark, surfaceColor, textColor, subtitleColor!),
               const SizedBox(height: 32),
 
               // Charts Section
@@ -164,21 +171,21 @@ class _DashboardOverviewTabState extends State<DashboardOverviewTab> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(flex: 2, child: _buildRevenueChartCard()),
+                    Expanded(flex: 2, child: _buildRevenueChartCard(isDark, surfaceColor, textColor)),
                     const SizedBox(width: 24),
-                    Expanded(flex: 1, child: _buildSubscriptionPieCard()),
+                    Expanded(flex: 1, child: _buildSubscriptionPieCard(isDark, surfaceColor, textColor, subtitleColor)),
                   ],
                 )
               else ...[
-                _buildRevenueChartCard(),
+                _buildRevenueChartCard(isDark, surfaceColor, textColor),
                 const SizedBox(height: 24),
-                _buildSubscriptionPieCard(),
+                _buildSubscriptionPieCard(isDark, surfaceColor, textColor, subtitleColor),
               ],
 
               const SizedBox(height: 32),
 
               // Recent Activity
-              _buildRecentActivitySection(),
+              _buildRecentActivitySection(isDark, surfaceColor, textColor, subtitleColor),
             ],
           ),
         );
@@ -186,7 +193,7 @@ class _DashboardOverviewTabState extends State<DashboardOverviewTab> {
     );
   }
 
-  Widget _buildStatsGrid(double maxWidth) {
+  Widget _buildStatsGrid(double maxWidth, bool isDark, Color surfaceColor, Color textColor, Color subtitleColor) {
     // Calculate card width based on available space
     // On wide screens: 4 cards per row
     // On medium screens: 2 cards per row
@@ -216,21 +223,25 @@ class _DashboardOverviewTabState extends State<DashboardOverviewTab> {
             stat['value'] as String,
             stat['icon'] as IconData,
             stat['color'] as Color,
+            isDark,
+            surfaceColor,
+            textColor,
+            subtitleColor,
           ),
         );
       }).toList(),
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+  Widget _buildStatCard(String title, String value, IconData icon, Color color, bool isDark, Color surfaceColor, Color textColor, Color subtitleColor) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surfaceColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.05),
+            color: isDark ? Colors.black.withOpacity(0.2) : Colors.grey.withOpacity(0.05),
             blurRadius: 20,
             offset: const Offset(0, 4),
           ),
@@ -255,7 +266,7 @@ class _DashboardOverviewTabState extends State<DashboardOverviewTab> {
                   title,
                   style: GoogleFonts.poppins(
                     fontSize: 14,
-                    color: Colors.grey[600],
+                    color: subtitleColor,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -265,7 +276,7 @@ class _DashboardOverviewTabState extends State<DashboardOverviewTab> {
                   style: GoogleFonts.poppins(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: const Color(0xFF2B3674),
+                    color: textColor,
                   ),
                 ),
               ],
@@ -276,15 +287,15 @@ class _DashboardOverviewTabState extends State<DashboardOverviewTab> {
     );
   }
 
-  Widget _buildRevenueChartCard() {
+  Widget _buildRevenueChartCard(bool isDark, Color surfaceColor, Color textColor) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surfaceColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.05),
+            color: isDark ? Colors.black.withOpacity(0.2) : Colors.grey.withOpacity(0.05),
             blurRadius: 20,
             offset: const Offset(0, 4),
           ),
@@ -301,7 +312,7 @@ class _DashboardOverviewTabState extends State<DashboardOverviewTab> {
                 style: GoogleFonts.poppins(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: const Color(0xFF2B3674),
+                  color: textColor,
                 ),
               ),
               Container(
@@ -424,15 +435,15 @@ class _DashboardOverviewTabState extends State<DashboardOverviewTab> {
     );
   }
 
-  Widget _buildSubscriptionPieCard() {
+  Widget _buildSubscriptionPieCard(bool isDark, Color surfaceColor, Color textColor, Color subtitleColor) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surfaceColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.05),
+            color: isDark ? Colors.black.withOpacity(0.2) : Colors.grey.withOpacity(0.05),
             blurRadius: 20,
             offset: const Offset(0, 4),
           ),
@@ -446,14 +457,14 @@ class _DashboardOverviewTabState extends State<DashboardOverviewTab> {
             style: GoogleFonts.poppins(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: const Color(0xFF2B3674),
+              color: textColor,
             ),
           ),
           const SizedBox(height: 32),
           SizedBox(
             height: 300,
             child: subscriptionCounts.isEmpty
-                ? Center(child: Text('No data available', style: GoogleFonts.poppins(color: Colors.grey)))
+                ? Center(child: Text('No data available', style: GoogleFonts.poppins(color: subtitleColor)))
                 : PieChart(
                     PieChartData(
                       sectionsSpace: 0,
@@ -496,7 +507,7 @@ class _DashboardOverviewTabState extends State<DashboardOverviewTab> {
     });
   }
 
-  Widget _buildRecentActivitySection() {
+  Widget _buildRecentActivitySection(bool isDark, Color surfaceColor, Color textColor, Color subtitleColor) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -505,17 +516,17 @@ class _DashboardOverviewTabState extends State<DashboardOverviewTab> {
           style: GoogleFonts.poppins(
             fontSize: 20,
             fontWeight: FontWeight.bold,
-            color: const Color(0xFF2B3674),
+            color: textColor,
           ),
         ),
         const SizedBox(height: 16),
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: surfaceColor,
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: Colors.grey.withOpacity(0.05),
+                color: isDark ? Colors.black.withOpacity(0.2) : Colors.grey.withOpacity(0.05),
                 blurRadius: 20,
                 offset: const Offset(0, 4),
               ),
@@ -542,17 +553,17 @@ class _DashboardOverviewTabState extends State<DashboardOverviewTab> {
                   activity['title'],
                   style: GoogleFonts.poppins(
                     fontWeight: FontWeight.w600,
-                    color: const Color(0xFF2B3674),
+                    color: textColor,
                   ),
                 ),
                 subtitle: Text(
                   activity['subtitle'],
-                  style: GoogleFonts.poppins(color: Colors.grey[600], fontSize: 13),
+                  style: GoogleFonts.poppins(color: subtitleColor, fontSize: 13),
                 ),
                 trailing: Text(
                   activity['time'],
                   style: GoogleFonts.poppins(
-                    color: Colors.grey[500],
+                    color: subtitleColor,
                     fontSize: 12,
                   ),
                 ),

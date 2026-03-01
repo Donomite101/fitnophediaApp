@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
@@ -202,6 +203,19 @@ class NutritionRepository {
     await prefs.setInt('hydration_end_hour', endHour);
     await prefs.setInt('hydration_end_minute', endMinute);
     await prefs.setBool('hydration_reminders_repeating', repeating);
+
+    // Sync to global users collection so backend notification engine can read it
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid ?? memberId;
+      await FirebaseFirestore.instance.collection('users').doc(uid).set({
+        'settings': {
+          'hydrationEnabled': enabled,
+          'smartVibesEnabled': enabled, // tie both to the same toggle for now to avoid UI bloat
+        }
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Error syncing reminder settings to users doc: $e');
+    }
   }
 
   Future<Map<String, dynamic>> getReminderSettings() async {

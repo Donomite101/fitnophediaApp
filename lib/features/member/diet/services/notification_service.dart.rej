@@ -1,0 +1,22 @@
+@@ -160,8 +160,9 @@
+         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+         uiLocalNotificationDateInterpretation:
+             UILocalNotificationDateInterpretation.absoluteTime,
+-        matchDateTimeComponents: DateTimeComponents.time, // Repeats daily at this time
++        matchDateTimeComponents: DateTimeComponents.time,
+       );
++      debugPrint('Successfully scheduled EXACT notification for ID=$id');
+     } catch (e) {
+       debugPrint('Error scheduling exact alarm: $e');
+       // Fallback to inexact if exact fails
+@@ -184,8 +185,9 @@
+         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+         uiLocalNotificationDateInterpretation:
+             UILocalNotificationDateInterpretation.absoluteTime,
+-        matchDateTimeComponents: DateTimeComponents.time,
++        matchDateTimeComponents: DateTimeComponents.time,
+       );
++      debugPrint('Successfully scheduled INEXACT notification (fallback) for ID=$id');
+     }
+   }
+ 

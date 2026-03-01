@@ -160,7 +160,7 @@ class NotificationService {
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
-        matchDateTimeComponents: DateTimeComponents.time, // Repeats daily at this time
+        // matchDateTimeComponents: DateTimeComponents.time,
       );
       debugPrint('Successfully scheduled EXACT notification for ID=$id');
     } catch (e) {
@@ -184,7 +184,7 @@ class NotificationService {
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
-        matchDateTimeComponents: DateTimeComponents.time,
+        // matchDateTimeComponents: DateTimeComponents.time,
       );
       debugPrint('Successfully scheduled INEXACT notification (fallback) for ID=$id');
     }

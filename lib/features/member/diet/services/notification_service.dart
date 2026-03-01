@@ -192,24 +192,21 @@ class NotificationService {
 
   tz.TZDateTime _nextInstanceOfTime(TimeOfDay time) {
     final DateTime now = DateTime.now();
-    final DateTime scheduledDateLocal = DateTime(
+    DateTime scheduledDateLocal = DateTime(
       now.year,
       now.month,
       now.day,
       time.hour,
       time.minute,
     );
+
+    // If it's already past this exact hour/minute today, schedule for tomorrow
+    if (scheduledDateLocal.isBefore(now) || scheduledDateLocal.isAtSameMomentAs(now)) {
+      scheduledDateLocal = scheduledDateLocal.add(const Duration(days: 1));
+    }
     
     // Convert local DateTime to the timezone aware DateTime
-    tz.TZDateTime scheduledDate = tz.TZDateTime.from(scheduledDateLocal, tz.local);
-    
-    // Add a 2-minute buffer: if the scheduled time is within 2 mins of now, 
-    // it's likely too close for the system to fire accurately today, so move to tomorrow.
-    final tzNow = tz.TZDateTime.now(tz.local);
-    if (scheduledDate.isBefore(tzNow.add(const Duration(minutes: 2)))) {
-      scheduledDate = scheduledDate.add(const Duration(days: 1));
-    }
-    return scheduledDate;
+    return tz.TZDateTime.from(scheduledDateLocal, tz.local);
   }
 
   Future<void> cancelReminders() async {

@@ -10,8 +10,9 @@ import 'package:intl/intl.dart';
 
 class CommentsScreen extends StatefulWidget {
   final String postId;
+  final String userId;
 
-  const CommentsScreen({Key? key, required this.postId}) : super(key: key);
+  const CommentsScreen({Key? key, required this.postId, required this.userId}) : super(key: key);
 
   @override
   State<CommentsScreen> createState() => _CommentsScreenState();

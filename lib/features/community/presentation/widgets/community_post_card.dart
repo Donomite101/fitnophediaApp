@@ -448,10 +448,10 @@ class _CommunityPostCardState extends State<CommunityPostCard> {
                 Row(
                   children: [
                     // Like Button
-                    StreamBuilder<DocumentSnapshot>(
+                    StreamBuilder<bool>(
                       stream: CommunityService.instance.getLikeStatus(widget.post.id, widget.userId),
                       builder: (context, snap) {
-                        final isLiked = snap.hasData && snap.data!.exists;
+                        final isLiked = snap.data ?? false;
                         return Row(
                           children: [
                             IconButton(

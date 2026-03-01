@@ -566,7 +566,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => CommentsScreen(postId: post.id),
+                        builder: (context) => CommentsScreen(postId: post.id, userId: widget.userId),
                       ),
                     );
                   },

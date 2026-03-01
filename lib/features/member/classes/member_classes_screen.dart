@@ -66,7 +66,6 @@ class _MemberClassesScreenState extends State<MemberClassesScreen> {
                 child: MemberClassCard(
                   classData: classData,
                   isDarkMode: isDark,
-                  width: null,
                   onTap: () {
                     Navigator.push(
                       context,

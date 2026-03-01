@@ -629,7 +629,7 @@ class _CommunityProfileScreenState extends State<CommunityProfileScreen> with Au
         final post = _userPosts[index];
         return GestureDetector(
           onLongPress: _isCurrentUser() ? () => _deletePost(post.id) : null,
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => CommentsScreen(postId: post.id))),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => CommentsScreen(postId: post.id, userId: FirebaseAuth.instance.currentUser?.uid ?? ''))),
           child: CachedNetworkImage(
             imageUrl: post.mediaUrl,
             fit: BoxFit.cover,
@@ -653,7 +653,7 @@ class _CommunityProfileScreenState extends State<CommunityProfileScreen> with Au
       itemBuilder: (context, index) {
         final post = _savedPosts[index];
         return GestureDetector(
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => CommentsScreen(postId: post.id))),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => CommentsScreen(postId: post.id, userId: FirebaseAuth.instance.currentUser?.uid ?? ''))),
           child: CachedNetworkImage(
             imageUrl: post.mediaUrl,
             fit: BoxFit.cover,

@@ -6,8 +6,10 @@ class PostModel {
   final String userName;
   final String userProfileImage;
   final String mediaUrl;
+  final List<String> mediaUrls;
   final String mediaType;
   final String caption;
+  final String? location;
   final int likesCount;
   final int viewsCount;
   final String? gymId;
@@ -21,8 +23,10 @@ class PostModel {
     required this.userName,
     required this.userProfileImage,
     required this.mediaUrl,
+    this.mediaUrls = const [],
     required this.mediaType,
     required this.caption,
+    this.location,
     required this.likesCount,
     this.viewsCount = 0,
     this.gymId,
@@ -39,8 +43,10 @@ class PostModel {
       userName: data['userName'] ?? 'Member',
       userProfileImage: data['userProfileImage'] ?? '',
       mediaUrl: data['mediaUrl'] ?? '',
+      mediaUrls: List<String>.from(data['mediaUrls'] ?? []),
       mediaType: data['mediaType'] ?? 'image',
       caption: data['caption'] ?? '',
+      location: data['location'],
       likesCount: data['likesCount'] ?? 0,
       viewsCount: data['viewsCount'] ?? 0,
       gymId: data['gymId'],
@@ -56,8 +62,10 @@ class PostModel {
       'userName': userName,
       'userProfileImage': userProfileImage,
       'mediaUrl': mediaUrl,
+      'mediaUrls': mediaUrls,
       'mediaType': mediaType,
       'caption': caption,
+      'location': location,
       'likesCount': likesCount,
       'viewsCount': viewsCount,
       'gymId': gymId,

@@ -20,7 +20,8 @@ import '../../routes/app_routes.dart';
 import '../../core/app_theme.dart';
 
 class GymOnboardingScreen extends StatefulWidget {
-  const GymOnboardingScreen({Key? key}) : super(key: key);
+  final bool isAddingNewGym;
+  const GymOnboardingScreen({Key? key, this.isAddingNewGym = false}) : super(key: key);
   @override
   State<GymOnboardingScreen> createState() => _GymOnboardingScreenState();
 }

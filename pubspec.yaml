@@ -22,6 +22,7 @@ dependencies:
   # Camera & Image Processing
   camera: ^0.11.3
   image_picker: ^1.2.0
+  flutter_image_compress: ^2.3.0
 
   # Barcode Scanning
   barcode_scan2: ^4.5.2

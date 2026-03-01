@@ -43,6 +43,14 @@ class CommunityService {
     await _firestore.collection('posts').doc(postId).delete();
   }
 
+  Future<void> updatePost(String postId, Map<String, dynamic> data) async {
+    await _firestore.collection('posts').doc(postId).update(data);
+  }
+
+  Stream<bool> getLikeStatus(String postId, String userId) {
+    return _firestore.collection('posts').doc(postId).collection('likes').doc(userId).snapshots().map((doc) => doc.exists);
+  }
+
   Future<void> incrementPostViews(String postId, String userId) async {
     final viewRef = _firestore.collection('posts').doc(postId).collection('views').doc(userId);
     final viewDoc = await viewRef.get();
@@ -210,6 +218,37 @@ class CommunityService {
         data: {'followerId': currentUserId},
       );
     }
+  }
+
+  // ========== FOLLOW LISTS ==========
+  Future<List<Map<String, dynamic>>> getFollowers(String userId) async {
+    final snapshot = await _firestore.collection('members').doc(userId).collection('followers').get();
+    final List<Map<String, dynamic>> followers = [];
+    for (var doc in snapshot.docs) {
+      final memberDoc = await _firestore.collection('members').doc(doc.id).get();
+      if (memberDoc.exists) {
+        final data = memberDoc.data()!;
+        data['uid'] = memberDoc.id;
+        followers.add(data);
+      }
+    }
+    return followers;
+  }
+
+  Future<List<Map<String, dynamic>>> getFollowing(String userId) async {
+    final doc = await _firestore.collection('members').doc(userId).get();
+    if (!doc.exists) return [];
+    final List<dynamic> followingIds = doc.data()?['following'] ?? [];
+    final List<Map<String, dynamic>> following = [];
+    for (var id in followingIds) {
+      final memberDoc = await _firestore.collection('members').doc(id).get();
+      if (memberDoc.exists) {
+        final data = memberDoc.data()!;
+        data['uid'] = memberDoc.id;
+        following.add(data);
+      }
+    }
+    return following;
   }
 
   // ========== COMMENTS ==========

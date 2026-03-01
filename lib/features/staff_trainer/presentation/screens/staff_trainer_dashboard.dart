@@ -5,9 +5,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:geolocator/geolocator.dart';
+import 'dart:math';
 import '../../../../core/app_theme.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../routes/app_routes.dart';
+import 'trainees_list_screen.dart';
+import 'stopwatch_screen.dart';
 
 class StaffTrainerDashboard extends StatefulWidget {
   const StaffTrainerDashboard({Key? key}) : super(key: key);
@@ -89,39 +93,101 @@ class _StaffTrainerDashboardState extends State<StaffTrainerDashboard> {
     }
   }
 
+  double _distanceMeters(double lat1, double lon1, double lat2, double lon2) {
+    const R = 6371000.0;
+    final dLat = (lat2 - lat1) * (pi / 180);
+    final dLon = (lon2 - lon1) * (pi / 180);
+    final a = sin(dLat / 2) * sin(dLat / 2) + cos(lat1 * (pi / 180)) * cos(lat2 * (pi / 180)) * sin(dLon / 2) * sin(dLon / 2);
+    final c = 2 * atan2(sqrt(a), sqrt(1 - a));
+    return R * c;
+  }
+
   Future<void> _markAttendance() async {
     if (_gymId == null || _staffId == null || _attendanceMarkedToday) return;
 
-    final now = DateTime.now();
-    final today = DateFormat('yyyy-MM-dd').format(now);
-    
-    await _firestore
-        .collection('gyms')
-        .doc(_gymId)
-        .collection('staff')
-        .doc(_staffId)
-        .collection('attendance')
-        .doc(today)
-        .set({
-      'timestamp': FieldValue.serverTimestamp(),
-      'status': 'present',
-      'date': today,
-    });
+    try {
+      // 1. Get Gym Location
+      final gymDoc = await _firestore.collection('gyms').doc(_gymId).get();
+      if (!gymDoc.exists) return;
+      final gymData = gymDoc.data()!;
+      final dynamic rawLocation = gymData['location'];
+      
+      double? gymLat;
+      double? gymLng;
+      double radius = double.tryParse((gymData['radiusMeters'] ?? gymData['geofenceRadiusMeters'] ?? 100).toString()) ?? 100.0;
 
-    // Also update lastAttendanceDate on staff doc
-    await _firestore
-        .collection('gyms')
-        .doc(_gymId)
-        .collection('staff')
-        .doc(_staffId)
-        .update({'lastAttendanceDate': FieldValue.serverTimestamp()});
+      if (rawLocation is GeoPoint) {
+        gymLat = rawLocation.latitude;
+        gymLng = rawLocation.longitude;
+      } else if (rawLocation is Map<String, dynamic>) {
+        if (rawLocation.containsKey('lat') && rawLocation.containsKey('lng')) {
+          gymLat = double.tryParse(rawLocation['lat'].toString());
+          gymLng = double.tryParse(rawLocation['lng'].toString());
+        }
+      }
 
-    setState(() => _attendanceMarkedToday = true);
-    
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Attendance marked successfully!'), backgroundColor: AppTheme.primaryGreen),
-      );
+      // 2. Get Device Location
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Location permission required for attendance'), backgroundColor: Colors.red));
+        return;
+      }
+
+      final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.best);
+
+      // 3. Compare Distance
+      if (gymLat != null && gymLng != null) {
+        final dist = _distanceMeters(position.latitude, position.longitude, gymLat, gymLng);
+        if (dist > radius) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('You must be within ${radius.toInt()}m of the gym. Current distance: ${dist.toInt()}m'),
+              backgroundColor: Colors.red,
+            ));
+          }
+          return;
+        }
+      }
+
+      final now = DateTime.now();
+      final today = DateFormat('yyyy-MM-dd').format(now);
+      
+      await _firestore
+          .collection('gyms')
+          .doc(_gymId)
+          .collection('staff')
+          .doc(_staffId)
+          .collection('attendance')
+          .doc(today)
+          .set({
+        'timestamp': FieldValue.serverTimestamp(),
+        'status': 'present',
+        'date': today,
+      });
+
+      await _firestore
+          .collection('gyms')
+          .doc(_gymId)
+          .collection('staff')
+          .doc(_staffId)
+          .update({'lastAttendanceDate': FieldValue.serverTimestamp()});
+
+      setState(() => _attendanceMarkedToday = true);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Attendance marked successfully!'), backgroundColor: AppTheme.primaryGreen),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to mark attendance: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -158,7 +224,11 @@ class _StaffTrainerDashboardState extends State<StaffTrainerDashboard> {
                     const SizedBox(height: 12),
                     _buildTodayClasses(isDark),
                     const SizedBox(height: 24),
-                    _buildSectionHeader('Recent Trainees', () {}),
+                    _buildSectionHeader('Recent Trainees', () {
+                      if (_gymId != null && _staffId != null) {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => TraineesListScreen(gymId: _gymId!, trainerId: _staffId!)));
+                      }
+                    }),
                     const SizedBox(height: 12),
                     _buildRecentTrainees(isDark),
                   ],
@@ -191,9 +261,12 @@ class _StaffTrainerDashboardState extends State<StaffTrainerDashboard> {
         ),
         const SizedBox(height: 16),
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildServiceItem('Trainee Payments', Iconsax.empty_wallet_add, Colors.blue, isDark, () {}),
-            _buildServiceItem('Performance', Iconsax.chart_2, Colors.orange, isDark, () {}),
+            _buildServiceItem('Stopwatch', Iconsax.timer_1, Colors.orange, isDark, () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const TrainerStopwatchScreen()));
+            }),
             _buildServiceItem('Leave Request', Iconsax.calendar_edit, Colors.red, isDark, () {}),
             _buildServiceItem('My Schedule', Iconsax.clock, Colors.purple, isDark, () {}),
           ],
@@ -598,40 +671,95 @@ class _StaffTrainerDashboardState extends State<StaffTrainerDashboard> {
   }
 
   Widget _buildRecentTrainees(bool isDark) {
-    return SizedBox(
-      height: 120,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: 5,
-        itemBuilder: (context, index) {
+    if (_gymId == null || _staffId == null) return const SizedBox.shrink();
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: _firestore
+          .collection('trainer_bookings')
+          .where('trainerId', isEqualTo: _staffId)
+          .where('gymId', isEqualTo: _gymId)
+          .where('status', isEqualTo: 'active')
+          .limit(5)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+        }
+
+        if (snapshot.hasError || !snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return Container(
-            width: 100,
-            margin: const EdgeInsets.only(right: 12),
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05)),
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+            child: Row(
               children: [
-                const CircleAvatar(
-                  radius: 25,
-                  backgroundColor: AppTheme.primaryGreen,
-                  child: Icon(Iconsax.user, color: Colors.white, size: 20),
-                ),
-                const SizedBox(height: 8),
+                Icon(Iconsax.user_minus, color: Colors.grey.withOpacity(0.5)),
+                const SizedBox(width: 12),
                 Text(
-                  'Member $index',
-                  style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  'No active trainees right now.',
+                  style: GoogleFonts.inter(fontSize: 14, color: Colors.grey),
                 ),
               ],
             ),
           );
-        },
-      ),
+        }
+
+        final bookings = snapshot.data!.docs;
+
+        return SizedBox(
+          height: 120,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: bookings.length,
+            itemBuilder: (context, index) {
+              final bookingData = bookings[index].data() as Map<String, dynamic>;
+              final memberId = bookingData['memberId'];
+
+              return FutureBuilder<DocumentSnapshot>(
+                future: _firestore.collection('users').doc(memberId).get(),
+                builder: (context, memberSnap) {
+                  if (!memberSnap.hasData) return const SizedBox.shrink();
+                  final memberData = memberSnap.data!.data() as Map<String, dynamic>?;
+                  if (memberData == null) return const SizedBox.shrink();
+
+                  final photoUrl = memberData['photoUrl'];
+                  final name = memberData['name'] ?? 'Member';
+
+                  return Container(
+                    width: 100,
+                    margin: const EdgeInsets.only(right: 12),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05)),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircleAvatar(
+                          radius: 25,
+                          backgroundColor: AppTheme.primaryGreen.withOpacity(0.1),
+                          backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
+                          child: photoUrl == null ? const Icon(Iconsax.user, color: AppTheme.primaryGreen, size: 20) : null,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          name,
+                          style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        );
+      },
     );
   }
 

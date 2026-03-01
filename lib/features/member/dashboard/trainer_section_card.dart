@@ -102,7 +102,7 @@ class TrainerSectionCard extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => _BookingSheet(trainer: trainer),
+      builder: (context) => _BookingSheet(trainer: trainer, memberId: memberId, gymId: gymId),
     );
   }
 
@@ -128,8 +128,10 @@ class TrainerSectionCard extends StatelessWidget {
 
 class _BookingSheet extends StatelessWidget {
   final Map<String, dynamic> trainer;
+  final String memberId;
+  final String gymId;
 
-  const _BookingSheet({Key? key, required this.trainer}) : super(key: key);
+  const _BookingSheet({Key? key, required this.trainer, required this.memberId, required this.gymId}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -206,14 +208,38 @@ class _BookingSheet extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Booking request sent to ${trainer['name']}!'),
-                    backgroundColor: AppTheme.primaryGreen,
-                  ),
-                );
+              onPressed: () async {
+                final trainerId = trainer['id'];
+                
+                // Add booking to firestore
+                try {
+                  await FirebaseFirestore.instance.collection('trainer_bookings').add({
+                    'gymId': gymId,
+                    'trainerId': trainerId,
+                    'memberId': memberId,
+                    'status': 'pending', // pending, active, completed, rejected
+                    'timestamp': FieldValue.serverTimestamp(),
+                  });
+                  
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Booking request sent to ${trainer['name']}!'),
+                        backgroundColor: AppTheme.primaryGreen,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error: Could not send booking request.'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryGreen,
